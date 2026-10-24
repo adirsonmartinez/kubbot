@@ -98,8 +98,8 @@ export class ChatViewModel {
       const GIT_STR = strings.agent.git;
       // Actionable chips: clicking them pre-fills the chat input with a ready-to-send git command
       const chips = GIT_STR ? [
-        { label: GIT_STR.chipRevert(commit.short), run: () => this.#prefillGitCommand(`rollback al commit ${commit.sha}`) },
-        { label: GIT_STR.chipReset(commit.short),  run: () => this.#prefillGitCommand(`reset al commit ${commit.sha}`) },
+        { label: GIT_STR.chipRevert(commit.short), run: () => this.#prefillGitCommand(`rollback al commit ${commit.short}`) },
+        { label: GIT_STR.chipReset(commit.short),  run: () => this.#prefillGitCommand(`reset al commit ${commit.short}`) },
       ] : undefined;
       this.sayFromMap({ text, tone: commit.risk ? 'alert' : '', chips });
     });
