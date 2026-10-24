@@ -60,6 +60,7 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
 
     sendButton.disabled = state.typing;
     root.classList.toggle('min', state.minimized);
+    document.body.classList.toggle('chat-min', state.minimized); // the map takes the chat's column
     toggle.setAttribute('aria-expanded', String(!state.minimized));
     toggle.title = state.minimized ? strings.chat.expand : strings.chat.minimize;
     toggle.querySelector('svg').innerHTML = state.minimized ? ICON_EXPAND : ICON_MINIMIZE;

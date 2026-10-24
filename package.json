@@ -12,7 +12,7 @@
     "build:web": "node scripts/build-web.js",
     "dist:mac": "electron-builder --mac --publish never",
     "dist:win": "electron-builder --win --publish never",
-    "test": "node --test electron/mcpServer.test.js"
+    "test": "node --test electron/mcpServer.test.js tests/renderer/*.test.mjs"
   },
   "build": {
     "appId": "us.platan.hack26.team12.ide",

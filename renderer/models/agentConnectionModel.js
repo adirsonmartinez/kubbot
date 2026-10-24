@@ -73,14 +73,15 @@ export class AgentConnectionModel {
   // onTool(name) is called each time the agent uses a Platanus tool; onText(delta) as the answer streams.
   // session: 'chat' (continues the conversation) or 'repair' (Remi's jobs, a separate conversation).
   ask(prompt, systemPrompt, { onTool, onText, session = 'chat' } = {}) {
-    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, session });
+    // The choice is taken now: a question waiting in line keeps the agent it was asked to
+    const { selected: agent, model, effort } = this.store.state;
+    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, session, agent, model, effort });
     const result = this.#queue.then(run, run);
     this.#queue = result.catch(() => {});
     return result;
   }
 
-  async #run(prompt, systemPrompt, { onTool, onText, session }) {
-    const { selected: agent, model, effort } = this.store.state;
+  async #run(prompt, systemPrompt, { onTool, onText, session, agent, model, effort }) {
     const key = `${agent}:${session}`;
     const turns = this.#turns.get(key) ?? 0;
     this.#turns.set(key, turns + 1);

@@ -7,8 +7,13 @@ const CANDIDATES = ['assets/remi/remi.glb', 'assets/remi/scene.gltf'];
 const HEIGHT = 2.4; // same as the blocky Remi
 
 export async function loadRemiModel() {
-  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
-  const loader = new GLTFLoader();
+  let loader;
+  try {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+    loader = new GLTFLoader();
+  } catch {
+    return null; // loader not available (e.g. a web build without three's addons)
+  }
   for (const url of CANDIDATES) {
     try {
       const gltf = await loader.loadAsync(url);

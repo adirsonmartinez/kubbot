@@ -9,6 +9,10 @@ const S = strings.shell;
 const P = S.project;
 const LEVEL_LABEL = strings.security.levels;
 const ZOOM_STEP = 1.3;
+const RISK_ICON = {
+  red: '<svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z"/><path d="M12 10v4M12 17v.5"/></svg>',
+  yellow: '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>',
+};
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -264,7 +268,9 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
         const card = el('div', `risk-card ${file.level}`);
         card.tabIndex = 0;
         const head = el('div', 'risk-head');
-        head.append(dot(file.level), el('span', 'risk-level', LEVEL_LABEL[file.level]), repairButton(file));
+        const badge = el('span', `risk-icon ${file.level}`);
+        badge.innerHTML = file.level === 'red' ? RISK_ICON.red : RISK_ICON.yellow; // static SVG, no project data
+        head.append(badge, el('span', 'risk-level', LEVEL_LABEL[file.level]), repairButton(file));
         const reason = modeModel.tech
           ? strings.security.techReasons[file.reasonKey] ?? file.reason
           : file.reason || strings.security.reasons[file.reasonKey] || '';
