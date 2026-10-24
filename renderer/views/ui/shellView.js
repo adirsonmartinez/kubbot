@@ -534,10 +534,13 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     if (!entries.length) return [el('p', 'side-intro', H.intro), el('p', 'side-empty', H.empty)];
     const parts = [el('p', 'side-intro', H.intro)];
     if (entries.some((e) => e.status !== 'working' && e.status !== 'queued')) {
-      const clear = el('button', 'link', H.clear);
+      // On its own row above the cards, so it never reads as part of the first one
+      const bar = el('div', 'repairs-bar');
+      const clear = el('button', 'repairs-clear', H.clear);
       clear.type = 'button';
       clear.addEventListener('click', () => repairHistory.clearFinished());
-      parts.push(clear);
+      bar.appendChild(clear);
+      parts.push(bar);
     }
     entries.forEach((entry, i) => parts.push(repairEntry(entry, i === 0)));
     return parts;

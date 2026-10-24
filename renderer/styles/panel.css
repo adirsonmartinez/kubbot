@@ -94,3 +94,12 @@
 #sidebar .devtree-action svg { width: 16px; height: 16px; }
 #sidebar .devtree-action:hover { color: var(--lg-icon); }
 #sidebar .devtree-risk.active svg { color: var(--danger); }
+
+/* Repairs: "Limpiar terminadas" on its own row, right-aligned, clear of the cards below */
+#sidebar .repairs-bar { display: flex; justify-content: flex-end; margin: 2px 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--lg-line); }
+#sidebar .repairs-clear {
+  height: 26px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--lg-chip); box-shadow: var(--lg-rim);
+  color: var(--lg-muted); font: 500 11px var(--lg-font); cursor: pointer; transition: background .2s var(--lg-ease), color .2s var(--lg-ease);
+}
+#sidebar .repairs-clear:hover { background: var(--lg-chip-hover); color: var(--lg-text); }
+#sidebar .repairs-clear:focus-visible { outline: 2px solid rgba(255, 255, 255, .5); outline-offset: 1px; }
