@@ -27,7 +27,6 @@ import { ChatViewModel } from './viewmodels/chatViewModel.js';
 import { GitViewModel } from './viewmodels/gitViewModel.js';
 import { AppViewModel } from './viewmodels/appViewModel.js';
 import { ShellViewModel } from './viewmodels/shellViewModel.js';
-import { GraphViewModel } from './viewmodels/graphViewModel.js';
 import { RepairViewModel } from './viewmodels/repairViewModel.js';
 
 import { createSceneView } from './views/scene/sceneView.js';
@@ -42,7 +41,6 @@ import { createControlsView } from './views/ui/controlsView.js';
 import { createPanelsView } from './views/ui/panelsView.js';
 import { createChatView } from './views/ui/chatView.js';
 import { createShellView } from './views/ui/shellView.js';
-import { createGraphView } from './views/ui/graphView.js';
 import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu, chatMenuItems } from './views/ui/chatMenuView.js';
@@ -83,7 +81,6 @@ const mapViewModel = new MapViewModel({ projectModel, securityModel, camera: cam
 const gitViewModel = new GitViewModel({ gitModel, camera: cameraViewModel, bus });
 const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitViewModel });
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
-const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
 const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus, voiceMode: () => (modeModel.tech ? 'dev' : 'vibe') });
 const serversViewModel = new ServersViewModel({ serversModel });
 // The server list only refreshes while its side view is on screen
@@ -104,7 +101,6 @@ const actions = {
     actions.repair(worst.path, from);
   },
   showRisks: () => shellViewModel.store.state.side === 'risks' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('risks'),
-  showGraph: () => shellViewModel.setStage('graph'),
   // Send a file to the chat so the agent checks whether its risk is real
   audit(path, reason) {
     if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
@@ -186,7 +182,6 @@ const openChat = () => {
 };
 attachMenu($id('chat-more'), $id('chat-more-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel }));
 attachMenu($id('chat-launcher-button'), $id('chat-launcher-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, openChat }));
-createGraphView({ graphViewModel, shellViewModel, mapViewModel });
 createAgentConnectView({ container: document.getElementById('agent-connect'), connection, modeModel });
 connectMcpBridge({ agentService, securityModel, shellViewModel });
 connection.refresh();

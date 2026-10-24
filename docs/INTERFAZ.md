@@ -9,7 +9,7 @@ El **mapa ocupa toda la ventana**. Todo lo demás flota encima y se puede plegar
 
 | Pieza | Dónde está | Qué hace |
 |---|---|---|
-| Barra de íconos | Arriba, centrada en el mapa visible | Paneles (Explorador, Riesgos, Reparaciones, Conecta tu agente) y vistas (Mapa, Git, Grafo). Solo íconos: el nombre y la descripción salen al pasar el mouse. **Se ordena arrastrando** (o Alt+← / Alt+→) y el orden se recuerda. |
+| Barra de íconos | Arriba, centrada en el mapa visible | Paneles (Explorador, Riesgos, Reparaciones, Conecta tu agente) y vistas (Mapa, Git). Solo íconos: el nombre y la descripción salen al pasar el mouse. **Se ordena arrastrando** (o Alt+← / Alt+→) y el orden se recuerda. |
 | Botón del panel | Arriba a la izquierda del mapa | Abre o cierra el panel lateral del ícono marcado. |
 | Ruta | Al lado del botón del panel | El proyecto y la carpeta abierta (`team-12 / src`; tocar el proyecto o Esc la cierra) y sus archivos por semáforo: en riesgo, por revisar, seguros. |
 | Panel lateral | Flota a la izquierda | Explorador (Vibe: guía con nombres sencillos; Dev: árbol completo con búsqueda), Riesgos (la única lista de riesgos), Reparaciones (historial de Remi y del agente), Conecta tu agente. **Se arrastra por su encabezado**; doble clic lo devuelve a su lugar. |
@@ -31,7 +31,7 @@ seguridad y la ruta solo cuenta la carpeta actual.
   pasos (herramientas de Platanus con el archivo que tocan; subagentes con sus pasos anidados), el
   razonamiento plegado, la respuesta en Markdown y al final tiempo, turnos y tokens.
 - **Comparar respuestas:** la misma pregunta a dos agentes a la vez (selector del chat o el panel).
-- **Botón "+":** nueva conversación, reparar lo más grave, historial, grafo, conectar
+- **Botón "+":** nueva conversación, reparar lo más grave, historial, conectar
   tu agente o tu editor (MCP), Vibe/Dev.
 - **Cómo te habla (Vibe / Dev):** el interruptor del chat (✨ / `</>`, junto al selector) o el de arriba
   a la derecha. **Vibe**: palabras simples, comparaciones de la vida diaria, sin código. **Dev**: rutas,

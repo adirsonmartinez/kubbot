@@ -557,7 +557,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     return parts;
   }
 
-  // --- Stage tabs (map / git / graph) with icon, badge and hover card ---
+  // --- Stage tabs (map / git) with icon, badge and hover card ---
   const tabs = [...document.querySelectorAll('.icon-bar [data-stage]')]; // map and git on top, the rest in the side dock
   for (const tab of tabs) tab.addEventListener('click', () => vm.setStage(tab.dataset.stage));
 
@@ -565,7 +565,6 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     const cracked = state.guide.filter((g) => g.depth === 0 && g.red).length;
     const info = {
       map: [S.rail.map, S.tabInfo.map(state.guide.filter((g) => g.depth === 0).length, cracked), cracked],
-      graph: [S.rail.graph, S.tabInfo.graph(state.counts.red), state.counts.red],
       git: [S.rail.git, S.railInfo.git, 0],
     };
     for (const tab of tabs) {
@@ -610,9 +609,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     chatButton?.classList.toggle('active', state.chatOpen);
     for (const button of stageButtons) button.classList.toggle('active', button.dataset.stageButton === state.stage);
     for (const b of document.querySelectorAll('.mode-toggle button')) b.classList.toggle('active', b.dataset.mode === modeModel.store.state.mode);
-    body.classList.toggle('stage-graph', state.stage === 'graph');
     body.classList.toggle('stage-git', state.stage === 'git');
-    $('graph-panel').hidden = state.stage !== 'graph';
     renderTabs(state);
     renderRecent(state);
 

@@ -19,7 +19,6 @@ export function chatMenuItems({ actions, modeModel, chatViewModel, openChat }) {
     { separator: true },
     { label: M.repairWorst, run: (b) => actions.repairWorst(b) },
     { label: M.history, run: () => actions.showRepairs() },
-    { label: M.graph, run: () => actions.showGraph() },
     { separator: true },
     { label: M.connect, run: () => actions.showConnect() },
     { label: M.editor, run: () => actions.showConnect() },

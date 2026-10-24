@@ -35,14 +35,14 @@ renderer/
     serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
     camera, map (security radar: folders and files with problems), supabase, git (branches), app (which 3D view),
-    shell (sidebar, stage tabs, explorer guide/tree, risks), graph (threat graph), chat,
+    shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
                   builders/ (block, folderIcon, fileIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader)
   views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown with answer cards and
                   file links, chatCards: folder / file cards), icons (DOM helper over views/icons.js), thinkingOrb
                   (libraries.dev orbs over the package engine), agentPicker
-                  (+ effortSlider), chatMenu, agentConnect, graph, devTree, hoverCard, hud,
+                  (+ effortSlider), chatMenu, agentConnect, devTree, hoverCard, hud,
                   repairPanel, remiJump, panels (breadcrumb, schema, git), controls, labels
                   floating layout: iconBar (reorderable icons), draggable (side panel / chat by
                   header), floater (map cards: move, minimize, dock), chatDock (pinned chat column),
@@ -107,9 +107,9 @@ The map is a security radar, not a file explorer (browsing the project is the ex
 
 ## Views
 
-Two floating docks on the map: the top one switches between the map and git; the side dock (left edge, vertical) opens the side panels (explorer, risks, repairs, servers, agent), which appear right next to it, and below a divider the graph view. Both use `iconBarView.js` (drag to reorder within a group).
+Two floating docks on the map: the top one switches between the map and git; the side dock (left edge, vertical) opens the side panels (explorer, risks, repairs, servers, agent), which appear right next to it. Both use `iconBarView.js` (drag to reorder within a group).
 
-The stage tabs (`ShellViewModel.stage`: map, git, graph) drive `AppViewModel`, which picks the 3D view: `git` shows the branches as lanes, every other tab uses the map. Each 3D view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks, hover and Esc are routed to the active view in `main.js`; G toggles Map/Git.
+The stage tabs (`ShellViewModel.stage`: map, git) drive `AppViewModel`, which picks the 3D view: `git` shows the branches as lanes, `map` the security map. Each 3D view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks, hover and Esc are routed to the active view in `main.js`; G toggles Map/Git.
 
 The git view reads the history: `electron/git.js` runs fixed `git` commands with `execFile` (no shell) and returns commits, branches, tags and HEAD. `GitViewModel` assigns each commit to a lane (first-parent chains in git flow priority; deleted branches recovered from merge subjects) and flags commits that added red files (`.env`, keys) as risky.
 
