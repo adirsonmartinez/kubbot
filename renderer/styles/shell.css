@@ -1013,8 +1013,7 @@ body.chat-closed .chat-launcher { display: block; }
 @media (prefers-reduced-motion: reduce) {
   #workspace > #chat.card, body.chat-closed #workspace > #chat.card { transition: none; }
 }
-body:not(.chat-closed):not(.chat-min) #stage #hud { right: 402px; }
-#stage #hud, .remi-layer { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
+.remi-layer { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
 
 /* ---------- Icon-only floating bar, drag to reorder ---------- */
 #stage .stage-tabs.icon-bar { gap: 2px; padding: 4px; }

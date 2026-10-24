@@ -44,9 +44,8 @@
 .hud-stat[role="button"]:active { background: var(--lg-chip-press); }
 .hud-stat[role="button"]:focus-visible { outline: 2px solid rgba(255, 255, 255, .5); outline-offset: 1px; }
 
-/* ---------- Fixed at the top right of the map (beside the chat while it floats open over the map) ---------- */
+/* ---------- Fixed at the top right of the map: it never moves; the chat may float over it ---------- */
 #stage #hud { top: 14px; right: 14px; bottom: auto; left: auto; z-index: 5; }
-body:not(.chat-closed):not(.chat-min):not(.chat-moved):not(.chat-docked) #stage #hud { right: 402px; }
 
 @media (prefers-reduced-motion: reduce) {
   .hud-ring .value, .hud-stat[role="button"] { transition: none; }
