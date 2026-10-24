@@ -33,19 +33,26 @@ renderer/
     repair (Remi's job: walk, agent repair, outcome, queue)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
                   builders/ (block, plaza, folder, git, schema, supabase, remi, remiModelLoader)
-  views/ui/       HTML: shell, chat, agentPicker, agentConnect, graph, devTree, hoverCard, hud,
+  views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown), agentPicker
+                  (+ effortSlider), chatMenu, agentConnect, graph, devTree, hoverCard, hud,
                   repairPanel, remiJump, panels (breadcrumb, schema, git), controls, labels
+                  floating layout: iconBar (reorderable icons), draggable (side panel / chat by
+                  header), floater (map cards: move, minimize, dock), chatDock (pinned chat column)
   views/remiSprite.js  Remi's pixel art (card and jump)
   assets/remi/    optional 3D model for Remi (see its README for source and license)
-  styles/         main.css (scene overlays, dark tokens), shell.css (glass IDE), sidebar.css (motion), devtree.css
+  styles/         main.css (scene overlays, dark tokens), shell.css (glass IDE; floating layout at the end),
+                  sidebar.css (motion), devtree.css, agents.css
 electron/
   main.js         window, IPC, confirmations, recent projects, MCP handlers (read/write with approval + backup, undo)
   workspace.js    every disk operation, caged in the open folder
   git.js          read-only git history (execFile, no shell)
   mcpServer.js    local MCP server (127.0.0.1, rejects browser Origin), tool list, secret blocklist
   agents.js       the user's CLIs (Claude Code, Grok, Codex) with minimal context and only Platanus' tools
+  agentEvents.js  CLI output -> chat events (text, reasoning, tools, subagents, result); tested
   strings.js      main-process texts
 tests/renderer/   node:test unit tests for models and view models (renderer/package.json marks ESM for Node)
+tests/secrets.test.mjs  fails if any tracked file contains a credential
+docs/INTERFAZ.md  the interface: layout, chat and agents, repairs, where each piece lives, what is stored
 ```
 
 - **Models** expose an `Observable` `store` and methods. Example: `securityModel.scoreOf(path)` -> `{ level, reason | reasonKey, by: 'demo' | 'agent' | 'remi' }`.

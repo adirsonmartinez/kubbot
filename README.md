@@ -25,12 +25,15 @@ npm run dev      # igual, con DevTools abiertas
 Si abres `renderer/index.html` en el navegador, verás un proyecto de demo (sin acceso al disco).
 `npx electron . --open=/ruta/al/proyecto` abre esa carpeta al arrancar; las últimas abiertas quedan en *Archivo → Abrir reciente*.
 
-En la app:
-- **Mapa / Proyecto / Grafo** (pestañas arriba): la ciudad 3D, cómo está repartido el código con etiquetas, y el camino de un atacante.
-- **Mover el mapa**: arrastrar con clic izquierdo rota e inclina; clic derecho o Shift + arrastrar mueve; rueda acerca; flechas o WASD desplazan; Q / E giran 90°.
+En la app (guía completa en [`docs/INTERFAZ.md`](docs/INTERFAZ.md)):
+- **El mapa ocupa toda la ventana** y todo lo demás flota encima: la barra de íconos (arriba), el panel lateral (izquierda) y el chat (derecha). Se pliegan, se arrastran por su encabezado y vuelven a su lugar con doble clic.
+- **Barra de íconos**: paneles (Explorador, Riesgos, Reparaciones, Conecta tu agente) y vistas (Mapa, Git, Proyecto, Grafo). Al pasar el mouse dice qué es cada uno; se ordena arrastrando los íconos.
+- **Chat**: el pin 📌 lo fija como columna a la derecha (el mapa le deja espacio y arriba va la tarjeta de seguridad); su borde izquierdo cambia el ancho. Minimizado, queda un botón flotante con su menú.
+- **Tarjeta de seguridad**: puntaje y totales. Se mueve, se minimiza y se ancla sobre el chat fijado; sus números de riesgo abren la lista de Riesgos.
+- **Mover el mapa**: arrastrar con clic izquierdo rota e inclina; clic derecho o Shift + arrastrar mueve; rueda acerca; flechas o WASD desplazan; Q / E giran 90°. La ruta de arriba a la izquierda dice en qué carpeta estás.
 - **Vibe / Dev** (arriba a la derecha y en el explorador): Vibe es una guía con nombres sencillos; Dev muestra todas las carpetas, rutas y reglas.
-- **Grietas y Remi**: un archivo en rojo agrieta su edificio. "Reparar" (en Riesgos o en el chat) hace que Remi salte al mapa, camine al edificio, escriba un plan y apuntale la grieta. Remi no cambia archivos: la grieta queda en amarillo hasta que tocas "Ya lo apliqué".
-- **Conecta tu agente**: usa tu suscripción de Claude Code, Grok o Codex en el chat, o conecta tu editor al servidor MCP local: la dirección (con su llave privada) se copia desde "Conecta tu agente".
+- **Remi y las reparaciones**: "Reparar" hace que Remi camine al edificio mientras tu agente revisa el archivo; cada cambio pide tu permiso y se puede deshacer. Todo queda en el historial de Reparaciones.
+- **Conecta tu agente**: usa tu suscripción de Claude Code, Grok o Codex (modelo y esfuerzo ajustables, o dos agentes a la vez para comparar), o conecta tu editor al servidor MCP local (la dirección, con su llave privada, se copia desde ese panel).
 
 En el chat:
 - `abrir carpeta`: elige la carpeta del proyecto. El agente no puede salir de ella.
