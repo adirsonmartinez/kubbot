@@ -10,7 +10,7 @@ const { Workspace } = require('./workspace');
 const { readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort } = require('./git');
 const t = require('./strings');
 const agents = require('./agents');
-const { loadVoice, composePrompt, composeRefinePrompt } = require('./agentVoice');
+const { loadVoice, composePrompt, composeRefinePrompt, composeTourPrompt } = require('./agentVoice');
 const { approvalMode, needsApproval } = require('./approval');
 const { canOpen } = require('./fileOpen');
 const { lineDiff } = require('./lineDiff');
@@ -18,7 +18,7 @@ const { createKeyStore } = require('./keyStore');
 
 const AGENT_DIR = path.join(__dirname, '..', 'agent'); // voice.json + skills (packaged with the app)
 // Agent conversations: the chat, Remi's repairs, and "Mejorar mi mensaje" (never continued)
-const SESSIONS = ['chat', 'repair', 'refine'];
+const SESSIONS = ['chat', 'repair', 'refine', 'tour'];
 const { startMcpServer, MAX_READ_BYTES, isBlockedPath, isBlockedRealPath } = require('./mcpServer');
 const servers = require('./servers');
 
@@ -48,7 +48,9 @@ function createWindow() {
     },
   });
 
-  win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  // PLATANUS_DEMO=1 (development only): recording mode for the product video (scripts/demo/)
+  const demo = process.env.PLATANUS_DEMO === '1' && !app.isPackaged;
+  win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'), demo ? { query: { demo: '1' } } : {});
   if (process.argv.includes('--dev')) win.webContents.openDevTools({ mode: 'detach' });
 
   // External links never open new windows inside the app
@@ -584,7 +586,8 @@ async function startMcp() {
     handlers: mcpHandlers,
     onCall: ({ tool, args, ok, error }) => log(`mcp:${tool}`, args?.path ?? '', ok, error),
   });
-  mcp = { url: `http://127.0.0.1:${server.address().port}/mcp/${token}`, running: true };
+  const url = `http://127.0.0.1:${server.address().port}/mcp/${token}`;
+  mcp = { url, readOnlyUrl: `${url}/ro`, running: true };
   send('mcp:status', mcp);
 }
 
@@ -638,6 +641,7 @@ ipcMain.handle('agents:run', (_e, req) => {
   const runId = `${Date.now()}-${++requestSeq}`;
   const model = /^(?!-)[a-zA-Z0-9.\-_]{0,40}$/.test(String(req?.model ?? '')) ? String(req.model ?? '') : '';
   const effort = ['low', 'medium', 'high', 'xhigh', 'max'].includes(req?.effort) ? req.effort : 'low';
+  const session = SESSIONS.includes(req?.session) ? req.session : 'chat';
   // The chat sends its voice (Vibe/Dev + recent messages): the prompt comes from agent/voice.json and the
   // mode's skill, read on every run so the team can tune them without restarting
   let systemPrompt = String(req?.systemPrompt ?? '');
@@ -646,14 +650,17 @@ ipcMain.handle('agents:run', (_e, req) => {
       const voice = loadVoice(AGENT_DIR);
       systemPrompt = req.voice.purpose === 'refine'
         ? composeRefinePrompt(voice, { mode: req.voice.mode }) // "Mejorar mi mensaje"
-        : composePrompt(voice, { mode: req.voice.mode, recent: req.voice.recent, task: systemPrompt });
+        : req.voice.purpose === 'tour'
+          ? composeTourPrompt(voice, { mode: req.voice.mode }) // "Recorrido"
+          : composePrompt(voice, { mode: req.voice.mode, recent: req.voice.recent, task: systemPrompt });
     } catch (error) {
       console.error('agent/voice.json:', error.message); // keep the plain prompt
     }
   }
   const child = agents.run(
     String(req?.agent),
-    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: SESSIONS.includes(req?.session) ? req.session : 'chat', env: agentKeyEnv(String(req?.agent)) },
+    // a tour or a question to understand only explains: its agent gets the read-only address of the MCP server
+    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: session === 'tour' || req?.readOnly === true ? mcp.readOnlyUrl : mcp.url, continued: Boolean(req?.continued) && session !== 'tour', model, effort, session, env: agentKeyEnv(String(req?.agent)) },
     (event) => {
       if (event.type === 'done') agentRuns.delete(runId);
       send('agents:event', { runId, ...event });

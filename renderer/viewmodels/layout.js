@@ -56,5 +56,9 @@ export function folderSlots(count, { plazaSize, avoidSupabase }) {
   return slots.slice(0, count);
 }
 
+// Places for folders the map does not draw (the tour shows them for a moment): the slots that come
+// after the buildings' ones, so they never land on a building
+export const ghostSlots = (buildingCount, count, opts) => folderSlots(buildingCount + count, opts).slice(buildingCount);
+
 // Zoom that fits a level: bigger plazas and more folders zoom out a bit
 export const levelZoom = (plazaSize, folderCount) => clamp(1.15 - plazaSize * 0.02 - (folderCount > 8 ? 0.2 : 0), 0.6, 1.1);

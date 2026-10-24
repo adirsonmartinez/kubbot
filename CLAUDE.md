@@ -4,6 +4,8 @@ Visual IDE for Platanus Hack 26 (AI Security track): the project is an isometric
 
 ## Rules
 
+- **Start with `MEMORY.md`** (live state: branches, features, pending, lessons) and follow the skill `.claude/skills/platanus-ade/`. **Before finishing any task, update `MEMORY.md`** (and the skill's references when you learned something stable), so the next session does not have to reread everything.
+
 - **All code in English**: identifiers, comments, file and folder names, commit messages.
 - **User-facing text in Spanish**, and only in the strings files:
   - renderer: `renderer/i18n/es.js` (static HTML uses `data-i18n`, `data-i18n-title`, `data-i18n-aria`, `data-i18n-placeholder`)
@@ -29,7 +31,9 @@ renderer/
   models/         data and rules; no DOM, no three.js, no UI state
     projectModel, fileTree, securityModel (traffic light), supabaseModel, demoProject
     agentModel (chat brain: scripted demo or the user's agent), agentConnectionModel (which agent,
-    model, effort; one run at a time; 'chat' and 'repair' sessions)
+    model, effort; one run at a time; 'chat', 'repair', 'refine' and 'tour' sessions)
+    projectAnalyzer (tour facts and stops: architecture, docs, entries, tests, use cases; pure),
+    tourSpec (tour words: script, the agent's JSON checked against the facts, merge)
     folderTags (tag and folder KEYS by name; labels live in es.js), modeModel (Vibe / Dev),
     repairHistoryModel (task list of repairs, per project, in localStorage),
     answerFormat (the agent's ```sugerencias block -> next steps),
@@ -39,8 +43,11 @@ renderer/
     camera, map (security radar: folders and files with problems), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open),
-    handControl (camera on/off, pinch and move pans the map, pinch and turn rotates it)
-  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, robotView, inputController,
+    handControl (camera on/off, pinch and move pans the map, pinch and turn rotates it),
+    tour ("Recorrido": analyze, play the stops, agent narration; tourPlaces = where each stop is),
+    robot (the map's robot companion: grab, drag or throw it onto a folder, it asks what to do there)
+  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, robotView (welcome + tour guide,
+                  on guideRobot), tourView (tour ghost places and ring), inputController,
                   builders/ (block, folderIcon, fileIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader, robot)
   views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown with answer cards and
                   file links, chatCards: folder / file cards), icons (DOM helper over views/icons.js), thinkingOrb
@@ -92,6 +99,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 - Git from the chat (`models/gitIntent.js` parses what the person types; never the agent's output) only runs in the desktop app. `electron/git.js` validates every revision and branch name (a value starting with `-` would be a git option) and `main.js` asks before commit (shows the files; refuses if one is a secret per the MCP blocklist), revert, reset and switch. New branches are only logged. Tests: `electron/git.test.js`.
 - The agent only acts through the local MCP tools. `platanus_write_file` always opens a confirmation dialog and backs up the previous version to `~/.platanus/backups/` (undo from the repair history). Secrets (`.env*`, keys, `.git/`, `.ssh/`, `.npmrc`…) are refused on the normalized and the real path.
+- A tour run (session `tour`) gets the read-only MCP address (`/mcp/<token>/ro`: only get_project, list_risks, read_file); the window also stops it if it tries to write. Its answer only narrates the analyzer's facts (`tourSpec.parseTour` keeps known stop ids and real, non-secret paths).
 - Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`; Codex read-only, without the user's config and with its shell, browser, computer use, plugins and subagents disabled (`CODEX_DISABLED`). Do not loosen these flags.
 - The window only gets the camera (video only, never the microphone) and clipboard writes, and only for the app's page (`allowPermission` in `electron/main.js`); every other permission is denied. Hand tracking runs locally (`docs/features/hand-gestures/`).
 - Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
@@ -107,7 +115,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 ## Map navigation
 
-The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. A project just created and still empty (`MapViewModel.welcome`) has a robot on its plaza asking what to build (`robotView.js`); it leaves with the first file. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
+The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. A project just created and still empty (`MapViewModel.welcome`) has a robot on its plaza asking what to build (`robotView.js`); it leaves with the first file. The tour ("Recorrido", `docs/features/recorrido/README.md`) is the one exception to "problems only": while it plays, folders without problems that are stops get a temporary silver "ghost" plate (dashed, not clickable, never glowing) and the same robot guides; all of it goes away when the tour ends. Otherwise the robot waits on the plaza as a companion (`robotViewModel.js`, `docs/features/robot/README.md`): dragging it moves the robot, not the map (`grabber` in `inputController.js`), and dropping or throwing it onto a folder makes it ask in the chat what to do there; its bubble shows the agent's thinking orb while it works. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
 
 ## Views
 
