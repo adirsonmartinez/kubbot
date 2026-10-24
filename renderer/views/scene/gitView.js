@@ -1,12 +1,12 @@
-// Draws GitViewModel on the 'git' layer: tracks, commits, branch and tag labels, HEAD train.
-// Commits rise from the track one after another when the graph is (re)built.
+// Draws GitViewModel on the 'git' layer: lines, cubes and one light label per live branch tip
+// (with its tags). Cubes rise one after another when the graph is (re)built.
 import { buildGitGraph, laneColorCss } from './builders/gitBuilder.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
-import { GIT_LAYOUT } from '../../viewmodels/layout.js';
 
 const RISE_SPEED = 3;
 const RISE_STAGGER = 0.025;
+const LABEL_HEIGHT = 1.6;
 
 export function createGitView({ sceneView, labels, gitViewModel }) {
   let graph = null;
@@ -29,32 +29,26 @@ export function createGitView({ sceneView, labels, gitViewModel }) {
     sceneView.layers.git.add(graph.group);
     graph.setFocus(state.focusLane);
     riseT = 0;
-    graph.blocks.forEach(({ mesh }) => { mesh.scale.y = 0.001; });
 
-    // Lane names at the oldest end of each track. Short live lanes skip it: their tip label already names them.
-    state.lanes.forEach((lane) => {
-      if (lane.live && lane.toX - lane.fromX < GIT_LAYOUT.step * 6) return;
-      const name = strings.git.laneNames[lane.name] ?? lane.name;
-      const suffix = lane.live ? '' : ` <span>${strings.git.deleted}</span>`;
+    // One label per commit that has live branches and/or tags
+    const tagsBySha = new Map();
+    state.tags.forEach((t) => tagsBySha.set(t.sha, [...(tagsBySha.get(t.sha) ?? []), t.name]));
+    const tipShas = new Set(state.tips.map((t) => t.sha));
+    const labelled = [...state.tips, ...state.tags.filter((t) => !tipShas.has(t.sha))];
+    const seen = new Set();
+
+    labelled.forEach((item) => {
+      if (seen.has(item.sha)) return;
+      seen.add(item.sha);
+      const branches = (state.tips.find((t) => t.sha === item.sha)?.branches ?? []).map((b) =>
+        `<span class="branch${b.isHead ? ' head' : ''}"><i style="background:${laneColorCss(b.kind)}"></i>${escapeHtml(b.name)}</span>`);
+      const tags = (tagsBySha.get(item.sha) ?? []).map((name) => `<span class="tag">${escapeHtml(name)}</span>`);
+      const isHead = state.head?.sha === item.sha;
       addLabel({
-        html: `<i class="lvl" style="background:${laneColorCss(lane.kind)}"></i><strong>${escapeHtml(name)}</strong>${suffix}`,
-        anchor: { x: lane.fromX - 1.2, y: 0.3, z: lane.z },
-        className: 'floor lane',
-        align: 'left',
+        html: (isHead ? `<b>${strings.git.head}</b>` : '') + branches.join('') + tags.join(''),
+        anchor: { x: item.x, y: LABEL_HEIGHT + (isHead ? 0.35 : 0), z: item.z },
+        className: 'git-pill',
       });
-    });
-
-    // Live branches at their tip commit; HEAD's branch is highlighted
-    state.tips.forEach((tip) => {
-      const html = tip.branches.map((b) => {
-        const head = b.isHead ? `<b>${strings.git.head}</b> ` : '';
-        return `<span class="branch${b.isHead ? ' head' : ''}"><i class="lvl" style="background:${laneColorCss(b.kind)}"></i>${head}${escapeHtml(b.name)}</span>`;
-      }).join('');
-      addLabel({ html, anchor: { x: tip.x, y: 2.6, z: tip.z }, className: 'branches' });
-    });
-
-    state.tags.forEach((tag) => {
-      addLabel({ html: `<strong>${escapeHtml(tag.name)}</strong>`, anchor: { x: tag.x - 0.05, y: 4.2, z: tag.z - 0.6 }, className: 'tag' });
     });
   }
 
@@ -66,13 +60,13 @@ export function createGitView({ sceneView, labels, gitViewModel }) {
   sceneView.onFrame((t, dt) => {
     if (!graph) return;
     riseT += dt * RISE_SPEED;
-    graph.blocks.forEach(({ mesh, index, height, baseY }) => {
+    graph.cubes.forEach(({ mesh, index, size, baseY }) => {
       const k = Math.min(Math.max(riseT - index * RISE_STAGGER, 0), 1);
-      mesh.scale.y = Math.max(height * (1 - (1 - k) ** 3), 0.001);
-      mesh.position.y = baseY + mesh.scale.y / 2; // grow from the track, not from the middle
+      const s = Math.max(size * (1 - (1 - k) ** 3), 0.001);
+      mesh.scale.y = s;
+      mesh.position.y = baseY + s / 2; // grow from the ground, not from the middle
     });
-    graph.warnings.forEach((w) => { w.rotation.y = t * 2; w.position.y = w.userData.baseY + Math.sin(t * 3) * 0.2; });
-    if (graph.train) graph.train.position.y = 0.24 + Math.abs(Math.sin(t * 6)) * 0.04;
+    if (graph.headFrame) graph.headFrame.scale.setScalar(1 + Math.sin(t * 2.5) * 0.04);
   });
 
   return {

@@ -1,105 +1,83 @@
-// Git view in 3D: each lane is a railway track, each commit a block on it, forks and merges are
-// diagonal links, tags are flags and HEAD is a little train. Every lane gets its own materials so it
-// can be dimmed when another lane is focused.
+// Git view in 3D, minimal: each lane is a thin line, each commit a cube. Forks and merges are thin
+// diagonal lines. HEAD floats slightly, framed by a square of lines on the ground. Commits that leaked
+// secrets are red. Every lane has its own materials so it can be dimmed when another lane is focused.
 import * as THREE from 'three';
-import { box, cylinder, groundLink, materials as M, warningSign } from '../materials.js';
+import { box, groundLink, materials as M } from '../materials.js';
 
 export const LANE_COLORS = {
-  main: 0x5a50ea, develop: 0x2fd9a8, feature: 0xf2dc3c, release: 0xa9a2f0,
+  main: 0x5a50ea, develop: 0x2fd9a8, feature: 0xf2c94c, release: 0x9b8cff,
   hotfix: 0xff8a3d, remote: 0xb5b5c2, other: 0xc9c4ee,
 };
 export const laneColorCss = (kind) => `#${LANE_COLORS[kind].toString(16).padStart(6, '0')}`;
 
-const TRACK_Y = 0.12;
-const BLOCK = 1.1;
+const LINE = { width: 0.12, height: 0.03, y: 0.01 };
+const CUBE = 0.8;
+const MERGE_CUBE = 0.5;
+const FRAME = 1.5; // HEAD square
 
 function laneMaterials(kind) {
-  const make = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, transparent: true, ...extra });
+  const color = LANE_COLORS[kind];
   return {
-    bed: make(0x2e2e38, { roughness: 0.4 }),
-    sleeper: make(0xa9a2f0),
-    rail: make(LANE_COLORS[kind], { emissive: LANE_COLORS[kind], emissiveIntensity: 0.25 }),
-    block: make(LANE_COLORS[kind]),
-    link: make(LANE_COLORS[kind]),
+    line: new THREE.MeshStandardMaterial({ color, roughness: 0.5, transparent: true }),
+    cube: new THREE.MeshStandardMaterial({ color, roughness: 0.45, transparent: true }),
   };
 }
 
-const blockHeight = (files) => 0.5 + Math.min(Math.log2(1 + files) * 0.35, 1.8);
+// Square outline made of four thin lines, centered on (x, z)
+function frame(parent, material, x, z, size) {
+  const h = size / 2;
+  const w = LINE.width;
+  [[0, -h, size, w], [0, h, size, w], [-h, 0, w, size], [h, 0, w, size]].forEach(([dx, dz, sx, sz]) => {
+    box(parent, material, sx, LINE.height, sz, x + dx, LINE.y, z + dz).castShadow = false;
+  });
+}
 
-export function buildGitGraph({ lanes, commits, connectors, tags, head }) {
+export function buildGitGraph({ lanes, commits, connectors, head }) {
   const group = new THREE.Group();
   const mats = new Map(lanes.map((l) => [l.name, laneMaterials(l.kind)]));
-  const laneByName = new Map(lanes.map((l) => [l.name, l]));
-  const blocks = []; // { mesh, index } for the rise animation
-  const warnings = [];
+  const cubes = []; // { mesh, index, size, baseY } for the rise animation
 
-  // Tracks: bed, two rails and sleepers
   lanes.forEach((lane) => {
     const m = mats.get(lane.name);
-    const from = lane.fromX - 1, to = lane.toX + 1, length = to - from, cx = (from + to) / 2;
-    const bed = box(group, m.bed, length, 0.12, 1.1, cx, 0, lane.z);
-    bed.userData.pick = { type: 'lane', name: lane.name };
-    box(group, m.rail, length, 0.08, 0.12, cx, TRACK_Y, lane.z - 0.32).userData.pick = { type: 'lane', name: lane.name };
-    box(group, m.rail, length, 0.08, 0.12, cx, TRACK_Y, lane.z + 0.32).userData.pick = { type: 'lane', name: lane.name };
-    for (let x = from + 0.4; x < to; x += 0.9) box(group, m.sleeper, 0.18, 0.05, 1.3, x, 0.07, lane.z).castShadow = false;
+    if (lane.toX === lane.fromX) return; // a single commit needs no line
+    const line = box(group, m.line, lane.toX - lane.fromX, LINE.height, LINE.width * 2, (lane.fromX + lane.toX) / 2, LINE.y, lane.z);
+    line.castShadow = false;
+    line.userData.pick = { type: 'lane', name: lane.name };
   });
 
-  // Forks and merges
   connectors.forEach((c) => {
     const m = mats.get(c.lane) ?? mats.values().next().value;
-    groundLink(group, m.link, c.from.x, c.from.z, c.to.x, c.to.z, 0.32, 0.16).castShadow = false;
+    groundLink(group, m.line, c.from.x, c.from.z, c.to.x, c.to.z, LINE.width, LINE.height).castShadow = false;
   });
 
-  // Commits
   commits.forEach((commit, index) => {
-    const m = mats.get(commit.lane);
-    const h = commit.isMerge ? 0.55 : blockHeight(commit.files.length);
-    const size = commit.isMerge ? BLOCK * 0.75 : BLOCK;
-    const mesh = box(group, commit.risk ? M.alertLit : m.block, size, h, size, commit.x, TRACK_Y + 0.08, commit.z, commit.isMerge ? Math.PI / 4 : 0);
+    const size = commit.isMerge ? MERGE_CUBE : CUBE;
+    const isHead = head?.sha === commit.sha;
+    const baseY = isHead ? 0.35 : 0;
+    const mesh = box(group, commit.risk ? M.alertLit : mats.get(commit.lane).cube, size, size, size, commit.x, baseY, commit.z);
     mesh.userData.pick = { type: 'commit', sha: commit.sha };
-    mesh.userData.lane = commit.lane;
-    blocks.push({ mesh, index, height: h, baseY: TRACK_Y + 0.08 });
-    if (commit.risk) {
-      const sign = warningSign(0.8);
-      sign.position.set(commit.x, TRACK_Y + h + 2.2, commit.z);
-      sign.userData.baseY = sign.position.y;
-      group.add(sign);
-      warnings.push(sign);
-    }
+    cubes.push({ mesh, index, size, baseY });
   });
 
-  // Tags: a pole with a flag behind the commit
-  tags.forEach((tag) => {
-    box(group, M.metal, 0.1, 2.6, 0.1, tag.x - 0.45, 0, tag.z - 0.6);
-    box(group, M.yellow, 0.8, 0.5, 0.06, tag.x - 0.05, 2.05, tag.z - 0.6);
-  });
-
-  // HEAD: a small train parked right after the current commit
-  let train = null;
+  let headFrame = null;
   if (head) {
-    train = new THREE.Group();
-    box(train, M.teal, 1.3, 0.7, 0.8, 0, 0, 0);
-    box(train, M.indigo, 0.55, 0.55, 0.85, -0.35, 0.7, 0);
-    cylinder(train, M.screen, 0.14, 0.45, 0.35, 0.7, 0);
-    box(train, M.tealLit, 0.06, 0.25, 0.5, 0.66, 0.25, 0); // headlight
-    [-0.4, 0.4].forEach((x) => [-0.42, 0.42].forEach((z) => cylinder(train, M.screen, 0.18, 0.12, x, -0.05, z)));
-    train.position.set(head.x + 1.5, TRACK_Y + 0.12, head.z);
-    train.userData.pick = { type: 'commit', sha: head.sha };
-    group.add(train);
+    const commit = commits.find((c) => c.sha === head.sha);
+    headFrame = new THREE.Group();
+    frame(headFrame, mats.get(commit.lane).line, 0, 0, FRAME);
+    headFrame.position.set(head.x, 0, head.z);
+    group.add(headFrame);
   }
 
   return {
     group,
+    cubes,
+    headFrame,
     // Dim every lane except the focused one (null = all normal)
     setFocus(name) {
       mats.forEach((m, laneName) => {
-        const opacity = name && laneName !== name ? 0.18 : 1;
-        Object.values(m).forEach((mat) => { mat.opacity = opacity; mat.depthWrite = opacity === 1; });
+        const opacity = name && laneName !== name ? 0.15 : 1;
+        [m.line, m.cube].forEach((mat) => { mat.opacity = opacity; mat.depthWrite = opacity === 1; });
       });
     },
-    blocks,
-    warnings,
-    train,
-    laneOf: (name) => laneByName.get(name),
   };
 }
