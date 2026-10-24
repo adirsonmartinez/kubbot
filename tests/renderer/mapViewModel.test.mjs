@@ -106,6 +106,21 @@ test('opening a subfolder unfolds one more level, below the previous one', () =>
   assert.equal(state().buildings.find((b) => b.path === 'src').open, true);
 });
 
+test('clicking an open folder on the map closes it, and everything open inside it', () => {
+  const { vm, state } = setup();
+  vm.handlePick({ type: 'folder', path: 'src' });
+  assert.equal(state().path, 'src');
+  vm.handlePick({ type: 'folder', path: 'src' });
+  assert.equal(state().path, '');
+  vm.handlePick({ type: 'folder', path: 'src' });
+  vm.handlePick({ type: 'folder', path: 'src/lib' });
+  vm.handlePick({ type: 'folder', path: 'src/lib' });
+  assert.equal(state().path, 'src'); // closing lib goes back to src
+  vm.handlePick({ type: 'folder', path: 'src/lib' });
+  vm.handlePick({ type: 'folder', path: 'src' });
+  assert.equal(state().path, ''); // closing src folds lib too
+});
+
 test('a clean folder opens too, and it is announced in the chat', () => {
   const { vm, state, events } = setup();
   vm.enterFolder('docs');

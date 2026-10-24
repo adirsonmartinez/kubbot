@@ -70,7 +70,7 @@ export class MapViewModel {
   // pick: { type: 'folder', path } | { type: 'file', path } | { type: 'supabase' } | { type: 'table', name }
   handlePick(pick) {
     switch (pick.type) {
-      case 'folder': return this.enterFolder(pick.path);
+      case 'folder': return this.toggleFolder(pick.path);
       case 'file': return this.selectFile(pick.path);
       case 'supabase': return this.toggleSchema();
       case 'table': return this.#supabase.selectTable(pick.name);
@@ -85,6 +85,14 @@ export class MapViewModel {
     if (path && node?.type !== 'dir') return;
     this.#supabase.openSchema(false);
     this.#recompute({ path, announce: true });
+  }
+
+  // A click on a folder on the map: opens it, or closes it (with everything open inside it) when it is
+  // already open
+  toggleFolder(path) {
+    const open = this.store.state.path;
+    const isOpen = open === path || open.startsWith(`${path}/`);
+    this.enterFolder(isOpen ? parentOf(path) : path);
   }
 
   // One level up: a subfolder goes back to its parent, a top-level folder closes
