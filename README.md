@@ -1,6 +1,18 @@
-# Platanus
+# team-12 Platanus Hack 26: Caracas ft. Yummy Project
 
-IDE visual para Platanus Hack 26, track AI Security. Tu proyecto se ve como un mapa isométrico: la carpeta raíz es el edificio principal, cada carpeta un edificio, y al abrir uno ves sus archivos por piso como cubitos con un semáforo de seguridad. Un agente de IA crea y corrige el código, y lo peligroso (borrar, sobrescribir) necesita tu aprobación.
+<img src="./project-logo.png" alt="Project Logo" width="200" />
+
+Track: 🛡️ AI Security
+
+team-12
+
+- Rafael Alejandro Oviedo Rojas ([@raor00](https://github.com/raor00))
+- Hendry Desire Varela Pérez ([@sirevarr](https://github.com/sirevarr))
+- Génesis Angelina Zapata López ([@zagenesis19](https://github.com/zagenesis19))
+
+## Platanus
+
+IDE visual: tu proyecto se ve como un mapa isométrico. La carpeta raíz es el edificio principal, cada carpeta un edificio, y al abrir uno ves sus archivos por piso como cubitos con un semáforo de seguridad. Un agente de IA crea y corrige el código, y lo peligroso (borrar, sobrescribir) necesita tu aprobación.
 
 ## Arrancar
 
@@ -56,7 +68,7 @@ renderer/
   i18n/es.js         todos los textos en español
 ```
 
-## Equipo (4 personas)
+## Equipo
 
 | Rol | Carpetas | Primer objetivo |
 |---|---|---|
@@ -66,3 +78,9 @@ renderer/
 | **Supabase y pitch** | `renderer/models/supabaseModel.js`, slides | Leer tablas reales y hallazgos de seguridad en vez de los datos de demo |
 
 Congelar funciones en la hora 26. Desde ahí, solo arreglar errores y ensayar la demo.
+
+## Antes de entregar
+
+- [ ] Completar `platanus-hack-project.jsonc` (nombre, oneliner, descripción y URL de descarga de la app)
+- [ ] Reemplazar `project-description.md` con la descripción del proyecto
+- [ ] Logo PNG de 1000x1000, máximo 500 KB (`project-logo.png`)
