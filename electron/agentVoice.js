@@ -11,7 +11,7 @@ const MODES = ['vibe', 'dev'];
 const MAX_RECENT = 12;
 const MAX_TEXT = 2000;
 
-const stripFrontmatter = (text) => text.replace(/^---\n[\s\S]*?\n---\n*/, '').trim();
+const stripFrontmatter = (text) => text.replace(/^---\r?\n[\s\S]*?\r?\n---(\r?\n)*/, '').trim(); // CRLF: Windows checkouts
 
 function loadVoice(dir) {
   const config = JSON.parse(fs.readFileSync(path.join(dir, 'voice.json'), 'utf8'));

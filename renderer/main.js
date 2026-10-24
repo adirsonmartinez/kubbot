@@ -49,6 +49,8 @@ import { createTourView } from './views/scene/tourView.js';
 import { createBuildSiteView } from './views/scene/buildSiteView.js';
 import { createDemoCursor } from './views/ui/demoCursorView.js';
 import { isDemo } from './core/demoMode.js';
+import { RobotDialogViewModel } from './viewmodels/robotDialogViewModel.js';
+import { createWelcomeRobotView } from './views/scene/welcomeRobotView.js';
 import { createHudView } from './views/ui/hudView.js';
 import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
@@ -162,8 +164,36 @@ const actions = {
   tourExit: () => tourViewModel.exit(),
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
+  openChat() {
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+  },
+  // The welcome robot hands a ready-made request to the agent (scaffold, .gitignore, README). With no agent
+  // connected (none logged in, so none picked automatically) the scripted demo would answer, so the request
+  // waits until the person picks one
+  askAgent(prompt) {
+    actions.openChat();
+    if (connection.live) return chatViewModel.send(prompt);
+    pendingAgentPrompt = prompt;
+    actions.showConnect();
+    chatViewModel.sayFromMap({ text: strings.map.welcome.pickAgent });
+  },
+  // The robot's "save my progress": a commit understood by the chat itself (git asks before writing)
+  saveProgress() {
+    actions.openChat();
+    chatViewModel.send(strings.map.welcome.saveProgressPhrase);
+  },
 };
+let pendingAgentPrompt = null;
+connection.store.subscribe(() => {
+  if (!connection.live || !pendingAgentPrompt) return;
+  const prompt = pendingAgentPrompt;
+  pendingAgentPrompt = null;
+  chatViewModel.send(prompt);
+});
 const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection, isTech: () => modeModel.tech });
+// The welcome robot interviews the person on a new project (Desire's dialog, welcomeRobotView.js)
+const robotDialogViewModel = new RobotDialogViewModel({ mapViewModel, projectModel, securityModel, actions });
 // Building live: the robot carries each file an agent saves to its folder (it reads the chat's run cards)
 const buildViewModel = new BuildViewModel({ chatViewModel, mapViewModel, projectModel, tourViewModel, bus });
 // The robot companion: drag or throw it onto a folder and it asks what to do there
@@ -186,18 +216,19 @@ const gitView = createGitView({ sceneView, labels, gitViewModel });
 createRemiView({ sceneView, labels, repairViewModel });
 createTourView({ sceneView, labels, tourViewModel });
 const robotView = createRobotView({
-  sceneView, labels, mapViewModel, tourViewModel, buildViewModel, robotViewModel, chatViewModel, cameraViewModel,
+  sceneView, labels, mapViewModel, tourViewModel, buildViewModel, robotViewModel, robotDialogViewModel, chatViewModel, cameraViewModel,
   openChat: () => {
     if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
     if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
   },
 });
 createBuildSiteView({ sceneView, labels, buildViewModel, hands: () => robotView.hands });
+createWelcomeRobotView({ sceneView, labels, mapViewModel, robotDialogViewModel, tourViewModel, buildViewModel });
 if (isDemo) {
   createDemoCursor(); // recording the product video (scripts/demo/)
   // the recorder (and checks) can drive the robot and find 3D things on screen
   window.__platanus = {
-    robotViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel,
+    robotViewModel, robotDialogViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel,
     screenOf: (point) => { const r = stage.getBoundingClientRect(); const s = sceneView.toScreen(point); return { x: r.left + s.x, y: r.top + s.y }; },
   };
 }

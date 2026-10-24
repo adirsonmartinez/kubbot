@@ -10,7 +10,7 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
 ## Ramas
 | Rama | Estado |
 |---|---|
-| `develop` | Tiene todo: chat natural, recorrido, robot, video, editor de archivos y la UI nueva. `feature/chat-natural` y `feature/recorrido` ya están fusionadas (2026-10-24). |
+| `develop` | Tiene todo: chat natural, recorrido, robot, video, editor de archivos y la UI nueva. `feature/chat-natural`, `feature/recorrido` y `feature/robot-speech-bubbles` (Desire: robot de bienvenida con entrevista, agente en Windows) ya están fusionadas (2026-10-24). |
 
 - Adirson trabaja directo en `develop` (sin ramas `feature/*`) y sube a su mirror: `git push personal develop`. `origin` (repo de la organización) le responde 403: alguien con permisos tiene que subir `develop` allí.
 
@@ -78,6 +78,7 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - Commit y PR de `feature/recorrido` cuando el usuario lo pida.
 
 ## Aprendizajes (actualiza aquí; lo técnico detallado va en la skill)
+- Dos robots: `welcomeRobotView.js` (entrevista de Desire) y `robotView.js` (recorrido, obra, compañero). Uno a la vez: el de bienvenida se aparta en recorrido u obra; el otro, mientras el diálogo está abierto. En `agents:run` de `electron/main.js` el módulo de Electron es `electronSession` (la variable local `session` es el tipo de sesión).
 - Las etiquetas del mapa se mueven en cada cuadro: sin `backdrop-filter` (sería lento); fondo oscuro translúcido con el borde del chat (`labels.css`).
 - **Siempre dejar la app en modo normal** con el proyecto del usuario al terminar una prueba. Si queda en modo grabación (`PLATANUS_DEMO`), el cursor es falso y los clics se sienten desfasados (le pasó al usuario el 2026-10-24).
 - En modo demo, `__platanus.screenOf({x,y,z})` da la posición en pantalla de un punto 3D: sirve para pruebas con el ratón real. Tras recargar, esperar a que la cámara termine de volar.

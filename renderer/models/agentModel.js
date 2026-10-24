@@ -16,6 +16,17 @@ const MAX_LISTED_FILES = 40;
 const words = (text) => text.toLowerCase().split(/[^\p{L}\p{N}]+/u);
 const hasKeyword = (list, keys) => keys.some((k) => list.some((w) => w.startsWith(k)));
 
+// With an agent connected, only clear git commands skip it: short, and naming git ("commit", "rama"…) or
+// asking to save progress. "Deshaz el último cambio del CSS" or a long request is for the agent.
+const MAX_GIT_COMMAND_WORDS = 14;
+const NAMES_GIT = /\b(commit\w*|comit\w*|rollback|revert\w*|reset\w*|rama|branch|checkout|git)\b/i;
+function isGitCommand(text) {
+  const intent = parseGitIntent(text);
+  if (!intent || intent.type === 'explain' || intent.type === 'help') return false;
+  if (text.trim().split(/\s+/).length > MAX_GIT_COMMAND_WORDS) return false;
+  return intent.type === 'commit' || NAMES_GIT.test(text);
+}
+
 export class AgentModel {
   #workspace;
   #project;
@@ -42,7 +53,11 @@ export class AgentModel {
   // onStart: called when the agent really starts (a question can wait in line behind a repair)
   // readOnly: the person only wants to understand; the agent's tools can only read this time
   async reply(text, { onTool, onText, onThinking, onEvent, onStart, agent, recent = [], readOnly = false } = {}) {
-    if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, onStart, recent, readOnly, ...(agent ? { agent } : {}) });
+    if (this.#connection?.live) {
+      // The agent has no git tools: a short, explicit git command typed by the person still runs here
+      if (isGitCommand(text)) return this.#gitCommand(text);
+      return this.#live(text, { onTool, onText, onThinking, onEvent, onStart, recent, readOnly, ...(agent ? { agent } : {}) });
+    }
     return (await this.#gitCommand(text)) ?? (await this.#fileCommand(text)) ?? this.#scripted(text);
   }
 

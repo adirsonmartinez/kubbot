@@ -1,7 +1,8 @@
 // The robot on the map. Four jobs, one robot (views/scene/guideRobot.js), in this order:
 //   - tour (TourViewModel.guide): it glides to each stop, points at it and says what it is;
 //   - building (BuildViewModel.guide): it carries each file the agent saves to its folder and drops it in;
-//   - welcome: on a new, empty project (MapViewModel.welcome) it waves and asks what to build;
+//   - welcome: Desire's welcome robot (welcomeRobotView.js, RobotDialogViewModel) owns it; while its dialog is
+//     on, this robot steps aside;
 //   - companion (RobotViewModel): it waits on the plaza; the person grabs it, drags or throws it onto a
 //     folder, and it asks what to do there. While an agent works it shows, in its bubble, the same
 //     thinking orb and words as the chat's working card.
@@ -16,7 +17,6 @@ import * as THREE from 'three';
 import { PALETTE } from './materials.js';
 import { FOLDER } from '../../viewmodels/layout.js';
 
-const SPOT = { x: 1.1, z: 1.1 }; // front corner of the plaza, so the bubble clears the project's label
 const HELD_LIFT = 1.4;
 const THROW_ARC = 2.6;
 const R = strings.robot;
@@ -29,10 +29,11 @@ function working(state) {
 }
 
 // openChat(): shows the chat (an answer from the bubble's buttons appears there)
-export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel = null, buildViewModel = null, robotViewModel = null, chatViewModel = null, cameraViewModel = null, openChat = () => {} }) {
+export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel = null, buildViewModel = null, robotViewModel = null, robotDialogViewModel = null, chatViewModel = null, cameraViewModel = null, openChat = () => {} }) {
+  const welcomeOn = () => (robotDialogViewModel ? robotDialogViewModel.store.state.phase !== 'off' : false);
   const robot = createGuideRobot({ sceneView, labels });
   robot.object.userData.pick = { type: 'robot' };
-  let job = null;     // 'tour' | 'welcome' | 'companion' | null
+  let job = null;     // 'tour' | 'build' | 'companion' | null
   let stepId = null;
   let hovered = false;
   let activity = null; // { state, label, orb } while an agent works
@@ -97,20 +98,8 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
       return;
     }
     stepId = null;
-    if (mapViewModel.store.state.welcome) {
-      if (job !== 'welcome') {
-        robot.show(true);
-        robot.lift(0);
-        robot.place(SPOT);
-        robot.face({ yaw: CAMERA.azimuth }); // faces the camera
-        robot.pose('wave');
-        robot.say({ title: strings.map.welcome.title, text: strings.map.welcome.question });
-        job = 'welcome';
-      }
-      return;
-    }
     const companion = robotViewModel?.store.state;
-    if (companion?.visible) {
+    if (companion?.visible && !welcomeOn() && !mapViewModel.store.state.welcome) {
       if (job !== 'companion') {
         // back from a job: it walks home; otherwise it appears there
         if (robot.visible && job) robot.moveTo(companion.at, 900); else robot.place(companion.at);
@@ -164,6 +153,7 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
   tourViewModel?.store.subscribe(apply);
   buildViewModel?.store.subscribe(apply);
   robotViewModel?.store.subscribe(apply);
+  robotDialogViewModel?.store.subscribe(apply);
   // The agent's state, as in the chat's working card: a new orb only when the state changes
   chatViewModel?.store.subscribe((state) => {
     const message = working(state);
