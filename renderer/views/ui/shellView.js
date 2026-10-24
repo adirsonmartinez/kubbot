@@ -157,12 +157,12 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   $('sidebar-actions').appendChild(explorerToggle);
 
   // --- Rail (icons with a hover card: name + what it is for) ---
-  for (const button of document.querySelectorAll('#rail [data-side]')) {
+  for (const button of document.querySelectorAll('#side-tabs [data-side]')) {
     const side = button.dataset.side;
     addTip(button, S.rail[side], S.railInfo[side]);
     button.addEventListener('click', () => vm.setSide(side));
   }
-  const stageButtons = [...document.querySelectorAll('#rail [data-stage-button]')];
+  const stageButtons = [...document.querySelectorAll('[data-stage-button]')];
   for (const button of stageButtons) {
     const stage = button.dataset.stageButton;
     addTip(button, S.rail[stage], S.railInfo[stage]);
@@ -464,7 +464,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     panelToggle.querySelector('.tip').replaceChildren(el('strong', '', toggleText), el('small', '', S.panelToggle.info));
     body.classList.toggle('chat-closed', !state.chatOpen);
     body.classList.toggle('mode-tech', modeModel.tech);
-    for (const button of document.querySelectorAll('#rail [data-side]')) {
+    for (const button of document.querySelectorAll('#side-tabs [data-side]')) {
       button.classList.toggle('active', state.sidebarOpen && button.dataset.side === state.side);
     }
     chatButton.classList.toggle('active', state.chatOpen);
