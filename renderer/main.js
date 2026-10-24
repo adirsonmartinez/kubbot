@@ -141,7 +141,7 @@ createControlsView({ cameraViewModel });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
 createChatView({ chatViewModel, connection });
 createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks: () => actions.showRisks() });
-createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, actions });
+createShellView({ shellViewModel, modeModel, repairViewModel, repairHistory, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });

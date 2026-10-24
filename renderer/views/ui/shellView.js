@@ -8,7 +8,6 @@ import { createDevTree } from './devTreeView.js';
 const S = strings.shell;
 const P = S.project;
 const LEVEL_LABEL = strings.security.levels;
-const ZOOM_STEP = 1.3;
 const RISK_ICON = {
   red: '<svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z"/><path d="M12 10v4M12 17v.5"/></svg>',
   yellow: '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>',
@@ -40,7 +39,7 @@ function addTip(button, title, info) {
   button.appendChild(tip);
 }
 
-export function createShellView({ shellViewModel: vm, cameraViewModel: camera, modeModel, repairViewModel, repairHistory, actions }) {
+export function createShellView({ shellViewModel: vm, modeModel, repairViewModel, repairHistory, actions }) {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
   const devTree = createDevTree({
@@ -64,36 +63,6 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
           : [{ label: S.actions.noRecent, disabled: true }]),
         { separator: true },
         { label: S.actions.closeProject, disabled: !vm.store.state.open, run: () => vm.closeProject() },
-      ],
-    },
-    {
-      key: 'view',
-      items: () => [
-        { label: S.actions.showMap, run: () => vm.setStage('map') },
-        { label: P.title, run: () => vm.setStage('project') },
-        { label: S.actions.showGraph, run: () => vm.setStage('graph') },
-        { separator: true },
-        { label: S.actions.centerView, run: () => camera.reset() },
-        { label: S.actions.zoomIn, run: () => camera.zoomBy(ZOOM_STEP) },
-        { label: S.actions.zoomOut, run: () => camera.zoomBy(1 / ZOOM_STEP) },
-        { label: S.actions.backToMap, run: () => { vm.setStage('map'); vm.showFolder(''); } },
-        { separator: true },
-        { label: `${S.actions.toggleMode} (${modeModel.tech ? strings.mode.vibe : strings.mode.tech})`, run: () => modeModel.toggle() },
-      ],
-    },
-    {
-      key: 'agent',
-      items: () => [
-        { label: S.actions.openChat, run: () => vm.store.state.chatOpen || vm.toggleChat() },
-        { label: S.actions.repairWorst, run: () => actions.repairWorst() },
-        { label: S.rail.agent, run: () => vm.setSide('agent') },
-      ],
-    },
-    {
-      key: 'window',
-      items: () => [
-        { label: S.actions.toggleSidebar, run: () => vm.toggleSidebar() },
-        { label: S.actions.toggleChat, run: () => vm.toggleChat() },
       ],
     },
   ];
