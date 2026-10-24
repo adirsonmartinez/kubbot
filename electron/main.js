@@ -382,6 +382,10 @@ app.whenReady().then(async () => {
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 
+// Closing from the system (kill, logout, a dev restart) quits normally, so the window's saved data
+// (chosen agent, stats, repair history, Vibe/Dev) is written to disk instead of being lost
+for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => app.quit());
+
 app.on('window-all-closed', () => {
   workspace.unwatch();
   if (process.platform !== 'darwin') app.quit();
