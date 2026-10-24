@@ -9,18 +9,23 @@ import { ProjectModel } from './models/projectModel.js';
 import { SecurityModel } from './models/securityModel.js';
 import { SupabaseModel } from './models/supabaseModel.js';
 import { AgentModel } from './models/agentModel.js';
+import { GitModel } from './models/gitModel.js';
 
 import { CameraViewModel } from './viewmodels/cameraViewModel.js';
 import { TowerViewModel } from './viewmodels/towerViewModel.js';
 import { SupabaseViewModel } from './viewmodels/supabaseViewModel.js';
 import { MapViewModel } from './viewmodels/mapViewModel.js';
 import { ChatViewModel } from './viewmodels/chatViewModel.js';
+import { GitViewModel } from './viewmodels/gitViewModel.js';
+import { AppViewModel } from './viewmodels/appViewModel.js';
 
 import { createSceneView } from './views/scene/sceneView.js';
 import { createMapView } from './views/scene/mapView.js';
 import { createTowerView } from './views/scene/towerView.js';
 import { createSupabaseView } from './views/scene/supabaseView.js';
 import { createInputController } from './views/scene/inputController.js';
+import { createGitView } from './views/scene/gitView.js';
+import { createViewSwitcherView } from './views/ui/viewSwitcherView.js';
 import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
 import { createPanelsView } from './views/ui/panelsView.js';
@@ -34,6 +39,7 @@ const projectModel = new ProjectModel(workspace);
 const securityModel = new SecurityModel();
 const supabaseModel = new SupabaseModel();
 const agentModel = new AgentModel({ workspace, projectModel, supabaseModel });
+const gitModel = new GitModel(workspace);
 
 // --- ViewModels ---
 const cameraViewModel = new CameraViewModel();
@@ -41,6 +47,8 @@ const towerViewModel = new TowerViewModel({ securityModel, camera: cameraViewMod
 const supabaseViewModel = new SupabaseViewModel({ supabaseModel, projectModel, camera: cameraViewModel, bus });
 const mapViewModel = new MapViewModel({ projectModel, securityModel, camera: cameraViewModel, towerViewModel, supabaseViewModel });
 const chatViewModel = new ChatViewModel({ agentModel, bus });
+const gitViewModel = new GitViewModel({ gitModel, camera: cameraViewModel, bus });
+const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitViewModel });
 
 // --- Views ---
 applyStrings();
@@ -49,27 +57,49 @@ const labels = createLabelLayer(document.getElementById('map-labels'), sceneView
 const mapView = createMapView({ sceneView, labels, mapViewModel });
 const towerView = createTowerView({ sceneView, labels, towerViewModel, cameraViewModel, mapView });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
+const gitView = createGitView({ sceneView, labels, gitViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
 
+// Clicks and Esc go to the view on screen
+const projectOpen = () => mapViewModel.store.state.status === 'ready';
+const pickers = {
+  map: () => ({
+    targets: [...supabaseView.pickTargets(), ...mapView.pickTargets(), ...towerView.pickTargets()],
+    handle: (pick) => mapViewModel.handlePick(pick),
+  }),
+  git: () => ({ targets: gitView.pickTargets(), handle: (pick) => gitViewModel.handlePick(pick) }),
+};
 createInputController({
   sceneView,
   cameraViewModel,
-  mapViewModel,
-  pickTargets: () => [...supabaseView.pickTargets(), ...mapView.pickTargets(), ...towerView.pickTargets()],
+  picker: () => (projectOpen() ? pickers[appViewModel.view]() : null),
+  onEscape: () => (appViewModel.view === 'git' ? gitViewModel.escape() : mapViewModel.escape()),
+  onToggleView: () => appViewModel.toggle(),
 });
 createControlsView({ cameraViewModel });
-createPanelsView({ mapViewModel, towerViewModel, supabaseViewModel });
+createViewSwitcherView({ appViewModel, sceneView, labels });
+createPanelsView({ appViewModel, mapViewModel, towerViewModel, supabaseViewModel, gitViewModel });
 createChatView({ chatViewModel });
 
 // --- Wiring between layers ---
 projectModel.store.subscribe((state, previous) => {
-  if (state.session !== previous.session) bus.emit(EVENTS.projectOpened, { name: state.name ?? strings.map.defaultProjectName });
+  if (state.session === previous.session) return;
+  bus.emit(EVENTS.projectOpened, { name: state.name ?? strings.map.defaultProjectName });
+  // A new project: fresh git history and cameras
+  appViewModel.resetCameras();
+  gitModel.clear();
+  gitModel.load();
+  if (appViewModel.view === 'git') gitViewModel.centerOnHead();
 });
 
 workspace.onChanged((paths) => {
   bus.emit(EVENTS.diskChanged, { paths });
   projectModel.scheduleReload();
+  gitModel.scheduleReload();
 });
+
+// .git is not watched (too noisy), so commits made in a terminal show up when the window regains focus
+window.addEventListener('focus', () => { if (projectOpen()) gitModel.scheduleReload(); });
 
 // Public hook for the AI agent: set the traffic light of a file.
 //   window.dispatchEvent(new CustomEvent('file:score', { detail: { path, level: 'red', reason } }))

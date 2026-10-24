@@ -1,16 +1,20 @@
 // Mouse and keyboard on the map. Left drag: pan (the grabbed ground point stays under the cursor).
 // Right drag or Shift + drag: rotate. Wheel: zoom toward the cursor. Click: pick an object.
+// G switches between the map and the git view; Esc closes whatever is open in the active view.
 const CLICK_TOLERANCE_PX = 6;
 const ROTATE_SPEED = 0.008;
 
-export function createInputController({ sceneView, cameraViewModel: camera, mapViewModel, pickTargets }) {
+// picker(): the active view's { targets: Object3D[], handle(pick) }, or null when nothing is clickable
+export function createInputController({ sceneView, cameraViewModel: camera, picker, onEscape, onToggleView }) {
   const canvas = sceneView.canvas;
   let grabPoint = null;
   let rotatingFromX = null;
   let downAt = null;
 
-  const pickAt = (x, y) =>
-    mapViewModel.store.state.status === 'ready' ? sceneView.pickAt(x, y, pickTargets()) : null;
+  const pickAt = (x, y) => {
+    const active = picker();
+    return active ? sceneView.pickAt(x, y, active.targets) : null;
+  };
 
   canvas.addEventListener('pointerdown', (e) => {
     downAt = { x: e.clientX, y: e.clientY, button: e.button };
@@ -54,7 +58,7 @@ export function createInputController({ sceneView, cameraViewModel: camera, mapV
     endDrag(e);
     if (!wasClick) return;
     const pick = pickAt(e.clientX, e.clientY);
-    if (pick) mapViewModel.handlePick(pick);
+    if (pick) picker()?.handle(pick);
   });
   canvas.addEventListener('pointercancel', endDrag);
 
@@ -69,9 +73,10 @@ export function createInputController({ sceneView, cameraViewModel: camera, mapV
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') return mapViewModel.escape();
-    if (e.target.closest?.('input, textarea')) return; // do not rotate while typing in the chat
+    if (e.key === 'Escape') return onEscape();
+    if (e.target.closest?.('input, textarea')) return; // no shortcuts while typing in the chat
     const key = e.key.toLowerCase();
+    if (key === 'g') onToggleView();
     if (key === 'q') camera.rotateQuarter(1);
     if (key === 'e') camera.rotateQuarter(-1);
   });

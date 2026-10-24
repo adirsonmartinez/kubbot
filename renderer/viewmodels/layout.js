@@ -9,6 +9,9 @@ export const FOLDER_SPACING = 12;
 
 export const TOWER = { cube: 0.7, pitch: 0.95, floorHeight: 2.3, base: 0.45, maxFloors: 10 };
 
+// Git view: commits advance along X (newest at x = 0), each lane is a row along Z
+export const GIT_LAYOUT = { step: 2.4, laneGap: 3.6, zoom: 1.2 };
+
 export const hqHeight = (totalFiles) => clamp(5 + Math.log2(1 + totalFiles) * 1.2, 5, 14);
 export const folderHeight = (files) => Math.min(1.2 + Math.log2(1 + files) * 1.4, 9);
 export const towerHeight = (floorCount) => TOWER.base + floorCount * TOWER.floorHeight;

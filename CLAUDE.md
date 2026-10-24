@@ -32,6 +32,12 @@ renderer/
 - **Views** subscribe to ViewModels and draw; user input only calls ViewModel actions. Clickable 3D objects carry `userData.pick = { type, ...ids }` and `MapViewModel.handlePick()` routes them.
 - Change state only through `store.set(patch)`. Bump `version` when a view has to rebuild.
 
+## Views
+
+`AppViewModel` switches between `map` (project city) and `git` (branches as railway lanes). Each view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks and Esc are routed to the active view in `main.js`.
+
+Git is read only: `electron/git.js` runs fixed `git` commands with `execFile` (no shell) and returns commits, branches, tags and HEAD. `GitViewModel` assigns each commit to a lane (first-parent chains in git flow priority; deleted branches recovered from merge subjects) and flags commits that added red files (`.env`, keys) as risky.
+
 ## Hooks for the AI agent
 
 - Replace the scripted brain in `models/agentModel.js`; keep the reply shape `{ text | html, tone, chips, then }`.

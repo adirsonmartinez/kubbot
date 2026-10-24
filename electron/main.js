@@ -4,6 +4,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('node:path');
 const { Workspace } = require('./workspace');
+const { readGitHistory } = require('./git');
 const t = require('./strings');
 
 const workspace = new Workspace();
@@ -77,6 +78,9 @@ ipcMain.handle('workspace:current', () => ({
 }));
 
 ipcMain.handle('audit:list', () => ({ ok: true, data: audit }));
+
+// --- Git (read only) ---
+ipcMain.handle('git:history', async () => ({ ok: true, data: await readGitHistory(workspace.root) }));
 
 // --- Files (every path is relative to the workspace) ---
 handle('fs:tree', 'tree', (rel) => workspace.tree(rel));

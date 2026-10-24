@@ -23,6 +23,12 @@ export function createSceneView(cameraViewModel) {
 
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
 
+  // One layer per app view; only the active one is visible. Ground, grid and lights are shared.
+  const layers = { map: new THREE.Group(), git: new THREE.Group() };
+  Object.values(layers).forEach((layer) => scene.add(layer));
+  const setActiveLayer = (name) => Object.entries(layers).forEach(([key, layer]) => { layer.visible = key === name; });
+  setActiveLayer('map');
+
   // Lights
   scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b1f0, 1.3));
   const sun = new THREE.DirectionalLight(0xffffff, 2.6);
@@ -128,6 +134,8 @@ export function createSceneView(cameraViewModel) {
 
   return {
     scene,
+    layers,
+    setActiveLayer,
     renderer,
     canvas: renderer.domElement,
     syncCamera,
