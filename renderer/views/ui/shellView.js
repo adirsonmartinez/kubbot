@@ -128,6 +128,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
   const explorerToggle = el('div');
   modeToggle(explorerToggle);
   $('sidebar-actions').appendChild(explorerToggle);
+  $('sidebar-close').addEventListener('click', () => vm.toggleSidebar()); // "–" in the panel's header, like the chat's
 
   // --- Rail (icons with a hover card: name + what it is for) ---
   for (const button of document.querySelectorAll('#side-dock [data-side]')) {

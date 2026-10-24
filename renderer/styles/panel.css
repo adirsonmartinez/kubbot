@@ -34,11 +34,14 @@
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
-#sidebar.dragging { box-shadow: var(--lg-rim-strong), 0 30px 70px rgba(0, 0, 0, .55); }
 
 /* Header: like the chat's */
-#sidebar .card-head { height: 48px; padding: 0 16px; border-bottom: 1px solid var(--lg-line); }
-#sidebar .card-head #sidebar-title { font: 600 14px/1.2 var(--lg-font); letter-spacing: -.01em; color: var(--lg-text); }
+#sidebar .card-head { gap: 8px; height: 48px; padding: 0 10px 0 16px; border-bottom: 1px solid var(--lg-line); user-select: none; }
+#sidebar .card-head #sidebar-title { flex: 1; font: 600 14px/1.2 var(--lg-font); letter-spacing: -.01em; color: var(--lg-text); }
+/* "–" closes the panel: the chat's minimize button */
+#sidebar .sidebar-close { flex: none; border-radius: 10px; color: var(--lg-icon-muted); background: transparent; transition: background .2s var(--lg-ease), color .2s var(--lg-ease); }
+#sidebar .sidebar-close:hover { color: var(--lg-icon); background: var(--lg-chip); box-shadow: var(--lg-rim); }
+#sidebar .sidebar-close:focus-visible { outline: 2px solid rgba(255, 255, 255, .5); outline-offset: 1px; }
 
 /* Primary buttons on the white "accent": dark text, like the chat's white pill */
 #sidebar :is(button, a).primary, #sidebar .btn-primary { color: #121212; }

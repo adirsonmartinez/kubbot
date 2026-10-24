@@ -192,9 +192,8 @@ createRepairPanelView({ container: document.getElementById('remi-layer'), repair
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, approval: approvalModel, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });
 createIconBarView({ bar: document.getElementById('side-dock'), vertical: true });
-// The side panel and the chat can be dragged by their header (double click: back in place)
+// The chat can be dragged by its header (double click: back in place); the side panel stays in its place
 const workspaceEl = document.getElementById('workspace');
-makeDraggable({ el: document.getElementById('sidebar'), handle: document.querySelector('#sidebar .card-head'), key: 'sidebar', area: workspaceEl });
 makeDraggable({ el: document.getElementById('chat'), handle: document.querySelector('#chat .chat-head'), key: 'chat', area: workspaceEl, disabled: () => document.body.classList.contains('chat-docked') });
 createChatDockView({ workspace: workspaceEl, chat: document.getElementById('chat'), pinButton: document.getElementById('chat-pin') });
 // Cards on the map can be dragged anywhere and minimized

@@ -49,7 +49,7 @@ renderer/
                   (libraries.dev orbs over the package engine), agentPicker
                   (+ effortSlider), chatMenu, agentConnect, devTree, hoverCard, hud,
                   repairPanel, remiJump, editor (floating file editor with tabs, CodeMirror with syntax colors; secrets open flagged), panels (breadcrumb, schema, git), controls, handControl (hand button + camera preview), labels
-                  floating layout: iconBar (reorderable icons), draggable (side panel / chat by
+                  floating layout: iconBar (reorderable icons), draggable (the chat by
                   header), floater (map cards: move, minimize, dock), chatDock (pinned chat column),
                   floatingMenu (⋯ menus: one layer above the app, anchored to its button, flips up, keyboard)
   views/icons.js  icon('name') / <i data-icon> from icons/hugeicons.js (generated, see Visual style)

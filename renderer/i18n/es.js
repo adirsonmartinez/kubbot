@@ -354,6 +354,7 @@ export const strings = {
     brand: 'Platanus',
     search: 'Buscar o hacer algo…',
     searchShortcut: '⌘K',
+    closePanel: 'Cerrar el panel',
     menus: { file: 'Proyecto' },
     actions: {
       newProject: 'Nuevo proyecto',

@@ -1078,12 +1078,11 @@ body.chat-closed #stage #hud-float:not(.moved), body.chat-min #stage #hud-float:
 /* (ids, so these win over the default positions above) */
 body:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 402px; }
 
-/* ---------- Side panel and chat: drag by their header ---------- */
+/* ---------- Chat: drag by its header (the side panel stays in its place) ---------- */
 .drag-handle { cursor: grab; user-select: none; touch-action: none; }
-#sidebar.dragging, #chat.dragging { transition: none !important; box-shadow: 0 30px 70px rgba(0, 0, 0, .55); }
-#sidebar.dragging .drag-handle, #chat.dragging .drag-handle { cursor: grabbing; }
-/* When moved by hand, the rest of the layout stops making room for them */
-body.sidebar-moved { --shift-l: 0px; }
+#chat.dragging { transition: none !important; box-shadow: 0 30px 70px rgba(0, 0, 0, .55); }
+#chat.dragging .drag-handle { cursor: grabbing; }
+/* When moved by hand, the rest of the layout stops making room for it */
 body.chat-moved { --shift-r: 0px; }
 body.chat-moved:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 14px; }
 body.chat-moved:not(.chat-closed):not(.chat-min) .remi-layer { right: 14px; }
