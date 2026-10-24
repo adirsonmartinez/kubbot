@@ -118,6 +118,16 @@ export const strings = {
     return { name: tag ? `${tag} · ${folder}` : folder, summary: tag ? `Archivos de ${tag.toLowerCase()}.` : 'Archivos del proyecto.' };
   },
 
+  crackMenu: {
+    title: (place) => `Grieta en ${place}`,
+    close: 'Cerrar',
+    what: '¿Qué es?',
+    hide: 'Ocultar explicación',
+    whatTitle: 'qué significa',
+    repair: 'Reparar',
+    audit: 'Auditar en el chat',
+  },
+
   cracksCard: {
     title: (n) => (n === 1 ? '1 grieta abierta' : `${n} grietas abiertas`),
     allGood: 'Sin grietas abiertas',
@@ -153,6 +163,7 @@ export const strings = {
 
   hover: {
     clickFolder: 'Clic para entrar al edificio',
+    clickCrack: 'Clic en la grieta: ver qué es, repararla o auditarla',
     clickFloor: 'Clic para acercar este piso',
     clickFile: 'Clic para ver el detalle',
     cracks: (n) => (n === 1 ? '1 grieta' : `${n} grietas`),
@@ -337,10 +348,15 @@ export const strings = {
     online: 'En línea',
     placeholder: 'Pregúntale al agente… (Enter envía, Shift+Enter salta línea)',
     thinking: 'Pensando…',
+    reasoning: 'Cómo lo pensó',
     welcomeTitle: (project) => `¿Qué hacemos con ${project}?`,
     welcomeNoProject: '¿Qué hacemos hoy?',
     welcomeBody: 'Cuéntame tu idea o pídeme que revise el edificio. Te explico cada problema con palabras simples.',
     prompts: ['Revisa mi proyecto y dime qué está en riesgo', 'Explícame el mapa con palabras simples', '¿Qué archivo debería arreglar primero?'],
+    // Shown above the box to start writing right away (they fill the box, the person can edit and send)
+    followUps: ['Revisa los archivos en rojo', 'Explícamelo más simple', '¿Qué hago ahora?', 'Audita este proyecto a fondo', '¿Por qué esto es un riesgo?'],
+    followUpsTitle: 'Sugerencias para escribir',
+    auditPrompt: (path, reason) => `Audita **${path}**. El mapa lo marca así: "${reason}". Léelo y dime si el riesgo es real o una falsa alarma, por qué, y qué haría para arreglarlo. Si no es un riesgo, ponlo en verde en el semáforo.`,
     more: 'Más opciones',
     menu: {
       open: 'Abrir el chat',
@@ -416,10 +432,28 @@ export const strings = {
     planDefault: 'El de tu plan',
     effort: 'Cuánto piensa',
     efforts: { low: 'Rápido', medium: 'Equilibrado', high: 'Profundo', xhigh: 'Muy profundo', max: 'Máximo' },
+    modelNotes: {
+      plan: 'El que elige tu plan',
+      best: 'El más capaz',
+      deep: 'Profundo y preciso',
+      balanced: 'Rápido y capaz',
+      fast: 'El más rápido',
+      newest: 'El más nuevo',
+      fastPricey: 'Más rápido, gasta más',
+      previous: 'Versión anterior',
+    },
+    effortHints: {
+      low: 'Responde al instante. Ideal para preguntas cortas.',
+      medium: 'Piensa un poco más antes de responder.',
+      high: 'Revisa con calma: mejor para auditar.',
+      xhigh: 'Análisis a fondo; tarda más.',
+      max: 'Todo el razonamiento disponible. Lento y más caro para tu plan.',
+    },
     fromEditor: 'Conéctalo desde tu editor',
     fromEditorIntro: 'Copia esto en tu herramienta para que trabaje con el mapa de Platanus mientras la app está abierta.',
     mcpOff: 'El servidor local todavía no está listo.',
     mcpOn: (url) => `Servidor local: ${url}`,
+    mcpPrivate: 'La dirección lleva una llave privada (oculta aquí). "Copiar" la incluye: no la compartas.',
     copy: 'Copiar',
     copied: 'Copiado',
     snippets: {
@@ -436,7 +470,9 @@ export const strings = {
       'Eres el agente de seguridad de Platanus. Quien te escribe no es desarrollador: responde en español sencillo, en pocas frases, sin jerga. ' +
       'Usa las herramientas de Platanus: platanus_get_project para ver el proyecto, platanus_list_risks para los archivos en riesgo, ' +
       'platanus_read_file para leer un archivo, platanus_set_file_score para marcar el semáforo de un archivo (verde, amarillo o rojo, con una razón corta) ' +
-      'platanus_show_folder para mostrar una carpeta en el mapa y platanus_write_file para guardar un arreglo (solo si la persona lo pide o estás reparando; ella aprueba cada cambio). Nunca pidas ni muestres secretos. Termina con un paso concreto que la persona pueda hacer.',
+      'platanus_show_folder para mostrar una carpeta en el mapa y platanus_write_file para guardar un arreglo (solo si la persona lo pide o estás reparando; ella aprueba cada cambio). Nunca pidas ni muestres secretos. ' +
+      'Da formato a tu respuesta con Markdown para que se lea fácil: una frase de resumen, luego secciones cortas con "### Qué revisé", "### Qué encontré" y "### Qué hacer ahora", viñetas con "- ", y nombres de archivo en **negrita**. ' +
+      'Explica cada riesgo con una comparación de la vida diaria. Termina con un paso concreto que la persona pueda hacer.',
     // Added to livePrompt in "dev" mode
     techSuffix: ' La persona eligió el modo técnico: puedes usar rutas, nombres de archivos, comandos y fragmentos de código, siempre breves.',
     liveFailed: (why) => `<strong>No pude hablar con tu agente.</strong> ${why || 'Revisa en "Conecta tu agente" que la sesión esté iniciada.'}`,

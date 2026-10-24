@@ -6,7 +6,7 @@ const ROTATE_SPEED = 0.008;
 const TILT_SPEED = 0.005;
 const KEY_PAN = 2.5;
 
-export function createInputController({ sceneView, cameraViewModel: camera, mapViewModel, pickTargets, onHover = () => {} }) {
+export function createInputController({ sceneView, cameraViewModel: camera, mapViewModel, pickTargets, onHover = () => {}, onCrack = () => {} }) {
   const canvas = sceneView.canvas;
   let grabPoint = null;
   let rotatingFrom = null; // { x, y }
@@ -61,7 +61,9 @@ export function createInputController({ sceneView, cameraViewModel: camera, mapV
     endDrag(e);
     if (!wasClick) return;
     const pick = pickAt(e.clientX, e.clientY);
-    if (pick) mapViewModel.handlePick(pick);
+    // A crack (or its "!" sign) opens its menu: see what it is, repair it, or audit it in the chat
+    if (pick?.type === 'crack') onCrack(pick, e.clientX, e.clientY);
+    else if (pick) mapViewModel.handlePick(pick);
   });
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('pointerleave', () => onHover(null));

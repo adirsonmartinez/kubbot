@@ -23,6 +23,7 @@ function segment(parent, mat, cx, cy, length, width, depth, angle, face) {
     mesh.position.set(face.at, cy, cx);
     mesh.rotation.x = -angle;
   }
+  mesh.userData.crack = true; // mapView makes it clickable (pick type 'crack')
   parent.add(mesh);
   return mesh;
 }

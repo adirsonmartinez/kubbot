@@ -1,6 +1,7 @@
 // Renders ChatViewModel: messages (appended incrementally to keep the scroll; a streaming answer
 // updates its bubble in place), "thinking…", chips, and the composer (Enter sends, Shift+Enter breaks).
 import { strings } from '../../i18n/es.js';
+import { markdownToHtml } from './markdown.js';
 
 const ICON_MINIMIZE = '<path d="M6 12h12"/>';
 const ICON_EXPAND = '<path d="M6 12h12M12 6v12"/>';
@@ -49,11 +50,24 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
     hero.replaceChildren(mark, title, text, list);
   }
 
-  function messageElement({ role, text, html, tone }) {
+  // Agent answers are Markdown (escaped first, see markdown.js); the person's own text stays plain
+  function fill(el, { role, text, html, thinking }) {
+    if (html) { el.innerHTML = html; return; } // only our own strings, never user input
+    if (role !== 'bot') { el.textContent = text ?? ''; return; }
+    const parts = [];
+    if (thinking) {
+      parts.push(`<details class="reasoning"${text ? '' : ' open'}><summary>${strings.chat.reasoning}</summary><div>${markdownToHtml(thinking)}</div></details>`);
+    }
+    parts.push(text ? `<div class="md">${markdownToHtml(text)}</div>` : thinking ? '' : `<div class="md">${strings.chat.thinking}</div>`);
+    const open = el.querySelector('details.reasoning')?.open;
+    el.innerHTML = parts.join('');
+    if (open !== undefined && text) el.querySelector('details.reasoning').open = open; // keep what the person chose
+  }
+
+  function messageElement(m) {
     const el = document.createElement('div');
-    el.className = ['msg', role, tone].filter(Boolean).join(' ');
-    if (html) el.innerHTML = html; // only our own strings, never user input
-    else el.textContent = text || (role === 'bot' ? strings.chat.thinking : '');
+    el.className = ['msg', m.role, m.tone].filter(Boolean).join(' ');
+    fill(el, m);
     return el;
   }
 
@@ -69,11 +83,12 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
       const seen = rendered.get(m.id);
       if (!seen) {
         const el = messageElement(m);
-        rendered.set(m.id, { el, text: m.text });
+        rendered.set(m.id, { el, text: m.text, thinking: m.thinking });
         body.appendChild(el);
-      } else if (seen.text !== m.text && !m.html) {
+      } else if ((seen.text !== m.text || seen.thinking !== m.thinking) && !m.html) {
         seen.text = m.text;
-        seen.el.textContent = m.text;
+        seen.thinking = m.thinking;
+        fill(seen.el, m);
       }
     });
 
@@ -122,6 +137,30 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
     }
   });
   toggle.addEventListener('click', () => vm.toggleMinimized());
+
+  // Suggestions to start writing: a click fills the box (the person can edit before sending)
+  const suggest = $('chat-suggest');
+  suggest.setAttribute('aria-label', strings.chat.followUpsTitle);
+  for (const text of strings.chat.followUps) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('role', 'listitem');
+    b.textContent = text;
+    b.addEventListener('click', () => {
+      input.value = text;
+      grow();
+      input.focus();
+      input.setSelectionRange(text.length, text.length);
+      updateSuggest();
+    });
+    suggest.appendChild(b);
+  }
+  const updateSuggest = () => {
+    const { welcome, typing } = vm.store.state;
+    suggest.hidden = welcome || typing || input.value.trim().length > 0;
+  };
+  input.addEventListener('input', updateSuggest);
+  vm.store.subscribe(updateSuggest, { immediate: true });
 
   vm.store.subscribe(render, { immediate: true });
 

@@ -76,7 +76,10 @@ const GROK_DISALLOWED = [
 function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, session }) {
   const resume = continued ? resumeIds[`${id}:${session}`] : null;
   if (id === "claude") {
-    const mcp = JSON.stringify({ mcpServers: { platanus: { type: "http", url: mcpUrl } } });
+    // The address carries a private key: write it to a 0600 file instead of the command line,
+    // which any user of this computer could read with `ps`
+    const mcp = path.join(WORKDIR, "mcp.json");
+    fs.writeFileSync(mcp, JSON.stringify({ mcpServers: { platanus: { type: "http", url: mcpUrl } } }), { mode: 0o600 });
     return [
       "-p", prompt,
       "--output-format", "stream-json", "--verbose",
@@ -99,7 +102,7 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, s
       "-p", prompt,
       "--output-format", "streaming-messages-json",
       "--system-prompt-override", systemPrompt,
-      "--reasoning-effort", effort === "xhigh" || effort === "max" ? "high" : effort,
+      "--reasoning-effort", effort === "max" ? "xhigh" : effort, // Grok accepts low..xhigh
       ...(model ? ["-m", model] : []),
       "--permission-mode", "dontAsk",
       "--allow", "use_tool",
@@ -113,7 +116,7 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, s
   return [
     "exec", "--json", "--skip-git-repo-check", "-C", WORKDIR,
     "-c", `mcp_servers.platanus.url=${JSON.stringify(mcpUrl)}`,
-    "-c", `model_reasoning_effort=${JSON.stringify(effort === "xhigh" || effort === "max" ? "high" : effort)}`,
+    "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, // Codex accepts low..max
     ...(model ? ["-m", model] : []),
     `${systemPrompt}\n\n${prompt}`,
   ];
@@ -133,6 +136,7 @@ function parseLine(id, session, line, emit) {
     if (e.type === "assistant") {
       for (const b of e.message?.content ?? []) {
         if (b.type === "text" && b.text) emit({ type: "text", delta: b.text });
+        if (b.type === "thinking" && b.thinking) emit({ type: "thinking", delta: b.thinking });
         // Only Platanus tools are shown, not the agent's internal ones.
         // Grok wraps MCP tools in use_tool { tool_name: "platanus__x" }.
         const name = b.type === "tool_use" ? (b.name === "use_tool" ? b.input?.tool_name : b.name) : "";
@@ -146,6 +150,7 @@ function parseLine(id, session, line, emit) {
   // codex (eventos JSONL de `codex exec --json`)
   const item = e.item ?? e.msg;
   if (!item) return;
+  if (item.type === "reasoning" && (item.text || item.summary)) emit({ type: "thinking", delta: String(item.text || item.summary) });
   if ((item.type === "agent_message" || item.type === "assistant_message") && (item.text || item.message)) {
     emit({ type: "text", delta: item.text || item.message });
   }

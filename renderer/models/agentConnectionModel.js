@@ -4,12 +4,45 @@ import { Observable } from '../core/observable.js';
 
 export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 
-// Models per agent ('' = the default of the user's plan). Kept small on purpose.
+// Models per agent, verified against each CLI installed here (Claude Code 2.1.310, Grok 1.0.67, Codex):
+// id = what the CLI's model flag takes ('' = the default of the person's plan); label = name + version;
+// tier = key of strings.connect.modelNotes. Efforts are the values each CLI accepts, lowest first.
 export const CATALOG = {
-  claude: { models: ['', 'opus', 'sonnet', 'haiku'], efforts: EFFORTS, defaultEffort: 'low' },
-  grok: { models: ['', 'grok-4.7'], efforts: ['low', 'medium', 'high'], defaultEffort: 'low' },
-  codex: { models: [''], efforts: ['low', 'medium', 'high'], defaultEffort: 'low' },
+  claude: {
+    models: [
+      { id: '', label: null, tier: 'plan' },
+      { id: 'fable', label: 'Fable 5.1', tier: 'best' },
+      { id: 'opus', label: 'Opus 5.5', tier: 'deep' },
+      { id: 'sonnet', label: 'Sonnet 5.5', tier: 'balanced' },
+      { id: 'haiku', label: 'Haiku 5.5', tier: 'fast' },
+    ],
+    efforts: EFFORTS,
+    defaultEffort: 'low',
+  },
+  grok: {
+    models: [
+      { id: '', label: null, tier: 'plan' },
+      { id: 'grok-4.7', label: 'Grok 4.7', tier: 'newest' },
+      { id: 'grok-4.7-build-fast', label: 'Grok 4.7 Fast', tier: 'fastPricey' },
+      { id: 'grok-4.6', label: 'Grok 4.6', tier: 'previous' },
+    ],
+    efforts: ['low', 'medium', 'high', 'xhigh'],
+    defaultEffort: 'low',
+  },
+  codex: {
+    models: [
+      { id: '', label: null, tier: 'plan' },
+      { id: 'gpt-6.1-sol', label: 'GPT-6.1 Sol', tier: 'newest' },
+      { id: 'gpt-6-sol', label: 'GPT-6 Sol', tier: 'deep' },
+      { id: 'gpt-6-luna', label: 'GPT-6 Luna', tier: 'fast' },
+    ],
+    efforts: EFFORTS,
+    defaultEffort: 'low',
+  },
 };
+
+// Display name of a model id for an agent (null = the plan's default)
+export const modelLabel = (agent, id) => CATALOG[agent]?.models.find((m) => m.id === id)?.label ?? null;
 
 const CHOICE_KEY = 'platanus.agent.choice.v1';
 
@@ -49,7 +82,7 @@ export class AgentConnectionModel {
 
   setModel(model) {
     const c = CATALOG[this.store.state.selected];
-    if (c?.models.includes(model)) { this.store.set({ model }); this.#saveChoice(); }
+    if (c?.models.some((m) => m.id === model)) { this.store.set({ model }); this.#saveChoice(); }
   }
 
   setEffort(effort) {
@@ -74,16 +107,16 @@ export class AgentConnectionModel {
   // session: 'chat' (continues the conversation) or 'repair' (Remi's jobs, a separate conversation).
   // signal (AbortSignal): a waiting question never starts; a running one stops its CLI.
   // onStart(runId): called when the CLI actually starts (after waiting in line).
-  ask(prompt, systemPrompt, { onTool, onText, onStart, signal, session = 'chat' } = {}) {
+  ask(prompt, systemPrompt, { onTool, onText, onThinking, onStart, signal, session = 'chat' } = {}) {
     // The choice is taken now: a question waiting in line keeps the agent it was asked to
     const { selected: agent, model, effort } = this.store.state;
-    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, onStart, signal, session, agent, model, effort });
+    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, onThinking, onStart, signal, session, agent, model, effort });
     const result = this.#queue.then(run, run);
     this.#queue = result.catch(() => {});
     return result;
   }
 
-  async #run(prompt, systemPrompt, { onTool, onText, onStart, signal, session, agent, model, effort }) {
+  async #run(prompt, systemPrompt, { onTool, onText, onThinking, onStart, signal, session, agent, model, effort }) {
     if (signal?.aborted) return { text: '', error: 'cancelled' };
     const key = `${agent}:${session}`;
     const turns = this.#turns.get(key) ?? 0;
@@ -95,6 +128,7 @@ export class AgentConnectionModel {
     return new Promise((resolve) => {
       const handle = (e) => {
         if (e.type === 'text') { text += e.delta; onText?.(e.delta); }
+        else if (e.type === 'thinking') onThinking?.(e.delta);
         else if (e.type === 'tool') onTool?.(e.name);
         else if (e.type === 'error') error = e.message;
         else if (e.type === 'done') { off(); resolve({ text: text.trim(), error }); }
@@ -117,7 +151,13 @@ export class AgentConnectionModel {
   #loadChoice() {
     try {
       const saved = JSON.parse(localStorage.getItem(CHOICE_KEY) ?? 'null');
-      return saved && CATALOG[saved.selected] ? saved : {};
+      const c = saved && CATALOG[saved.selected];
+      if (!c) return {};
+      return {
+        selected: saved.selected,
+        model: c.models.some((m) => m.id === saved.model) ? saved.model : '',
+        effort: c.efforts.includes(saved.effort) ? saved.effort : c.defaultEffort,
+      };
     } catch {
       return {};
     }

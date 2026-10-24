@@ -758,3 +758,146 @@ body.stage-graph #cracks-card, body.stage-project #cracks-card { display: none; 
 #stage #cracks-card .crack-card.red { background: linear-gradient(rgba(255, 90, 106, .07), rgba(255, 90, 106, .07)), #fff; }
 #stage #cracks-card .crack-card.yellow { background: linear-gradient(rgba(255, 194, 74, .08), rgba(255, 194, 74, .08)), #fff; }
 #stage #cracks-card.cracks-card { background: rgba(255, 255, 255, .99); }
+
+/* ---------- Effort slider ("Cuánto piensa"): hotter and faster as it goes up, sparks at Ultracode ---------- */
+.effort { --level: 0; display: flex; flex-direction: column; gap: 8px; margin: 6px 4px 2px; }
+.effort-head { display: flex; align-items: baseline; justify-content: space-between; }
+.effort-head .picker-label { margin: 0; }
+.effort-name {
+  font: 650 12.5px var(--font);
+  color: color-mix(in srgb, #ff5a6a calc(var(--level) * 100%), var(--accent));
+  transition: color .25s ease;
+}
+.effort.max .effort-name {
+  background: linear-gradient(90deg, #8b83ff, #ff8a3d, #ff5a6a, #ffd25a);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: effort-flow 1.6s linear infinite;
+}
+.effort-hint { color: var(--faint); font-size: 10.5px; line-height: 1.4; min-height: 15px; }
+.effort-track { position: relative; height: 22px; display: flex; align-items: center; }
+.effort-track::before { /* the empty rail */
+  content: ""; position: absolute; left: 0; right: 0; height: 6px; border-radius: 4px; background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.effort-fill {
+  position: absolute; left: 0; height: 6px; border-radius: 4px;
+  width: calc(6px + var(--level) * (100% - 6px));
+  background: repeating-linear-gradient(115deg, rgba(255, 255, 255, .22) 0 6px, transparent 6px 12px),
+    linear-gradient(90deg, #8b83ff, color-mix(in srgb, #ff8a3d calc(var(--level) * 100%), #8b83ff), color-mix(in srgb, #ff5a6a calc(var(--level) * 100%), #8b83ff));
+  background-size: 24px 100%, 100% 100%;
+  box-shadow: 0 0 calc(4px + var(--level) * 14px) color-mix(in srgb, #ff6a4a calc(var(--level) * 70%), rgba(139, 131, 255, .6));
+  /* energy flows faster with more effort: 2.4s at "Rápido", 0.45s at "Ultracode" */
+  animation: effort-energy calc(2.4s - var(--level) * 1.95s) linear infinite;
+  transition: width .32s cubic-bezier(.2, .8, .2, 1), box-shadow .3s ease;
+}
+@keyframes effort-energy { to { background-position: 24px 0, 0 0; } }
+@keyframes effort-flow { to { background-position: -200% 0; } }
+.effort-ticks { position: absolute; left: 3px; right: 3px; display: flex; justify-content: space-between; pointer-events: none; }
+.effort-ticks i { width: 4px; height: 4px; border-radius: 50%; background: var(--line-strong); transition: background .2s, transform .2s; }
+.effort-ticks i.on { background: rgba(255, 255, 255, .85); transform: scale(1.15); }
+.effort-input {
+  position: absolute; inset: 0; width: 100%; margin: 0; background: transparent; cursor: pointer;
+  -webkit-appearance: none; appearance: none;
+}
+.effort-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 8px; }
+.effort-input::-webkit-slider-runnable-track { height: 22px; background: transparent; }
+.effort-input::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 18px; height: 18px; margin-top: 2px; border-radius: 50%;
+  background: #fff; border: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #ff5a6a calc(var(--level) * 100%), var(--accent)), 0 4px 14px rgba(0, 0, 0, .45);
+  transition: transform .15s ease, box-shadow .25s ease;
+}
+.effort-input:active::-webkit-slider-thumb { transform: scale(1.18); }
+.effort-sparks { position: absolute; left: calc(var(--level) * (100% - 6px)); top: 50%; width: 6px; height: 0; pointer-events: none; opacity: 0; transition: opacity .3s; }
+.effort.max .effort-sparks { opacity: 1; }
+.effort-sparks i {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #ffd25a; box-shadow: 0 0 6px #ff8a3d;
+  animation: effort-spark 1.1s ease-out infinite;
+}
+.effort-sparks i:nth-child(2) { animation-delay: .18s; left: 2px; }
+.effort-sparks i:nth-child(3) { animation-delay: .36s; left: -2px; }
+.effort-sparks i:nth-child(4) { animation-delay: .54s; left: 4px; }
+.effort-sparks i:nth-child(5) { animation-delay: .72s; left: -4px; }
+.effort-sparks i:nth-child(6) { animation-delay: .9s; left: 1px; }
+@keyframes effort-spark {
+  from { transform: translate(0, 0) scale(1); opacity: 1; }
+  to { transform: translate(calc((var(--i, 1) - .5) * 14px), -18px) scale(.3); opacity: 0; }
+}
+.effort-sparks i:nth-child(odd) { --i: 0; }
+.effort-sparks i:nth-child(even) { --i: 1; }
+/* Small meter next to the effort in the picker pill */
+.picker-meter { display: inline-flex; gap: 2px; align-items: flex-end; height: 10px; }
+.picker-meter i { width: 3px; border-radius: 1px; background: var(--line-strong); }
+.picker-meter i.on { background: color-mix(in srgb, #ff5a6a calc(var(--level, 0) * 100%), var(--accent)); }
+@media (prefers-reduced-motion: reduce) {
+  .effort-fill, .effort.max .effort-name, .effort-sparks i { animation: none; }
+}
+/* Model cards in the picker: name with its version + one line of what it is good at */
+.model-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 0 4px; }
+.model-option {
+  display: flex; flex-direction: column; gap: 1px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 10px;
+  background: transparent; color: var(--ink); text-align: left; cursor: pointer;
+  transition: border-color .15s, background .15s, transform .15s;
+}
+.model-option strong { font: 600 12px var(--font); }
+.model-option small { color: var(--faint); font: 10.5px var(--font); }
+.model-option:hover { border-color: var(--line-strong); background: var(--panel); transform: translateY(-1px); }
+.model-option.active { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.model-option.active small { color: var(--muted); }
+.picker-menu { width: 300px; padding: 8px; gap: 3px; }
+/* ---------- Agent answers: Markdown, reasoning, suggestions above the box ---------- */
+#chat .msg.bot .md > :first-child { margin-top: 0; }
+#chat .msg.bot .md > :last-child { margin-bottom: 0; }
+#chat .msg.bot { white-space: normal; }
+#chat .msg.bot p { margin: 0 0 8px; line-height: 1.55; }
+#chat .msg.bot h4 { margin: 12px 0 4px; font: 650 12.5px var(--font); color: var(--ink); letter-spacing: .01em; }
+#chat .msg.bot ul, #chat .msg.bot ol { margin: 2px 0 8px; padding-left: 18px; }
+#chat .msg.bot li { margin: 2px 0; line-height: 1.5; }
+#chat .msg.bot li::marker { color: var(--accent); }
+#chat .msg.bot strong { color: #fff; font-weight: 650; }
+#chat .msg.bot code { padding: 1px 5px; border-radius: 5px; background: rgba(255, 255, 255, .07); font: 11.5px var(--mono); color: #c9c4ff; }
+#chat .msg.bot pre { margin: 6px 0 8px; padding: 9px 11px; border-radius: 9px; background: rgba(0, 0, 0, .35); overflow-x: auto; }
+#chat .msg.bot pre code { padding: 0; background: none; color: var(--ink); white-space: pre; }
+#chat .reasoning { margin: 0 0 8px; border-left: 2px solid rgba(139, 131, 255, .45); padding-left: 10px; }
+#chat .reasoning summary { cursor: pointer; color: var(--faint); font-size: 11px; list-style: none; }
+#chat .reasoning summary::before { content: "◇ "; color: var(--accent); }
+#chat .reasoning[open] summary::before { content: "◆ "; }
+#chat .reasoning > div { margin-top: 6px; color: var(--muted); font-size: 11.5px; max-height: 220px; overflow-y: auto; }
+#chat .reasoning > div p { margin: 0 0 6px; }
+.chat-suggest { display: flex; gap: 6px; overflow-x: auto; margin: 0 10px 6px; padding-bottom: 2px; scrollbar-width: none; }
+.chat-suggest[hidden] { display: none; }
+.chat-suggest button {
+  flex: none; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
+  color: var(--muted); font: 11.5px var(--font); cursor: pointer; transition: border-color .15s, color .15s, transform .15s;
+}
+.chat-suggest button:hover { border-color: var(--line-strong); color: var(--ink); transform: translateY(-1px); }
+
+/* ---------- Crack menu (click on a crack or its "!" sign): what it is / repair / audit ---------- */
+#stage .crack-menu {
+  position: absolute; left: 0; top: 0; z-index: 9; width: 290px; padding: 10px;
+  border-radius: 14px; background: rgba(17, 19, 25, .97); border: 1px solid var(--line-strong); color: var(--ink);
+  box-shadow: 0 22px 50px rgba(0, 0, 0, .45); animation: pop-in .16s ease;
+}
+#stage .crack-menu[hidden] { display: none; }
+.crack-menu-head { display: flex; align-items: center; gap: 8px; }
+.crack-menu-head strong { flex: 1; font-size: 13px; }
+.crack-menu-head .risk-icon { font: 800 12px var(--font); }
+.crack-menu-close { width: 24px; height: 24px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 16px; cursor: pointer; }
+.crack-menu-close:hover { background: var(--panel-2); color: var(--ink); }
+.crack-menu-files { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 2px; max-height: 120px; overflow-y: auto; }
+.crack-menu-file { display: flex; align-items: center; gap: 7px; padding: 5px 7px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: 11.5px var(--font); text-align: left; cursor: pointer; }
+.crack-menu-file.active, .crack-menu-file:hover { background: var(--panel-2); color: var(--ink); }
+.crack-menu-file-one { margin: 8px 0 2px; color: var(--muted); font-size: 11.5px; }
+.crack-menu-what { margin: 8px 0 0; padding: 9px 10px; border-radius: 10px; background: rgba(255, 90, 106, .08); animation: rise .2s ease both; }
+.crack-menu-what strong { font-size: 11.5px; color: var(--danger); }
+.crack-menu-what p { margin: 4px 0 0; color: var(--ink); font-size: 12px; line-height: 1.5; }
+.crack-menu-what p.small { color: var(--muted); font-size: 10.5px; }
+.crack-menu-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
+.crack-menu-btn {
+  padding: 8px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
+  color: var(--ink); font: 600 11.5px var(--font); cursor: pointer; transition: transform .15s, background .15s, border-color .15s;
+}
+.crack-menu-btn:hover { transform: translateY(-1px); border-color: var(--line-strong); background: var(--panel-2); }
+.crack-menu-btn.repair { background: #f5c542; color: #1b1a2e; border-color: #f5c542; }
+.crack-menu-btn.audit { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }

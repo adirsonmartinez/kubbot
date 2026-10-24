@@ -53,21 +53,25 @@ test('invalid traffic light level and missing arguments are refused', async () =
 });
 
 test('HTTP: answers local clients, refuses browsers (Origin) and foreign hosts', async () => {
-  const server = await startMcpServer({ port: 0, handlers });
+  const token = 'a'.repeat(48);
+  const server = await startMcpServer({ port: 0, handlers, token });
   const { port } = server.address();
-  const post = (headers) =>
-    fetch(`http://127.0.0.1:${port}/mcp`, {
+  const post = (headers, path = `/mcp/${token}`) =>
+    fetch(`http://127.0.0.1:${port}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...headers },
       body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
     });
   try {
     assert.equal((await post({})).status, 200);
+    // Without the private key in the address, another program on this computer gets nothing
+    assert.equal((await post({}, '/mcp')).status, 404);
+    assert.equal((await post({}, `/mcp/${'b'.repeat(48)}`)).status, 404);
     assert.equal((await post({ Origin: 'https://evil.example' })).status, 403);
     // fetch() silently ignores a custom Host header, so use http.request for the DNS-rebinding case
     const status = await new Promise((resolve, reject) => {
       const req = require('node:http').request(
-        { host: '127.0.0.1', port, path: '/mcp', method: 'POST', headers: { Host: `evil.example:${port}`, 'Content-Type': 'application/json' } },
+        { host: '127.0.0.1', port, path: `/mcp/${token}`, method: 'POST', headers: { Host: `evil.example:${port}`, 'Content-Type': 'application/json' } },
         (res) => resolve(res.statusCode),
       );
       req.on('error', reject);

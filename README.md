@@ -30,7 +30,7 @@ En la app:
 - **Mover el mapa**: arrastrar con clic izquierdo rota e inclina; clic derecho o Shift + arrastrar mueve; rueda acerca; flechas o WASD desplazan; Q / E giran 90°.
 - **Vibe / Dev** (arriba a la derecha y en el explorador): Vibe es una guía con nombres sencillos; Dev muestra todas las carpetas, rutas y reglas.
 - **Grietas y Remi**: un archivo en rojo agrieta su edificio. "Reparar" (en Riesgos o en el chat) hace que Remi salte al mapa, camine al edificio, escriba un plan y apuntale la grieta. Remi no cambia archivos: la grieta queda en amarillo hasta que tocas "Ya lo apliqué".
-- **Conecta tu agente**: usa tu suscripción de Claude Code, Grok o Codex en el chat, o conecta tu editor al servidor MCP local (`http://127.0.0.1:7811/mcp`).
+- **Conecta tu agente**: usa tu suscripción de Claude Code, Grok o Codex en el chat, o conecta tu editor al servidor MCP local: la dirección (con su llave privada) se copia desde "Conecta tu agente".
 
 En el chat:
 - `abrir carpeta`: elige la carpeta del proyecto. El agente no puede salir de ella.
