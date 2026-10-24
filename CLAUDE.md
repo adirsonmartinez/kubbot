@@ -111,6 +111,7 @@ The Project menu (new, open, recent, close) is built twice from the same actions
 ```bash
 npm install
 npm start      # npm run dev opens DevTools
+npm run watch  # live reload: renderer/ changes reload the window, electron/ changes restart the app
 ```
 
 Opening `renderer/index.html` in a browser serves a demo project (no disk access).

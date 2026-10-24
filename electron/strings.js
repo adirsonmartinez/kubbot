@@ -49,6 +49,7 @@ module.exports = {
     zoom: 'Ajustar',
     fullscreen: 'Pantalla completa',
     devTools: 'Herramientas de desarrollo',
+    reload: 'Recargar',
     close: 'Cerrar ventana',
   },
   agents: {

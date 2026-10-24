@@ -433,7 +433,10 @@ async function nativeMenu() {
         { role: 'minimize', label: m.minimize },
         { role: 'zoom', label: m.zoom },
         { role: 'togglefullscreen', label: m.fullscreen },
-        ...(process.argv.includes('--dev') ? [{ role: 'toggleDevTools', label: m.devTools }] : []),
+        ...(process.argv.includes('--dev') || LIVE_RELOAD ? [
+          { role: 'reload', label: m.reload },
+          { role: 'toggleDevTools', label: m.devTools },
+        ] : []),
         { type: 'separator' },
         // ⌘W closes the project (Project menu); the window closes with ⇧⌘W
         { role: 'close', label: m.close, accelerator: isMac ? 'Shift+CmdOrCtrl+W' : 'CmdOrCtrl+W' },
@@ -443,8 +446,28 @@ async function nativeMenu() {
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// `npm run watch`: live reload while developing. Changes in renderer/ reload the window (the open
+// project is restored by the window itself); changes in electron/ restart the whole app.
+const LIVE_RELOAD = process.argv.includes('--watch');
+const RELOAD_DEBOUNCE_MS = 150;
+
+function watchSources() {
+  const watchFs = require('node:fs');
+  const watch = (dir, onChange) => {
+    let timer = null;
+    watchFs.watch(path.join(__dirname, '..', dir), { recursive: true }, (_event, file) => {
+      if (!file || file.endsWith('.test.js') || file.includes('.DS_Store')) return;
+      clearTimeout(timer);
+      timer = setTimeout(onChange, RELOAD_DEBOUNCE_MS);
+    });
+  };
+  watch('renderer', () => win && !win.isDestroyed() && win.webContents.reloadIgnoringCache());
+  watch('electron', () => { app.relaunch(); app.exit(0); });
+}
+
 app.whenReady().then(async () => {
   await nativeMenu();
+  if (LIVE_RELOAD) watchSources();
   if (openArg) await openWorkspace(openArg).catch((err) => log('workspace:open', openArg, false, err.message));
   createWindow();
   startMcp();

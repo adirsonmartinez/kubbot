@@ -9,6 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "watch": "electron . --watch",
     "icons": "node scripts/build-icons.mjs",
     "build:web": "node scripts/build-web.js",
     "dist:mac": "electron-builder --mac --publish never",
