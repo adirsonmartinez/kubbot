@@ -20,7 +20,7 @@ export class ShellViewModel {
     side: 'explorer',
     stage: 'map', // 'map' | 'git'
     sidebarOpen: false, // the map comes first: the side panel floats over it and starts folded
-    chatOpen: true,
+    chatOpen: false, // the chat waits for the person: opening a project does not open it
     projectName: '',
     open: false,
     folders: [], // [{ path, name, files: [{ path, name, level }] }]

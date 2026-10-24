@@ -3,8 +3,10 @@
 import { clamp } from '../core/format.js';
 
 export const CAMERA = {
-  azimuth: Math.PI / 4,
-  elevation: (52 * Math.PI) / 180, // same angle as the zombieland game
+  // The map's tree runs down-right from the integrations at the top left; the folders face the camera
+  azimuth: 0,
+  gitAzimuth: Math.PI / 4, // the git view keeps its diagonal lanes
+  elevation: (44 * Math.PI) / 180, // low enough that the folders show their fronts
   distance: 60,
   viewHeight: 30,
   zoomMin: 0.4,

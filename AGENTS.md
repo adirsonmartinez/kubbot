@@ -28,7 +28,7 @@ How the in-app agent talks lives in [`agent/`](agent/README.md), not in code:
   (read it before using an effect; follow its placement rules: orbs only for waits over 2 s, border
   beam over 3 s, never two effects on the same element). The renderer has no React: thinking orbs use
   the package engine (`views/ui/thinkingOrb.js`); border beam is bundled with React by
-  `scripts/vendor-ui.js` into `renderer/vendor/border-beam.js`.
+  `scripts/vendor-ui.js` into `renderer/vendor/react-ui.js` (with metal-fx, the liquid metal of the send button; one React for both).
 - `renderer/vendor/` (and `renderer/icons/hugeicons.js`) are generated **and committed** (`npm run vendor`,
   `npm run icons`): clones, the web demo and the installers need no build step. The source packages are
   devDependencies.

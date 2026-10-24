@@ -33,6 +33,7 @@ function fakeTracking({ fails = null } = {}) {
 
 function setup(options) {
   const camera = new CameraViewModel();
+  camera.azimuth = camera.azimuthGoal = Math.PI / 4; // the directions below are checked at this angle
   const tracking = fakeTracking(options);
   const vm = new HandControlViewModel({ tracking, camera });
   return { vm, camera, tracking, state: () => vm.store.state };

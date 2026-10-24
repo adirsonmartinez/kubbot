@@ -15,7 +15,7 @@ const el = (tag, className, text) => {
   return node;
 };
 
-export const CHIP_ICON = { ask: 'ask', repair: 'wrench', audit: 'audit', locate: 'locate', risks: 'alert' };
+export const CHIP_ICON = { ask: 'ask', repair: 'wrench', audit: 'audit', locate: 'locate', risks: 'alert', open: 'openExternal', reveal: 'folderOpen' };
 
 export function actionButton(action, vm, className = 'card-action') {
   const b = el('button', `${className} ${action.kind ?? ''}`.trim());
@@ -56,6 +56,19 @@ function folderCard(card, vm) {
   return parts;
 }
 
+// Modo Vibe: what the file is and where it lives, in plain words; no path, no code
+function plainFileCard(card) {
+  const K = strings.chat.cards;
+  const head = el('header', 'card-head');
+  const badge = el('span', `card-badge ${card.level}`);
+  badge.appendChild(icon(LEVEL_ICON[card.level] ?? 'file', { size: 18 }));
+  const title = el('div', 'card-title');
+  title.append(el('strong', '', card.name), el('span', 'card-kind', K.kinds[card.fileKind] ?? K.kinds.other));
+  head.append(badge, title, el('span', `level-pill ${card.level}`, strings.security.levels?.[card.level] ?? card.level));
+  const facts = [card.where && K.where(card.where), card.level !== 'grey' && card.reason].filter(Boolean); // the pill already says "Sin evaluar"
+  return facts.length ? [head, el('p', 'card-facts', facts.join(' · '))] : [head];
+}
+
 function fileCard(card) {
   const head = el('header', 'card-head');
   const badge = el('span', `card-badge ${card.level}`);
@@ -70,15 +83,51 @@ function fileCard(card) {
   const source = el('p', 'card-source');
   source.append(icon('info', { size: 13 }), el('span', '', card.source));
   parts.push(source);
+  if (card.preview) parts.push(previewBlock(card));
   return parts;
 }
 
-export function renderChatCard(container, card, vm) {
-  const parts = card.kind === 'folder' ? folderCard(card, vm) : fileCard(card);
-  if (card.actions?.length) {
-    const row = el('div', 'card-actions');
-    card.actions.forEach((a) => row.appendChild(actionButton(a, vm)));
+// The first lines of a file opened from the chat (or why they are not shown)
+function previewBlock(card) {
+  const P = strings.chat.cards.preview;
+  if (typeof card.preview === 'string') return el('p', `card-preview-note ${card.preview}`, P[card.preview]);
+  const box = el('figure', 'card-preview');
+  box.setAttribute('aria-label', P.label(card.name));
+  const pre = el('pre');
+  card.preview.lines.forEach((line, i) => {
+    const row = el('span', 'code-line');
+    row.append(el('i', '', String(i + 1)), document.createTextNode(line || ' ')); // text only: never parsed as HTML
+    pre.appendChild(row);
+  });
+  box.appendChild(pre);
+  if (card.preview.more) box.appendChild(el('figcaption', '', P.more(card.preview.more)));
+  return box;
+}
+
+// Files saved on disk (by the agent, Remi or another program): one button per file opens it here
+function changesCard(card) {
+  const head = el('header', 'card-head');
+  const badge = el('span', 'card-badge changes');
+  badge.appendChild(icon('file', { size: 18 }));
+  const title = el('div', 'card-title');
+  title.appendChild(el('strong', '', strings.chat.cards.changes(card.paths.length)));
+  const hidden = card.paths.length - card.actions.length;
+  if (hidden > 0) title.appendChild(el('span', '', strings.chat.cards.changesMore(hidden)));
+  head.append(badge, title);
+  return [head];
+}
+
+// plain (Modo Vibe): an opened file is told in plain words with small buttons in one row
+export function renderChatCard(container, card, vm, { plain = false } = {}) {
+  const simple = plain && card.kind === 'file' && card.fileKind;
+  const parts = card.kind === 'folder' ? folderCard(card, vm) : card.kind === 'changes' ? changesCard(card) : simple ? plainFileCard(card) : fileCard(card);
+  const actions = simple ? card.actions.filter((a) => a.kind !== 'reveal') : card.actions ?? [];
+  if (actions.length) {
+    const row = el('div', `card-actions${simple ? ' compact' : ''}`);
+    const short = strings.chat.cards.short;
+    actions.forEach((a) => row.appendChild(actionButton(simple ? { ...a, label: short[a.kind] ?? a.label } : a, vm)));
     parts.push(row);
   }
+  container.classList.toggle('plain', Boolean(simple));
   container.replaceChildren(...parts);
 }

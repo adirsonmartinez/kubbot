@@ -41,7 +41,7 @@ export class RepairViewModel {
   #startedAt = 0; // when the current job's agent run started
 
   // job: { historyId, path, reason, reasonKey, folder, from, to, center, height, step, stepMs, plan,
-  //        source: 'agent' | 'guide', agentLabel, outcome: 'fixed' | 'planned' | 'failed' | null, hammering }
+  //        source: 'agent' | 'guide', agentLabel, outcome: 'fixed' | 'planned' | 'clear' | 'failed' | null, hammering }
   store = new Observable({ job: null, queue: [] });
 
   // voiceMode(): 'vibe' | 'dev' — how the agent explains the repair (agent/voice.json)
@@ -126,7 +126,10 @@ export class RepairViewModel {
 
   #stop() {
     const { job } = this.store.state;
-    if (job && this.busy) this.#history.update(job.historyId, { status: 'failed', error: R.cancelled, endedAt: new Date().toISOString() });
+    if (job && this.busy) {
+      this.#history.update(job.historyId, { status: 'failed', error: R.cancelled, endedAt: new Date().toISOString() });
+      this.#bus.emit(EVENTS.repairFinished, { entry: this.#history.get(job.historyId) }); // the chat card closes too
+    }
     this.#runId++;
     this.#abort?.abort();
     this.#abort = null;
@@ -184,6 +187,9 @@ export class RepairViewModel {
     if (!alive()) return;
     const changes = this.#collected ?? [];
     this.#collected = null;
+    // The agent checked it, changed nothing and marked it green: a false alarm, it stays green
+    const verdict = this.#security.scoreOf(path);
+    const clear = live && !changes.length && verdict.by === 'agent' && verdict.level === 'green';
 
     // Outcome: the agent changed files (to verify), left a plan, or failed; no agent: the guide's plan
     const guidePlan = R.plans[score.reasonKey] ?? R.plans.other;
@@ -193,7 +199,7 @@ export class RepairViewModel {
     } else if (live) {
       summary = answer?.text ?? '';
       plan = parseSteps(summary);
-      outcome = changes.length ? 'fixed' : 'planned';
+      outcome = changes.length ? 'fixed' : clear ? 'clear' : 'planned';
       if (!plan.length) plan = changes.length ? changes.map((c) => c.reason) : guidePlan;
     } else {
       outcome = 'planned'; plan = guidePlan;
@@ -204,6 +210,7 @@ export class RepairViewModel {
     if (!alive()) return;
 
     this.#history.update(historyId, { status: outcome, plan, changes, summary, error, endedAt: new Date().toISOString() });
+    // 'clear' keeps the agent's green; 'fixed' and 'planned' wait in yellow for the person
     if (outcome === 'fixed') this.#security.setScore(path, 'yellow', R.fixedToVerify(changes.length), 'remi');
     else if (outcome === 'planned') this.#security.setScore(path, 'yellow', R.plannedReason(plan[0].toLowerCase()), 'remi');
     set({ step: 4, stepMs: 0, hammering: false });
@@ -229,7 +236,8 @@ export class RepairViewModel {
       signal,
       onStart: () => { if (alive()) { this.#changes = []; this.#startedAt = Date.now(); } }, // collect from the moment the CLI runs
       onText: (delta) => alive() && this.#bus.emit(EVENTS.repairText, { path, delta }),
-      onTool: (name) => alive() && this.#bus.emit(EVENTS.repairTool, { path, name }),
+      // Each Platanus tool the agent uses, with the file it works on and the color it sets (the chat's card)
+      onEvent: (e) => e.type === 'tool' && !e.parent && alive() && this.#bus.emit(EVENTS.repairTool, { path, name: e.name, target: e.target ?? '', level: e.level ?? null }),
     }).then((answer) => {
       if (alive()) { this.#collected = this.#changes; this.#changes = null; }
       return answer;

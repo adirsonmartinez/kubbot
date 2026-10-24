@@ -17,6 +17,19 @@
   --radius: 12px;
   --blur: blur(14px) saturate(140%);
   --sans: system-ui, -apple-system, "Segoe UI", "Inter", sans-serif;
+  /* Editor syntax colors: cool tones around the accent (amber, red and green stay for security) */
+  --syntax-keyword: #a59fff;
+  --syntax-string: #9fc2ff;
+  --syntax-number: #7fd3e6;
+  --syntax-type: #cdbfff;
+  --syntax-property: #b4bfcc;
+  --syntax-definition: #f2f4f6;
+  --syntax-comment: #6b7480;
+  --syntax-meta: #8b83ff;
+  --syntax-gutter: rgba(0, 0, 0, 0.12);
+  --syntax-active-line: rgba(255, 255, 255, 0.035);
+  --syntax-selection: rgba(139, 131, 255, 0.3);
+  --syntax-match: rgba(139, 131, 255, 0.16);
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 }
 
@@ -31,7 +44,7 @@ body::after {
 }
 
 /* Shared glass surface */
-#controls .group, #schema-panel, #git-panel, #hud, #chat, .empty-card {
+#schema-panel, #git-panel, #hud, #chat {
   background: var(--glass);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -47,41 +60,7 @@ body::after {
   border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent);
 }
 
-/* --- Map controls (bottom left) --- */
-#controls { position: fixed; left: 16px; bottom: 16px; z-index: 2; display: flex; gap: 8px; user-select: none; }
-#controls .group { display: flex; overflow: hidden; }
-#controls button {
-  width: 40px; height: 40px; padding: 0; border: 0; background: transparent;
-  display: grid; place-items: center; cursor: pointer; color: var(--muted);
-}
-#controls .group button + button { border-left: 1px solid var(--line); }
-#controls button:hover { color: var(--accent); background: var(--accent-soft); }
-#controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-#controls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-#controls button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
-
-/* Camera preview while the map is moved by hand (mirrored, like a mirror) */
-#hand-preview {
-  position: absolute; left: 0; bottom: 48px; width: 200px; padding: 6px;
-  display: flex; flex-direction: column; gap: 6px;
-  background: var(--glass); border: 1px solid var(--line); border-radius: var(--radius);
-  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-#hand-preview[hidden] { display: none; }
-#hand-preview.pinching { border-color: rgba(139, 131, 255, 0.6); }
-#hand-preview.error { width: 240px; }
-.hand-video video { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; transform: scaleX(-1); background: var(--bg); }
-#hand-preview.error .hand-video { display: none; }
-.hand-status { padding: 0 4px 2px; font: 11px/1.3 var(--sans); color: var(--muted); }
-.hand-status::before {
-  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: middle;
-  border-radius: 50%; background: var(--faint);
-}
-#hand-preview.hand .hand-status::before { background: var(--text); }
-#hand-preview.pinching .hand-status { color: var(--text); }
-#hand-preview.pinching .hand-status::before { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-#hand-preview.error .hand-status { color: var(--danger); }
-#hand-preview.error .hand-status::before { background: var(--danger); }
+/* --- Map controls (bottom left) and the hand camera preview: styles/controls.css --- */
 
 /* --- HUD: security score and counters (top left, map view) --- */
 #hud {
@@ -94,7 +73,12 @@ body::after {
 .hud-ring circle { fill: none; stroke-width: 5; }
 .hud-ring .track { stroke: rgba(255, 255, 255, 0.08); }
 .hud-ring .value { stroke: var(--accent); stroke-linecap: round; filter: drop-shadow(0 0 4px var(--accent)); transition: stroke-dashoffset 0.6s ease; }
-#hud.has-risk .hud-ring .value { stroke: var(--warn); filter: drop-shadow(0 0 4px var(--warn)); }
+#hud[data-level="red"] .hud-ring .value { stroke: var(--danger); filter: drop-shadow(0 0 4px var(--danger)); }
+#hud[data-level="yellow"] .hud-ring .value { stroke: var(--warn); filter: drop-shadow(0 0 4px var(--warn)); }
+#hud[data-level="green"] .hud-ring .value { stroke: var(--ok); filter: drop-shadow(0 0 4px var(--ok)); }
+#hud[data-level="red"] [data-field="score"] { color: var(--danger); }
+#hud[data-level="yellow"] [data-field="score"] { color: var(--warn); }
+#hud[data-level="green"] [data-field="score"] { color: var(--ok); }
 #hud strong { display: block; font: 600 18px var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
 #hud span { display: block; font-size: 11px; color: var(--muted); }
 .hud-stat.risk strong { color: var(--danger); }
@@ -124,32 +108,7 @@ body::after {
 /* --- Empty state --- */
 #empty-state { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; z-index: 1; }
 #empty-state[hidden] { display: none; }
-.empty-card { pointer-events: auto; width: min(340px, 100%); padding: 28px 24px; text-align: center; font: 14px/1.5 var(--sans); }
-/* Isometric folder standing on a map slab, with a few ghost tiles */
-.iso-empty { width: 160px; height: 120px; display: block; margin: -6px auto 22px; overflow: visible; }
-.iso-empty * { stroke-linejoin: round; stroke-linecap: round; stroke-width: 1; }
-.iso-slab { fill: rgba(255, 255, 255, 0.03); stroke: var(--line-strong); }
-.iso-slab-side { fill: rgba(255, 255, 255, 0.05); stroke: var(--line-strong); }
-.iso-slab-side.dark { fill: rgba(255, 255, 255, 0.025); }
-.iso-grid { stroke: var(--line); }
-.iso-ghost { fill: rgba(255, 255, 255, 0.03); stroke: rgba(255, 255, 255, 0.1); }
-.iso-folder { stroke: var(--accent); stroke-width: 1.4; }
-.iso-folder.back { fill: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
-.iso-folder.side { fill: color-mix(in srgb, var(--accent) 24%, var(--bg)); }
-.iso-folder.front { fill: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
-.iso-folder-line { stroke: var(--accent); stroke-width: 1.4; opacity: 0.6; }
-.empty-card strong { display: block; font-size: 16px; font-weight: 600; }
-.empty-card p { margin: 6px 0 18px; color: var(--muted); }
-/* Empty state actions: new project (primary) and open project (secondary). Scoped by id because
-   the recent-project rows are buttons too and keep their own style. */
-.empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-#new-project, #open-project {
-  padding: 10px 18px; border-radius: 10px; font: 700 13px var(--sans); cursor: pointer;
-}
-#new-project { border: 1px solid transparent; background: var(--accent); color: #0b0a1f; }
-#new-project:hover { filter: brightness(1.08); }
-#open-project { border: 1px solid var(--line-strong); background: transparent; color: var(--text); }
-#open-project:hover { border-color: rgba(139, 131, 255, 0.5); color: var(--accent); }
+/* The card itself: styles/start.css */
 
 /* --- Labels that follow objects on the map: small glass cards --- */
 #map-labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -162,10 +121,6 @@ body::after {
 }
 .map-label[hidden], .map-label.off-layer { display: none; }
 .map-label strong { font: 600 12px var(--mono); color: var(--text); }
-.map-label strong::before {
-  content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 6px; vertical-align: middle;
-  border-radius: 50%; background: var(--accent);
-}
 .map-label span { font-size: 11px; color: var(--muted); }
 .map-label em { font-style: normal; font-size: 11px; font-weight: 600; }
 .map-label em.risk { color: var(--danger); }
@@ -174,10 +129,13 @@ body::after {
 .map-label.root strong { font: 600 14px var(--sans); }
 /* Open folder and its problem files: the dot takes the file's level */
 .map-label.open { border-color: rgba(139, 131, 255, 0.45); }
-.map-label.file { padding: 4px 8px 5px; }
-.map-label.file strong { font-size: 11px; }
-.map-label strong.yellow::before { background: var(--warn); }
-.map-label strong.red::before { background: var(--danger); }
+.map-label.file { padding: 3px 7px 4px; }
+.map-label.file strong { font-size: 10px; }
+.map-label.more { padding: 3px 8px; }
+/* Name of the integrations band: plain text on the dark ground, not a card */
+.map-label.band { padding: 0; background: none; border: 0; box-shadow: none; }
+.map-label.band span { font: 600 10px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+.map-label.more span { font: 600 11px var(--mono); }
 /* ---- Welcome robot: one speech bubble above its head (robotView.js) ----
    --rb is the tone: purple for questions and tips, green for good news; amber and red only for risks. */
 @property --rb-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
@@ -332,14 +290,16 @@ body::after {
 
 /* Floors of an open building */
 .map-label.floor { flex-direction: row; align-items: center; gap: 8px; padding: 4px 9px; }
-.map-label.floor strong::before { display: none; }
 .map-label.floor.focus { border-color: rgba(139, 131, 255, 0.45); background: rgba(139, 131, 255, 0.12); }
 
 /* Supabase node label */
 .map-label.sb-label { flex-direction: row; align-items: center; gap: 8px; padding: 6px 10px; font: 600 11px var(--sans); }
 .sb-label span { color: inherit; font-size: inherit; }
 .sb-label b { color: var(--accent); font: 600 11px var(--mono); }
-.sb-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: blink 1.4s infinite; }
+.sb-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: blink 1.4s infinite; }
+/* Integration states: connected (green, above), with an incident (amber), disconnected (red, steady) */
+.sb-label .dot.incident { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.sb-label .dot.disconnected { background: var(--danger); box-shadow: none; animation: none; }
 .map-label.sb-label.vuln { border-color: rgba(255, 90, 106, 0.5); background: rgba(60, 18, 24, 0.9); animation: shake 0.5s infinite; }
 .sb-label.vuln b { color: #fff; background: var(--danger); padding: 2px 6px; border-radius: 4px; }
 .sb-label.vuln .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation-duration: 0.4s; }
@@ -388,9 +348,6 @@ body::after {
 .msg.alert { background: var(--danger-soft); border-color: rgba(255, 90, 106, 0.4); }
 .msg.alert strong { color: var(--danger); }
 .msg.typing { display: flex; gap: 4px; padding: 11px 13px; }
-.msg.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1s infinite ease-in-out; }
-.msg.typing i:nth-child(2) { animation-delay: 0.15s; }
-.msg.typing i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes blink { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button {
@@ -399,19 +356,6 @@ body::after {
 }
 .chips button:hover { border-color: rgba(139, 131, 255, 0.5); color: var(--accent); }
 .chat-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
-.chat-input input {
-  flex: 1; min-width: 0; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 9px;
-  font: inherit; color: var(--text); background: rgba(0, 0, 0, 0.2); outline: none;
-}
-.chat-input input::placeholder { color: var(--faint); }
-.chat-input input:focus { border-color: rgba(139, 131, 255, 0.5); box-shadow: 0 0 0 3px rgba(139, 131, 255, 0.12); }
-.chat-input > button {
-  width: 40px; flex: none; border: 0; border-radius: 9px; background: var(--accent); color: #0b0a1f;
-  cursor: pointer; display: grid; place-items: center;
-}
-.chat-input > button:hover { filter: brightness(1.08); }
-.chat-input > button:disabled { opacity: 0.35; cursor: default; }
-.chat-input svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 
 @media (max-width: 600px) {
   /* leave room for the map controls at the bottom */

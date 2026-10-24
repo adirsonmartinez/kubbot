@@ -54,10 +54,13 @@ export const strings = {
   },
 
   emptyState: {
-    title: 'Ningún proyecto abierto',
-    body: 'Crea un proyecto nuevo o abre la carpeta de uno que ya tengas para verlo en el mapa.',
+    title: '¿Qué construimos hoy?',
+    body: 'Crea un proyecto o abre uno que ya tengas para verlo en el mapa.',
     newAction: 'Nuevo proyecto',
-    action: 'Abrir proyecto',
+    action: 'Abrir carpeta…',
+    recentNone: 'Aquí verás los proyectos que abras.',
+    // When a recent project was last opened (calendar days ago)
+    when: (days) => (days === 0 ? 'hoy' : days === 1 ? 'ayer' : days < 7 ? `${days} d` : days < 30 ? `${Math.floor(days / 7)} sem` : `${Math.floor(days / 30)} m`),
   },
 
   floater: {
@@ -65,6 +68,42 @@ export const strings = {
     minimize: 'Minimizar',
     restore: 'Mostrar',
     hud: 'Seguridad del proyecto',
+  },
+
+  // Floating editor: files clicked on the map open as tabs
+  editor: {
+    title: 'Editor',
+    close: 'Cerrar el editor',
+    closeTab: 'Cerrar pestaña',
+    save: 'Guardar',
+    saveHint: 'Guardar (⌘S)',
+    saving: 'Guardando…',
+    saved: 'Guardado',
+    unsaved: 'Sin guardar',
+    loading: 'Abriendo…',
+    secret: 'Secreto',
+    secretHint: 'Este archivo guarda secretos: tu agente no puede leerlo. Guardarlo pide confirmación.',
+    confirmClose: (name) => `"${name}" tiene cambios sin guardar. ¿Cerrar y perderlos?`,
+    stale: 'El archivo cambió en el disco mientras lo editabas.',
+    reload: 'Recargar del disco',
+    // CodeMirror's own texts (search panel, folding), by its English phrase
+    phrases: {
+      'Find': 'Buscar', 'Replace': 'Reemplazar', 'next': 'siguiente', 'previous': 'anterior', 'all': 'todos',
+      'match case': 'mayúsculas', 'regexp': 'expresión regular', 'by word': 'palabra completa',
+      'replace': 'reemplazar', 'replace all': 'reemplazar todo', 'close': 'cerrar',
+      'current match': 'coincidencia actual', 'on line': 'en la línea', 'replaced match on line $': 'reemplazada en la línea $',
+      'replaced $ matches': '$ reemplazos', 'Go to line': 'Ir a la línea', 'go': 'ir',
+      'Folded lines': 'Líneas plegadas', 'Unfolded lines': 'Líneas desplegadas', 'to': 'a', 'folded code': 'código plegado',
+      'unfold': 'desplegar', 'Fold line': 'Plegar línea', 'Unfold line': 'Desplegar línea', 'Control character': 'Carácter de control',
+    },
+    errors: {
+      notFound: 'El archivo ya no existe.',
+      notFile: 'No es un archivo.',
+      tooLarge: 'Es demasiado grande para abrirlo aquí (máximo 2 MB).',
+      binary: 'Es un archivo binario (imagen, fuente…): no se puede editar como texto.',
+      'desktop-only': 'Disponible en la app de escritorio.',
+      failed: 'No se pudo abrir el archivo.',
+    },
   },
 
   panels: {
@@ -78,7 +117,7 @@ export const strings = {
     schemaTitle: 'Supabase · esquema public',
     schemaSummary: (tables, hasError) => (hasError ? `${tables} tablas · 1 con error` : `${tables} tablas · todo en orden`),
     breadcrumbLabel: 'Ruta de la carpeta',
-    upHint: 'Esc cierra la carpeta',
+    upHint: 'Esc sube un nivel',
   },
 
   hud: {
@@ -98,6 +137,8 @@ export const strings = {
     watched: (fileCount) => `${files(fileCount)} vigilados`,
     allClear: 'Todo en orden',
     emptyFolder: 'vacía',
+    more: (n) => `+${n} más`,
+    integrations: 'Integraciones',
     defaultProjectName: 'proyecto',
     // The robot on the plaza of a new, empty project. It talks to people who do not program: it asks about the
     // idea, never about technology, and then recommends a stack explained in everyday words.
@@ -306,6 +347,12 @@ export const strings = {
     },
   },
 
+  // Integration nodes in the band at the top of the map (brand names)
+  integrations: {
+    names: { vercel: 'Vercel', github: 'GitHub', clerk: 'Clerk', posthog: 'PostHog' },
+    status: { connected: 'conectado', incident: 'con una incidencia', disconnected: 'desconectado' },
+  },
+
   supabase: {
     connected: 'Supabase · conectado',
     vulnerable: 'Supabase · RLS desactivado',
@@ -429,7 +476,7 @@ export const strings = {
     working: 'Arreglando',
     steps: ['Caminando hacia el problema', 'Mirando el problema', 'Reparando', 'Revisando el resultado', 'Listo'],
     stepsAgent: (agent) => ['Caminando hacia el problema', 'Mirando el problema', `${agent} está reparando`, 'Revisando el resultado', 'Listo'],
-    outcome: { fixed: 'Reparado: revísalo', planned: 'Plan listo', failed: 'No se pudo reparar' },
+    outcome: { fixed: 'Reparado: revísalo', planned: 'Plan listo', clear: 'Falsa alarma: está bien', failed: 'No se pudo reparar' },
     fixedToVerify: (n) => `Tu agente cambió ${n === 1 ? '1 archivo' : `${n} archivos`} para arreglarlo. Revísalo y márcalo como verificado.`,
     timeout: 'El agente tardó demasiado.',
     cancelled: 'Se canceló.',
@@ -442,13 +489,17 @@ export const strings = {
       '2. Si hay un arreglo pequeño y seguro editando archivos del proyecto, escribe el archivo completo corregido con platanus_write_file y explica el cambio en "reason". La persona aprobará cada cambio. Si el arreglo no se hace editando (por ejemplo, rotar claves en otro servicio), no escribas nada.\n' +
       '3. Explica con tres tarjetas cortas: "> [!riesgo] Qué encontré", "> [!ok] Qué cambié" (o "> [!nota] Por qué no cambié nada") y "> [!paso] Qué te falta hacer a ti".',
     chat: {
-      started: (path, agent) => (agent ? `🔧 Remi y ${agent} van a reparar ${path}.` : `🔧 Remi va a revisar ${path}.`),
-      changed: (path, reason) => `✏️ Cambio aprobado en ${path}: ${reason}`,
+      started: (path, agent) => (agent ? `Remi y ${agent} empezaron a revisar ${path}` : `Remi empezó a revisar ${path}`),
+      // Title of a repair's card in the chat
+      title: (agent) => (agent ? 'Remi y tu agente' : 'Remi'),
+      working: (name) => `Revisando ${name}…`,
+      changed: (path, reason) => `Guardé un cambio en ${path}: ${reason}`,
       finished: {
-        fixed: (path, n) => `✅ Reparación de ${path}: ${n === 1 ? '1 archivo cambiado' : `${n} archivos cambiados`}. Quedó en amarillo hasta que lo verifiques en el historial de reparaciones.`,
-        planned: (path) => `📝 Plan de reparación de ${path} listo. Cuando lo apliques, márcalo en el historial de reparaciones.`,
-        failed: (path, why) => `⛔ No se pudo reparar ${path}. ${why}`,
-        verified: (path) => `🟢 ${path} quedó verificado.`,
+        fixed: (path, n) => `Reparación de ${path}: ${n === 1 ? '1 archivo cambiado' : `${n} archivos cambiados`}. Quedó en amarillo hasta que lo verifiques en el historial de reparaciones.`,
+        planned: (path) => `Plan de reparación de ${path} listo. Cuando lo apliques, márcalo en el historial de reparaciones.`,
+        failed: (path, why) => `No se pudo reparar ${path}. ${why}`,
+        verified: (path) => `${path} quedó verificado.`,
+        clear: (path) => `Falsa alarma: ${path} está bien y quedó en verde. No hacía falta cambiar nada.`,
       },
       planTitle: 'Pasos:',
     },
@@ -472,7 +523,7 @@ export const strings = {
       intro: 'Todo lo que Remi y tu agente repararon o dejaron pendiente.',
       empty: 'Todavía no hay reparaciones. Toca "Reparar" en un riesgo.',
       clear: 'Limpiar terminadas',
-      status: { queued: 'En fila', working: 'Trabajando', planned: 'Plan listo', fixed: 'Por verificar', verified: 'Verificado', failed: 'Falló' },
+      status: { queued: 'En fila', working: 'Trabajando', planned: 'Plan listo', fixed: 'Por verificar', verified: 'Verificado', clear: 'Falsa alarma', failed: 'Falló' },
       by: (agent) => (agent ? `con ${agent}` : 'con la guía de Platanus'),
       changes: 'Cambios',
       plan: 'Pasos',
@@ -522,7 +573,7 @@ export const strings = {
       repairs: 'Historial de lo que se reparó, lo que falta verificar y lo que falló.',
       servers: 'Lo que está escuchando en un puerto de tu computadora, y si tu red lo puede ver.',
       agent: 'Elige qué IA responde y conéctala desde tu editor.',
-      map: 'Tu proyecto en 3D: solo aparecen las carpetas y archivos con problemas.',
+      map: 'Tu proyecto en 3D: lo que tiene problemas brilla en ámbar o rojo.',
       git: 'Tus ramas y commits, y si algún commit subió un secreto.',
       chat: 'Habla con el agente en palabras sencillas.',
     },
@@ -617,6 +668,13 @@ export const strings = {
       tech: 'Pregunta técnica: rutas, código, configuración… (Enter envía)',
     },
     // How the agent talks (agent/voice.json + agent/skills/)
+    // Chat header: the connected agent's name, its model and effort (formal), or the demo / simulator
+    header: {
+      demo: { name: 'Agente de demostración', detail: 'Sin IA · respuestas de ejemplo' },
+      sim: { name: 'Simulador', detail: 'Escenarios de prueba' },
+      planModel: 'Modelo de tu plan',
+      efforts: { low: 'Esfuerzo bajo', medium: 'Esfuerzo medio', high: 'Esfuerzo alto', xhigh: 'Esfuerzo muy alto', max: 'Esfuerzo máximo' },
+    },
     voice: {
       label: 'Cómo te habla el agente',
       names: { vibe: 'Vibe', tech: 'Dev' },
@@ -624,16 +682,65 @@ export const strings = {
         vibe: 'Vibe: palabras simples, comparaciones de la vida diaria y sin jerga.',
         tech: 'Dev: detalle técnico, rutas y fragmentos de código cortos.',
       },
+      // Hover labels: what the button does, shown above it
+      tips: {
+        vibe: 'Vibe · te hablo simple, sin código',
+        tech: 'Dev · te hablo técnico, con rutas y código',
+      },
+    },
+    // "Mejorar mi mensaje" and the help while typing (renderer/viewmodels/composerViewModel.js)
+    assist: {
+      improve: 'Mejorar mi mensaje',
+      improveTip: 'Mejorar mi mensaje · lo ordeno en pasos con su prueba para que el agente entienda qué quieres',
+      improving: 'Ordenando tu mensaje…',
+      undo: 'Deshacer',
+      notices: {
+        agent: 'Ordené tu mensaje en pasos, con la prueba primero. Revísalo y envíalo.',
+        local: 'Lo ordené aquí mismo (sin el agente). Revísalo y envíalo.',
+        empty: 'Escribe primero qué quieres; luego lo ordeno.',
+      },
+      hints: {
+        short: 'Cuéntame un poco más: qué quieres que pase y dónde.',
+        noTarget: (name) => (name ? `¿Te refieres a ${name}? Tócalo para agregarlo.` : 'Dime qué archivo: escribe @ y su nombre.'),
+        secret: 'Parece una clave o contraseña. No la pegues aquí: dime solo dónde está.',
+      },
+      completionsLabel: 'Sugerencias para tu mensaje (Tab para elegir)',
+      // Words that ask for an action on a file (to notice when the file is missing)
+      actionWords: ['repara', 'arregla', 'corrige', 'revisa', 'audita', 'analiza', 'mira', 'cambia', 'mejora', 'explica', 'explícame', 'protege'],
+      // The spec the message becomes, as the agent reads it (headings per mode)
+      spec: {
+        vibe: { objective: 'Qué quiero', problem: 'Por qué', scope: 'Dónde', constraints: 'Qué no tocar', tasks: 'Pasos', accept: 'Listo cuando', test: 'Primero la prueba', red: 'Antes (debe fallar)', green: 'Después (debe pasar)', refactor: 'Al final' },
+        dev: { objective: 'Objetivo', problem: 'Problema', scope: 'Alcance', constraints: 'Restricciones', tasks: 'Tareas', accept: 'Acepta', test: 'TDD (RED → GREEN → REFACTOR)', red: 'RED', green: 'GREEN', refactor: 'REFACTOR' },
+      },
+      // Spec made here when no agent is connected
+      local: {
+        tasks: (target) => [
+          { do: `Escribir una prueba que muestre el problema${target ? ` en ${target}` : ''}`, accept: 'La prueba falla antes del cambio' },
+          { do: `Hacer el cambio más pequeño${target ? ` en ${target}` : ''} para que la prueba pase`, accept: 'La prueba pasa y las demás siguen pasando' },
+          { do: 'Ordenar el código sin cambiar lo que hace', accept: 'Todas las pruebas siguen pasando' },
+        ],
+        red: 'Una prueba que hoy falla y muestra el problema',
+        green: 'La misma prueba pasa con el cambio',
+        refactor: 'El código queda ordenado y todas las pruebas pasan',
+        constraints: ['No mostrar ni copiar claves o contraseñas', 'Cambiar solo lo necesario'],
+      },
     },
     // What the orb in the agent's avatar says it is doing (screen readers)
     orbLabels: {
-      breathing: 'Pensando…',
-      composing: 'Escribiendo la respuesta…',
-      searching: 'Buscando en tu proyecto…',
-      working: 'Leyendo un archivo…',
-      solving: 'Actualizando el semáforo…',
-      connecting: 'Mostrándote el mapa…',
-      weaving: 'Coordinando ayudantes…',
+      thinking: 'Pensando…',
+      writing: 'Escribiendo la respuesta…',
+      working: 'Trabajando…',
+      get_project: 'Mirando tu proyecto…',
+      list_risks: 'Revisando los riesgos…',
+      read_file: 'Leyendo un archivo…',
+      write_file: 'Guardando un arreglo…',
+      set_file_score: 'Actualizando el semáforo…',
+      show_folder: 'Buscando la carpeta en el mapa…',
+      subagent: 'Coordinando ayudantes…',
+      repair: 'Arreglando un archivo…',
+      improve: 'Ordenando tu mensaje…',
+      connect: 'Probando la conexión…',
+      approval: 'Esperando tu aprobación…',
     },
     thinking: 'Pensando…',
     reasoning: 'Cómo lo pensó',
@@ -655,16 +762,74 @@ export const strings = {
       subagent: (kind) => (kind ? `Subagente · ${kind}` : 'Subagente'),
       summary: (steps, subagents) => `${steps === 1 ? '1 paso' : `${steps} pasos`}${subagents ? ` · ${subagents === 1 ? '1 subagente' : `${subagents} subagentes`}` : ''}`,
       working: 'Trabajando…',
+      queued: 'Esperando turno…',
+      agentTitle: 'Agente',
       done: 'Listo',
       failed: 'Con error',
       seconds: (ms) => (ms < 1000 ? `${ms} ms` : ms < 60000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.floor(ms / 60000)} min ${Math.round((ms % 60000) / 1000)} s`),
       foot: ({ durationMs, turns, inputTokens, outputTokens }, format) =>
         `${format(durationMs)} · ${turns === 1 ? '1 turno' : `${turns} turnos`} · ${(inputTokens + outputTokens).toLocaleString('es')} tokens`,
       output: 'Lo que respondió',
+      // A file change shown live on its step (electron/lineDiff.js)
+      diff: {
+        proposed: 'Cambio propuesto',
+        applied: 'Cambio aplicado',
+        rejected: 'No aprobado',
+        created: 'Archivo nuevo',
+        counts: (added, removed) => `+${added} −${removed}`,
+        more: 'Hay más cambios: abre el archivo para verlos completos.',
+      },
+    },
+    // Modo Vibe: what the agent does, told as short sentences (renderer/models/runStory.js)
+    story: {
+      running: {
+        get_project: () => 'Mirando tu proyecto…',
+        list_risks: () => 'Buscando lo que está en riesgo…',
+        read_file: (n) => `Leyendo ${n}…`,
+        write_file: (n) => `Guardando el arreglo en ${n}…`,
+        set_file_score: (n) => `Poniendo el semáforo de ${n}…`,
+        show_folder: (n) => `Abriendo ${n} en el mapa…`,
+      },
+      done: {
+        get_project: () => 'Miré tu proyecto',
+        list_risks: () => 'Revisé lo que está en riesgo',
+        read_file: (n) => `Leí ${n}`,
+        write_file: (n) => `Guardé el arreglo en ${n}`,
+        set_file_score: (n, color) => (color ? `Marqué ${n} en ${color}` : `Puse el semáforo de ${n}`),
+        show_folder: (n) => `Te mostré ${n} en el mapa`,
+      },
+      // What the step was, for "No pude terminar: …"
+      what: {
+        get_project: () => 'mirar el proyecto',
+        list_risks: () => 'revisar los riesgos',
+        read_file: (n) => `leer ${n}`,
+        write_file: (n) => `guardar ${n}`,
+        set_file_score: (n) => `poner el semáforo de ${n}`,
+        show_folder: (n) => `mostrar ${n}`,
+      },
+      failed: (what) => `No pude terminar: ${what}`,
+      unknown: { running: 'Usando una herramienta de Platanus…', done: 'Usé una herramienta de Platanus', what: 'un paso' },
+      helper: (description) => `Un ayudante: ${description}`,
+      aFile: 'un archivo',
+      theProject: 'tu proyecto',
+      levels: { green: 'verde', yellow: 'amarillo', red: 'rojo' },
+      thinking: 'Pensando qué hacer…',
+      writing: 'Escribiendo la respuesta…',
+      awaiting: (name) => `Esperando tu aprobación para guardar ${name}…`,
+      recap: { files: (n) => `Leí ${n === 1 ? '1 archivo' : `${n} archivos`}`, level: (n, color) => `${n} en ${color}`, fixes: (n) => `guardé ${n === 1 ? '1 arreglo' : `${n} arreglos`}`, steps: (n) => (n === 1 ? '1 paso' : `${n} pasos`) },
+      doneIn: (time) => `Listo en ${time}`,
+      failedRun: 'No pudo terminar',
+      // The same change, in plain words
+      diff: {
+        proposed: 'Lo que va a cambiar',
+        applied: 'Ver lo que cambió',
+        rejected: 'No se guardó',
+        counts: (added, removed) => `${added === 1 ? '1 línea nueva' : `${added} líneas nuevas`} · ${removed === 1 ? '1 quitada' : `${removed} quitadas`}`,
+      },
     },
     welcomeTitle: (project) => `¿Qué hacemos con ${project}?`,
     welcomeNoProject: '¿Qué hacemos hoy?',
-    welcomeBody: 'Cuéntame tu idea o pídeme que revise el edificio. Te explico cada problema con palabras simples.',
+    welcomeBody: 'Cuéntame tu idea o pídeme que revise tu proyecto. Te digo qué estoy haciendo y te explico cada problema con palabras simples.',
     prompts: ['Revisa mi proyecto y dime qué está en riesgo', 'Explícame el mapa con palabras simples', '¿Qué archivo debería arreglar primero?'],
     // Shown above the box to start writing right away (they fill the box, the person can edit and send)
     followUps: {
@@ -679,20 +844,55 @@ export const strings = {
       repair: (name) => `Reparar ${name}`,
       audit: (name) => `Auditar ${name}`,
       locate: (name) => `Ver ${name} en el mapa`,
+      open: (name) => `Abrir ${name}`,
     },
     // Map events shown as cards in the chat
     cards: {
       files: (n) => (n === 1 ? '1 archivo' : `${n} archivos`),
       folders: (n) => (n === 1 ? '1 subcarpeta' : `${n} subcarpetas`),
       levels: { red: 'en riesgo', yellow: 'a revisar', green: 'seguros' },
-      folderHint: 'No tiene problemas, por eso no aparece en el mapa. Puedes recorrerla en el explorador.',
-      folderHintRisk: 'Sus archivos con problemas están junto a la carpeta en el mapa. Toca uno para ver el motivo.',
+      folderHint: 'No tiene problemas. Su contenido está junto a la carpeta en el mapa.',
+      folderHintRisk: 'Lo que brilla en ámbar o rojo tiene problemas. Está junto a la carpeta en el mapa: toca un archivo para ver el motivo.',
       folderEmpty: 'Todavía no tiene archivos.',
       seeRisks: 'Ver los riesgos',
       explainFolder: 'Explícame esta carpeta',
       explainFolderPrompt: (name) => `Explícame qué hay en la carpeta \`${name.replace(/\/$/, '')}\` y para qué sirve, con palabras simples.`,
       whatIsIt: '¿Qué es este archivo?',
       whatIsItPrompt: (path) => `¿Qué es \`${path}\` y para qué sirve en mi proyecto? Explícamelo con palabras simples.`,
+      openBrowser: 'Abrir en el navegador',
+      notReviewed: 'Nadie lo ha revisado todavía. Puedo revisarlo si quieres.',
+      // Modo Vibe: what a file is, in plain words (renderer/models/fileOpen.js -> fileKind)
+      kinds: {
+        page: 'Una página web: lo que ve la gente al abrirla',
+        styles: 'Colores, tamaños y formas de la pantalla',
+        code: 'Instrucciones que hacen funcionar tu app',
+        test: 'Una prueba que revisa que nada se rompa',
+        settings: 'Ajustes de cómo se instala o se publica tu app',
+        data: 'Datos guardados en una lista o tabla',
+        text: 'Un texto con explicaciones',
+        image: 'Una imagen',
+        document: 'Un documento',
+        script: 'Pasos que la computadora ejecuta sola',
+        secret: 'Guarda claves o contraseñas',
+        other: 'Un archivo del proyecto',
+      },
+      where: (place) => `En «${place}»`,
+      short: { open: 'Abrir', ask: 'Explícamelo', audit: 'Revisar', repair: 'Reparar', locate: 'En el mapa' },
+      reviewIt: 'Revisar este archivo',
+      reveal: 'Mostrar en la carpeta',
+      onMap: 'Ver en el mapa',
+      openFailed: 'No pude abrir el archivo.',
+      // The first lines of a file opened from the chat
+      preview: {
+        loading: 'Leyendo el archivo…',
+        secret: 'Este archivo guarda claves o contraseñas: no lo muestro en el chat.',
+        binary: 'Es una imagen u otro archivo que no es texto.',
+        error: 'No pude leer el archivo.',
+        more: (n) => (n === 1 ? '1 línea más' : `${n} líneas más`),
+        label: (name) => `Primeras líneas de ${name}`,
+      },
+      changes: (n) => (n === 1 ? 'Se guardó un cambio' : `Se guardaron cambios en ${n} archivos`),
+      changesMore: (n) => `y ${n} más`,
       audit: 'Auditar en el chat',
       source: 'Quién lo marcó',
     },
@@ -705,10 +905,71 @@ export const strings = {
       history: 'Historial de reparaciones',
       mode: (tech) => (tech ? 'Hablar en modo Vibe' : 'Hablar en modo Dev'),
       newChat: 'Nueva conversación',
+      // The redesigned menu: a header with the state, tiles with an icon, a foot
+      working: 'Trabajando…',
+      allGreen: 'Todo en verde',
+      risk: (n) => `${n} en riesgo`,
+      review: (n) => `${n} por revisar`,
+      agentless: 'Agente de demostración',
+      repairFile: (name) => `Reparar ${name}`,
+      historyShort: 'Reparaciones',
+      connectAgents: 'Conectar agentes',
+      openShort: 'Abrir',
+      modeShort: (tech) => (tech ? 'Modo Vibe' : 'Modo Dev'),
     },
     connectors: 'Conexiones: conecta tu IA o tu editor',
     pickerTitle: 'Quién responde',
     pickerMore: 'Conectar desde tu editor…',
+    // The agent menu of the composer (renderer/views/ui/agentPickerView.js)
+    picker: {
+      agent: 'Agente',
+      demo: 'Demostración',
+      demoNote: 'Sin IA',
+      viaLogin: 'Con tu suscripción',
+      viaKey: (last4) => `Con clave de API ··${last4}`,
+      notConnected: 'Sin conectar',
+      unknown: 'Por comprobar',
+      connect: 'Conectar',
+      connectHint: 'Conectar con tu suscripción o con una clave de API',
+      login: 'Iniciar sesión con mi cuenta',
+      useKey: 'Usar una clave de API',
+      replaceKey: 'Cambiar la clave de API',
+      removeKey: 'Quitar la clave guardada',
+      keyLabel: (name) => `Clave de API de ${name}`,
+      keyPlaceholder: { claude: 'Pega tu clave (sk-ant-…)', codex: 'Pega tu clave (sk-…)', grok: 'Pega tu clave (xai-…)' },
+      saveKey: 'Guardar',
+      keyNote: 'Se guarda cifrada en tu computadora y no se vuelve a mostrar.',
+      keyErrors: {
+        shape: 'Esa clave no tiene el formato de este servicio. Revisa que la copiaste completa.',
+        'no-keychain': 'Tu sistema no permite guardarla cifrada; no la guardé.',
+        unknown: 'Este agente no acepta claves de API.',
+        failed: 'No pude guardar la clave.',
+      },
+      more: 'Más opciones',
+      moreHint: (model, effort) => `${model} · ${effort}`,
+      hub: 'Más formas de conectar…',
+      others: 'Otros agentes',
+      moreAgents: (n) => `Ver más agentes · ${n}`,
+      external: { cursor: 'Cursor', kimi: 'Kimi', gemini: 'Gemini', qwen: 'Qwen Code', opencode: 'OpenCode' },
+      fromApp: 'Desde su app',
+      how: (file) => `Trabaja desde su propia app, usando solo las herramientas de Platanus. Pega esto en ${file}:`,
+      installHint: 'Si no lo tienes, instálalo con:',
+      mcpOff: 'Abre un proyecto para poder conectarlo.',
+      copy: 'Copiar',
+      copied: 'Copiado',
+      opencodeKeys: 'Usa la clave que guardes en Claude, ChatGPT o Grok.',
+    },
+    // Agent permissions (renderer/models/approvalModel.js, rules in electron/approval.js)
+    permissions: {
+      label: 'Permisos del agente',
+      names: { manual: 'Manual', auto: 'Auto', bypass: 'Sin preguntar' },
+      notes: {
+        manual: 'Te pregunto antes de guardar cada cambio.',
+        auto: 'Guardo solo los cambios simples. Te pregunto los delicados: instalación, publicación, scripts o borrar casi todo un archivo.',
+        bypass: 'Guardo todo sin preguntarte. Siempre queda una copia para deshacer y nunca toco claves.',
+      },
+      status: (name) => `Cambios: ${name}`,
+    },
     demo: 'Demo',
     inputLabel: 'Mensaje',
     send: 'Enviar',
@@ -721,7 +982,7 @@ export const strings = {
       read_file: 'Leyendo un archivo…',
       set_file_score: 'Actualizando el semáforo en el mapa…',
       show_folder: 'Mostrándote una carpeta en el mapa…',
-    })[String(name).replace(/^platanus_/, '')] ?? 'Usando una herramienta…',
+    })[String(name).replace(/^(?:mcp__)?platanus(?:__|_)?(?:platanus_)?/, '')] ?? 'Usando una herramienta…',
 
     greeting: '¡Hola! 👋 Soy el agente de seguridad. Abre un proyecto para empezar.',
     projectReady: 'Listo, ya veo tu proyecto en el mapa. ¿Qué hacemos?',
@@ -743,8 +1004,8 @@ export const strings = {
       if (!fileCount) return `${head}\n\nTodavía no tiene archivos.`;
       const summary = `🔴 ${counts.red} en riesgo · 🟡 ${counts.yellow} a revisar · 🟢 ${counts.green} seguros`;
       const hint = counts.red + counts.yellow
-        ? 'Sus archivos con problemas están junto a la carpeta en el mapa. Haz clic en uno para ver el motivo.'
-        : 'No tiene problemas, por eso no aparece en el mapa.';
+        ? 'Su contenido está junto a la carpeta en el mapa: lo que brilla tiene problemas. Haz clic en un archivo para ver el motivo.'
+        : 'No tiene problemas. Su contenido está junto a la carpeta en el mapa.';
       return `${head}\n${summary}\n\n${hint}`;
     },
     fileSelected: ({ path, levelText, reason, source }) => `📄 ${path}\n${levelText} · ${reason}\n\n${source}`,
@@ -801,6 +1062,9 @@ export const strings = {
       cursor: 'Cursor (.cursor/mcp.json)',
       codex: 'Codex (~/.codex/config.toml)',
       gemini: 'Gemini CLI (~/.gemini/settings.json)',
+      kimi: 'Kimi Code (~/.kimi-code/mcp.json)',
+      qwen: 'Qwen Code (~/.qwen/settings.json)',
+      opencode: 'OpenCode (opencode.json)',
     },
   },
 
@@ -849,6 +1113,7 @@ export const strings = {
 
   agent: {
     // The chat agent's own instructions live in agent/voice.json and agent/skills/ (not shown to people)
+    liveStopped: (why) => `<strong>Tu agente se detuvo antes de terminar.</strong> ${why} Lo que alcanzó a decir queda arriba; puedes volver a preguntar.`,
     liveFailed: (why) => `<strong>No pude hablar con tu agente.</strong> ${why || 'Revisa en "Conecta tu agente" que la sesión esté iniciada.'}`,
     replies: [
       { keys: ['hola', 'buenas', 'hey'], text: '¡Hola! Soy el agente de seguridad del HQ. Puedo escanear el edificio, revisar accesos o explicarte una amenaza.' },

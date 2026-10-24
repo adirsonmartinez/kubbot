@@ -1,7 +1,7 @@
 // Electron main process: creates the window and is the only part that touches the disk.
 // The window (renderer) asks for things over IPC and they are validated here before running.
 
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, systemPreferences, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, safeStorage, systemPreferences, session } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs/promises');
@@ -10,9 +10,15 @@ const { Workspace } = require('./workspace');
 const { readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort, gitInit } = require('./git');
 const t = require('./strings');
 const agents = require('./agents');
-const { loadVoice, composePrompt } = require('./agentVoice');
+const { loadVoice, composePrompt, composeRefinePrompt } = require('./agentVoice');
+const { approvalMode, needsApproval } = require('./approval');
+const { canOpen } = require('./fileOpen');
+const { lineDiff } = require('./lineDiff');
+const { createKeyStore } = require('./keyStore');
 
 const AGENT_DIR = path.join(__dirname, '..', 'agent'); // voice.json + skills (packaged with the app)
+// Agent conversations: the chat, Remi's repairs, and "Mejorar mi mensaje" (never continued)
+const SESSIONS = ['chat', 'repair', 'refine'];
 const { startMcpServer, MAX_READ_BYTES, isBlockedPath, isBlockedRealPath } = require('./mcpServer');
 const servers = require('./servers');
 
@@ -398,6 +404,32 @@ ipcMain.handle('git:checkout', async (_e, target) => {
 handle('fs:tree', 'tree', (rel) => workspace.tree(rel));
 handle('fs:read', 'read', (rel) => workspace.readFile(rel));
 handle('fs:mkdir', 'mkdir', (rel) => workspace.mkdir(rel));
+// From the chat: "Abrir en el navegador" (pages, images, PDFs only: never a script or a program) and
+// "Mostrar en la carpeta". Files with secrets are never opened or revealed.
+// Whether a path of the project is a file or a folder (the window loads the tree level by level)
+ipcMain.handle('fs:kind', async (_e, rel) => {
+  try {
+    const stat = await fs.stat(await workspace.resolve(rel));
+    return { ok: true, data: stat.isDirectory() ? 'dir' : 'file' };
+  } catch {
+    return { ok: true, data: null };
+  }
+});
+handle('fs:open', 'open', async (rel, how) => {
+  if (!workspace.root) throw new Error(t.mcp.noProject);
+  const abs = await workspace.resolve(rel);
+  if (await isBlockedRealPath(workspace.root, abs)) throw new Error(t.cannotOpenSecret);
+  // The real file (a link named page.html could point to a script): it must be a file of a kind that opens
+  const real = await fs.realpath(abs).catch(() => null);
+  const fromRoot = real && path.relative(await fs.realpath(workspace.root), real);
+  const inside = real && !fromRoot.startsWith('..') && !path.isAbsolute(fromRoot);
+  if (!inside) throw new Error(t.cannotOpen);
+  if (how === 'reveal') { shell.showItemInFolder(real); return true; }
+  if (!(await fs.stat(real)).isFile() || !canOpen(real)) throw new Error(t.cannotOpen);
+  const problem = await shell.openPath(real);
+  if (problem) throw new Error(t.cannotOpen);
+  return true;
+});
 
 // Creating a new file is free; overwriting an existing one asks for confirmation
 handle('fs:write', 'write', async (rel, content) => {
@@ -407,6 +439,51 @@ handle('fs:write', 'write', async (rel, content) => {
   }
   await workspace.writeFile(rel, content);
 });
+
+// --- Editor: files the person opens and saves by hand (the agent never comes through here, it only has
+// the MCP tools, which still refuse secrets). Secrets open too, flagged; saving one asks first. A save
+// carries the mtime the file was read with and is refused if the file changed on disk meanwhile; the
+// previous version is backed up like an agent's change. ---
+const EDITOR_MAX_BYTES = 2 * 1024 * 1024;
+const BINARY_PROBE_BYTES = 8000;
+const editorError = (code, message = t.editor.errors[code]) => Object.assign(new Error(message), { code });
+
+async function editorAnswer(action, rel, fn) {
+  try {
+    const data = await fn();
+    log(action, rel, true);
+    return { ok: true, data };
+  } catch (err) {
+    log(action, rel, false, err.message);
+    return { ok: false, code: err.code ?? 'failed', error: err.message };
+  }
+}
+
+ipcMain.handle('editor:open', (_e, rel) => editorAnswer('editor:open', rel, async () => {
+  const abs = await workspace.resolve(rel);
+  const stat = await fs.stat(abs).catch(() => { throw editorError('notFound'); });
+  if (!stat.isFile()) throw editorError('notFile');
+  if (stat.size > EDITOR_MAX_BYTES) throw editorError('tooLarge');
+  const bytes = await fs.readFile(abs);
+  if (bytes.subarray(0, BINARY_PROBE_BYTES).includes(0)) throw editorError('binary');
+  const secret = isBlockedPath(rel) || (await isBlockedRealPath(workspace.root, abs));
+  return { content: bytes.toString('utf8'), mtime: stat.mtimeMs, secret };
+}));
+
+ipcMain.handle('editor:save', (_e, rel, content, mtime) => editorAnswer('editor:save', rel, async () => {
+  if (typeof content !== 'string') throw editorError('failed');
+  if (Buffer.byteLength(content) > EDITOR_MAX_BYTES) throw editorError('tooLarge');
+  const abs = await workspace.resolve(rel);
+  const stat = await fs.stat(abs).catch(() => null);
+  if (!stat?.isFile()) throw editorError('notFound');
+  if (stat.mtimeMs !== mtime) throw editorError('changedOnDisk');
+  if (isBlockedPath(rel) || (await isBlockedRealPath(workspace.root, abs))) {
+    if (!(await confirm(t.editor.confirmSecret(rel), t.editor.confirmSecretDetail, t.editor.saveButton))) throw editorError('cancelled');
+  }
+  await backupFile(rel, abs, true);
+  await workspace.writeFile(rel, content);
+  return { mtime: (await fs.stat(abs)).mtimeMs };
+}));
 
 // Deleting always asks for confirmation
 handle('fs:delete', 'delete', async (rel) => {
@@ -463,7 +540,8 @@ const mcpHandlers = {
     if (size > MAX_READ_BYTES) throw new Error(t.mcp.tooLarge(Math.round(MAX_READ_BYTES / 1024)));
     return workspace.readFile(rel);
   },
-  // Every write is approved by the user; the previous version is backed up and can be undone
+  // Writes are approved per the agent permission mode (approval.js); the previous version is always
+  // backed up and can be undone
   platanus_write_file: async ({ path: rel, content, reason }) => {
     const requestedAt = new Date().toISOString(); // before the dialog: tells which agent run asked
     if (!workspace.root) throw new Error(t.mcp.noProject);
@@ -472,11 +550,20 @@ const mcpHandlers = {
     const exists = await workspace.exists(rel);
     await refuseSecretTarget(abs); // new files too: a symlinked parent may lead into .git/ or a secret
     const why = String(reason).slice(0, 300);
-    const ok = await confirm(t.mcp.confirmWrite(rel), t.mcp.confirmWriteDetail(why, exists));
-    if (!ok) throw new Error(t.mcp.writeRejected);
+    const oldBytes = exists ? (await fs.stat(abs)).size : 0;
+    // What changes, line by line (lineDiff.js): the chat shows it while asking and once saved
+    const before = exists && oldBytes <= MAX_READ_BYTES ? await fs.readFile(abs, 'utf8').catch(() => null) : null;
+    const diff = exists && before == null ? null : lineDiff(exists ? before : null, content);
+    const ask = needsApproval(approvalModeNow, { path: rel, exists, oldBytes, newBytes: Buffer.byteLength(content) });
+    if (ask) {
+      send('agent:awaiting', { path: rel, waiting: true, diff, reason: why }); // "Esperando tu aprobación…" + the proposed change
+      const ok = await confirm(t.mcp.confirmWrite(rel), t.mcp.confirmWriteDetail(why, exists)).finally(() => send('agent:awaiting', { path: rel, waiting: false }));
+      if (!ok) throw new Error(t.mcp.writeRejected);
+    }
     const backup = await backupFile(rel, abs, exists);
     await workspace.writeFile(rel, content);
-    const change = { path: rel, reason: why, created: !exists, backup, requestedAt, at: new Date().toISOString() };
+    // approvedBy: 'you' (the dialog) or the mode that saved it on its own
+    const change = { path: rel, reason: why, created: !exists, backup, requestedAt, at: new Date().toISOString(), approvedBy: ask ? 'you' : approvalModeNow, diff };
     send('agent:changed', change);
     return t.mcp.written(rel);
   },
@@ -552,28 +639,71 @@ async function startMcp() {
 ipcMain.handle('mcp:info', () => ({ ok: true, data: mcp }));
 
 // --- Agents with the user's own subscription ---
-ipcMain.handle('agents:detect', async () => ({ ok: true, data: await agents.detect() }));
+// Agent permissions (approval.js). Starts in manual on every launch; the window restores "auto" itself,
+// and "bypass" needs the person's confirmation each time it is turned on.
+let approvalModeNow = 'manual';
+ipcMain.handle('agent:approval', async (_e, requested) => {
+  const mode = approvalMode(requested);
+  if (mode === 'bypass' && approvalModeNow !== 'bypass' && !(await confirm(t.mcp.confirmBypass, t.mcp.confirmBypassDetail, t.mcp.bypassButton))) {
+    return { ok: false, error: 'cancelled', data: approvalModeNow };
+  }
+  approvalModeNow = mode;
+  log('agent:approval', mode, true);
+  return { ok: true, data: mode };
+});
+// API keys instead of a subscription login (keyStore.js): encrypted with the OS keychain, never sent
+// back to the window (only which agents have one and their last four characters)
+let keyStore = null;
+const keys = () => (keyStore ??= createKeyStore({ file: path.join(app.getPath('home'), '.platanus', 'keys.json'), safeStorage }));
+ipcMain.handle('keys:list', () => ({ ok: true, data: keys().list() }));
+ipcMain.handle('keys:set', (_e, provider, value) => {
+  const result = keys().set(String(provider), value);
+  log('keys:set', String(provider), result.ok, result.error); // the provider, never the key
+  return result;
+});
+ipcMain.handle('keys:remove', (_e, provider) => {
+  log('keys:remove', String(provider), true);
+  return keys().remove(String(provider));
+});
+// The keys one run gets: its own, or for OpenCode every saved one (it picks the provider)
+const agentKeyEnv = (id) => (id === 'opencode'
+  ? Object.assign({}, ...['claude', 'codex', 'grok'].map((p) => keys().envFor(p)))
+  : keys().envFor(id));
+// An agent with a saved key counts as connected (auth: 'key'), even without a subscription login
+ipcMain.handle('agents:detect', async () => {
+  const saved = keys().list();
+  const list = (await agents.detect()).map((a) => {
+    if (saved[a.id] && a.installed) return { ...a, loggedIn: true, auth: 'key', keyLast4: saved[a.id].last4 };
+    // OpenCode can also use any key saved here (it reads the same provider variables)
+    if (a.id === 'opencode' && a.installed && !a.loggedIn && Object.keys(saved).length) return { ...a, loggedIn: true, auth: 'key', keyLast4: Object.values(saved)[0].last4 };
+    return { ...a, auth: a.loggedIn ? 'login' : null };
+  });
+  return { ok: true, data: list };
+});
 ipcMain.handle('agents:login', (_e, id) => ({ ok: agents.login(String(id)) }));
 ipcMain.handle('agents:run', async (_e, req) => {
   if (!mcp.running) return { ok: false, error: t.mcp.windowClosed };
   // The system proxy, asked on every run: VPN apps like Psiphon change their port each time they start
   const proxyEnv = agents.proxyEnvFor(await session.defaultSession.resolveProxy('https://api.anthropic.com').catch(() => ''));
   const runId = `${Date.now()}-${++requestSeq}`;
-  const model = /^[a-zA-Z0-9.\-_]{0,40}$/.test(String(req?.model ?? '')) ? String(req.model ?? '') : '';
+  const model = /^(?!-)[a-zA-Z0-9.\-_]{0,40}$/.test(String(req?.model ?? '')) ? String(req.model ?? '') : '';
   const effort = ['low', 'medium', 'high', 'xhigh', 'max'].includes(req?.effort) ? req.effort : 'low';
   // The chat sends its voice (Vibe/Dev + recent messages): the prompt comes from agent/voice.json and the
   // mode's skill, read on every run so the team can tune them without restarting
   let systemPrompt = String(req?.systemPrompt ?? '');
   if (req?.voice) {
     try {
-      systemPrompt = composePrompt(loadVoice(AGENT_DIR), { mode: req.voice.mode, recent: req.voice.recent, task: systemPrompt });
+      const voice = loadVoice(AGENT_DIR);
+      systemPrompt = req.voice.purpose === 'refine'
+        ? composeRefinePrompt(voice, { mode: req.voice.mode }) // "Mejorar mi mensaje"
+        : composePrompt(voice, { mode: req.voice.mode, recent: req.voice.recent, task: systemPrompt });
     } catch (error) {
       console.error('agent/voice.json:', error.message); // keep the plain prompt
     }
   }
   const child = agents.run(
     String(req?.agent),
-    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: req?.session === 'repair' ? 'repair' : 'chat', proxyEnv },
+    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: SESSIONS.includes(req?.session) ? req.session : 'chat', env: agentKeyEnv(String(req?.agent)), proxyEnv },
     (event) => {
       if (event.type === 'done') agentRuns.delete(runId);
       send('agents:event', { runId, ...event });
@@ -590,8 +720,12 @@ ipcMain.handle('agents:cancel', (_e, runId) => {
   return { ok: true };
 });
 
+// With the simulator (PLATANUS_SIM=1, development) a question nobody answers cancels itself after 5 s,
+// so automated scenario runs never hang on a dialog
 async function confirm(message, detail, okLabel = t.allow) {
+  const signal = process.env.PLATANUS_SIM === '1' ? AbortSignal.timeout(5000) : undefined;
   const { response } = await dialog.showMessageBox(win, {
+    ...(signal ? { signal } : {}),
     type: 'warning',
     buttons: [t.cancel, okLabel],
     defaultId: 0,

@@ -9,7 +9,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CAMERA } from '../../viewmodels/cameraViewModel.js';
 import { PALETTE } from './materials.js';
 
-const GRID_SIZE = 200; // cells per side; the grid re-centers on the camera so it feels infinite
+const GRID_SIZE = 400; // cells per side; the grid re-centers on the camera so it feels infinite
 const SUN_OFFSET = new THREE.Vector3(-14, 30, 18); // from the top left: shadows fall to the right
 const RIM_OFFSET = new THREE.Vector3(20, 18, -26);  // cool light from behind to outline the volumes
 const BLOOM = { strength: 0.45, radius: 0.4, threshold: 0.85 };
@@ -35,7 +35,9 @@ export function createSceneView(cameraViewModel, container = document.body) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(PALETTE.background);
 
-  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
+  // A negative near plane: at a low tilt and zoomed out, the bottom of the screen sees ground that lies
+  // "behind" the camera's position; an orthographic camera can still draw it (no black band)
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, -400, 400);
 
   // One layer per app view; only the active one is visible. Ground, grid and lights are shared.
   const layers = { map: new THREE.Group(), git: new THREE.Group() };
@@ -57,7 +59,7 @@ export function createSceneView(cameraViewModel, container = document.body) {
 
   // Ground and grid
   const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2),
+    new THREE.PlaneGeometry(GRID_SIZE * 2, GRID_SIZE * 2).rotateX(-Math.PI / 2),
     new THREE.MeshStandardMaterial({ color: PALETTE.ground, roughness: 1, metalness: 0 })
   );
   ground.receiveShadow = true;

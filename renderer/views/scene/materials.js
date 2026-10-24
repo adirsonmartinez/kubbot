@@ -9,6 +9,7 @@ export const PALETTE = {
   accent: 0x8b83ff, // team purple
   warn: 0xffc24a,
   danger: 0xff5a6a,
+  ok: 0x3ddc97, // healthy integrations (the same green as the UI's --ok)
 };
 
 const cache = {};
@@ -35,6 +36,8 @@ export const materials = {
   // Ground pieces
   get slab()       { return material('slab', 0x3b4048, { roughness: 0.8, metalness: 0.1 }); },
   get slabEdge()   { return material('slabEdge', 0x4d545d, { roughness: 0.6, metalness: 0.3 }); },
+  // The integrations band across the top of the map: darker than the ground
+  get band()       { return material('band', 0x17191d, { roughness: 1, metalness: 0 }); },
   get road()       { return material('road', 0x41474f, { roughness: 0.9, metalness: 0 }); },
   get roof()       { return material('roof', 0xdfe3e7, { roughness: 0.6, metalness: 0.15 }); },
   // Lit windows: faint purple, below the bloom threshold so they do not compete with alerts
@@ -64,6 +67,20 @@ export const materials = {
   get remiHandle()       { return material('remiHandle', 0x7a5230, { metalness: 0 }); },
   // Remi's sparks
   get spark()      { return material('spark', 0xffd25a, { emissive: 0xffb020, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0 }); },
+};
+
+// Lines that glow the same from every angle and zoom (unlit): an integration's lit way. A bright core in
+// its true color, and a soft additive halo under it (so the glow does not depend on the bloom pass).
+const glowCache = {};
+function glowLine(name, color) {
+  return (glowCache[name] ??= {
+    core: new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.15), toneMapped: false }),
+    halo: new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  });
+}
+export const glowLines = {
+  get ok()   { return glowLine('ok', PALETTE.ok); },
+  get warn() { return glowLine('warn', PALETTE.warn); },
 };
 
 const geometries = {
@@ -106,42 +123,13 @@ export function platform(parent, w, d, x = 0, z = 0) {
   return 0.28; // height of the top surface
 }
 
-// Glowing dot grid on the ground (status / selection under a building). Additive, so it blooms.
-let dotTexture = null;
-function dots() {
-  if (dotTexture) return dotTexture;
-  const size = 64;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(size / 2, size / 2, size * 0.16, 0, Math.PI * 2); ctx.fill();
-  dotTexture = new THREE.CanvasTexture(canvas);
-  dotTexture.wrapS = dotTexture.wrapT = THREE.RepeatWrapping;
-  return dotTexture;
-}
-
+// Status under a building: a bright rim in the level's color around its platform (it blooms)
 export function glowPad(parent, color, w, d, y = 0.3) {
-  const texture = dots().clone();
-  texture.needsUpdate = true;
-  texture.repeat.set(w * 2.5, d * 2.5);
-  const pad = new THREE.Mesh(
-    new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({
-      color: new THREE.Color(color).multiplyScalar(1.3), map: texture, transparent: true,
-      blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
-    })
-  );
-  pad.position.y = y;
-  parent.add(pad);
-
-  // Bright rim around the pad
   const rim = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.5), toneMapped: false });
   const t = 0.06;
   [[0, -d / 2, w, t], [0, d / 2, w, t], [-w / 2, 0, t, d], [w / 2, 0, t, d]].forEach(([dx, dz, sx, sz]) => {
     box(parent, rim, sx, 0.03, sz, dx, y - 0.01, dz).castShadow = false;
   });
-  return pad;
 }
 
 // Red diamond with a white "!" (it sticks out on both sides so it reads from any angle)

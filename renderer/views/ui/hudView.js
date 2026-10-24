@@ -43,7 +43,7 @@ export function createHudView({ appViewModel, mapViewModel, gitViewModel, onShow
     field('review').textContent = root.counts.yellow;
     field('commits').textContent = gitViewModel.store.state.summary?.commits ?? '–';
     ring.style.strokeDashoffset = String(RING_LENGTH * (1 - score / 100));
-    hud.classList.toggle('has-risk', root.counts.red > 0);
+    hud.dataset.level = root.scoreLevel; // the ring takes the worst open light: red, yellow or green
   }
 
   mapViewModel.store.subscribe(render);

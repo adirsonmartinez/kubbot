@@ -1,13 +1,13 @@
 // The welcome robot (RobotDialogViewModel): it hovers on the plaza of a new project and talks in one speech
 // bubble above its head. Each new message pops in: the robot hops (shakes its head for a risk), a few typing
 // dots, the text types itself (click to skip) and then the buttons slide in one by one. Minimized, the bubble
-// is a small pill that lights up when there is news. The robot steps aside as the plaza fills with files.
+// is a small pill that lights up when there is news.
 import * as THREE from 'three';
 import { buildRobot } from './builders/robotBuilder.js';
-import { PLAZA } from '../../viewmodels/layout.js';
 import { strings } from '../../i18n/es.js';
 import { escapeHtml } from '../../core/format.js';
 import { icon } from '../icons.js';
+import { CAMERA } from '../../viewmodels/cameraViewModel.js';
 
 const UI = strings.map.welcome.ui;
 const SPOT = 1.1;          // front corner of an empty plaza, so the bubble clears the project's label
@@ -17,12 +17,6 @@ const POP_SPEED = 2.4;
 const TYPING_DOTS_S = 0.35; // "…" before the text starts
 const CHARS_PER_S = 55;
 const TONE_ICON = { info: 'sparkles', success: 'ok', warn: 'shieldWarn', danger: 'danger' };
-
-// Front corner of the plaza, clear of its problem files
-function spotFor(plaza) {
-  if (!plaza?.files?.length) return SPOT;
-  return Math.max(SPOT, (plaza.cols * PLAZA.pitch) / 2 + 0.9);
-}
 
 function headHtml(b) {
   if (b.progress) {
@@ -71,7 +65,7 @@ function pillHtml(unread) {
 export function createRobotView({ sceneView, labels, mapViewModel, robotDialogViewModel: dialog }) {
   const robot = buildRobot();
   robot.root.position.set(SPOT, BASE_Y, SPOT);
-  robot.root.rotation.y = Math.PI / 4; // faces the camera
+  robot.root.rotation.y = CAMERA.azimuth; // faces the camera
   robot.root.visible = false;
   sceneView.layers.map.add(robot.root);
 
@@ -91,7 +85,6 @@ export function createRobotView({ sceneView, labels, mapViewModel, robotDialogVi
   for (const type of ['pointerdown', 'wheel']) label.el.addEventListener(type, (e) => e.stopPropagation());
 
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let target = SPOT;   // where the robot is heading (moves aside as the plaza grows)
   let shown = 0;       // 0..1 pop-in / pop-out
   let on = false;
   let clock = 0;
@@ -138,7 +131,6 @@ export function createRobotView({ sceneView, labels, mapViewModel, robotDialogVi
     const state = dialog.store.state;
     const wasOn = on;
     on = state.phase !== 'off' && map.status === 'ready';
-    target = spotFor(map.plaza);
     if (on && !wasOn) {
       shown = still ? 1 : 0;
       robot.root.visible = shadow.visible = true;
@@ -164,14 +156,7 @@ export function createRobotView({ sceneView, labels, mapViewModel, robotDialogVi
     }
     const pop = 1 - (1 - shown) ** 3;
 
-    // Glide to the free corner of the plaza
     const p = robot.root.position;
-    const step = still ? 1 : Math.min(dt * 3, 1);
-    p.x += (target - p.x) * step;
-    p.z += (target - p.z) * step;
-    shadow.position.x = p.x;
-    shadow.position.z = p.z;
-
     hop = Math.max(hop - dt * 2.2, 0);
     shake = Math.max(shake - dt * 1.6, 0);
     const talking = typing ? 1 : 0;

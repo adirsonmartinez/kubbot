@@ -21,14 +21,6 @@ function fakeService() {
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-test('no agent is picked by itself: the person chooses (each answer spends their subscription)', async () => {
-  localStorage.clear();
-  const m = new AgentConnectionModel(fakeService());
-  await m.refresh();
-  assert.equal(m.store.state.selected, null);
-  assert.equal(m.live, false);
-});
-
 test('runs are serialized: the second starts only after the first is done', async () => {
   const svc = fakeService();
   const m = new AgentConnectionModel(svc);
@@ -197,4 +189,72 @@ test('the chat voice (mode + recent messages) travels with the run; without it n
   await b;
   assert.deepEqual(svc.runs[0].req.voice, { mode: 'dev', recent: ['hola'] });
   assert.equal('voice' in svc.runs[1].req, false);
+});
+
+test('agentModel forwards onStart so the chat knows when a waiting question really starts', async () => {
+  const { AgentModel } = await import('../../renderer/models/agentModel.js');
+  const seen = [];
+  const connection = { live: true, ask: async (_p, _s, opts) => { opts.onStart?.('7'); return { text: 'ok' }; } };
+  const model = new AgentModel({ connection, modeModel: { tech: false } });
+  await model.reply('hola', { onStart: (id) => seen.push(id) });
+  assert.deepEqual(seen, ['7']);
+});
+
+test('an agent that stops halfway is a failure even if it wrote something first', async () => {
+  const { AgentModel } = await import('../../renderer/models/agentModel.js');
+  const connection = { live: true, ask: async () => ({ text: 'Empiezo a revisar…', error: 'El agente terminó con un error (código 1).' }) };
+  const model = new AgentModel({ connection, modeModel: { tech: false } });
+  const reply = await model.reply('revisa todo');
+  assert.equal(reply.tone, 'alert');
+  assert.equal(reply.text, 'Empiezo a revisar…');
+  assert.match(reply.html, /se detuvo/);
+});
+
+test('the first time, the best connected agent is chosen on its own; a choice made before is respected', async () => {
+  localStorage.clear();
+  const svc = fakeService();
+  svc.detect = async () => ({ ok: true, data: [
+    { id: 'grok', label: 'Grok', installed: true, loggedIn: true },
+    { id: 'claude', label: 'Claude', installed: true, loggedIn: true },
+  ] });
+  const fresh = new AgentConnectionModel(svc);
+  await fresh.refresh();
+  assert.equal(fresh.store.state.selected, 'claude');
+
+  localStorage.setItem('platanus.agent.choice.v1', JSON.stringify({ selected: null, model: '', effort: 'low' })); // the demo, chosen
+  const chosen = new AgentConnectionModel(svc);
+  await chosen.refresh();
+  assert.equal(chosen.store.state.selected, null);
+  localStorage.clear();
+});
+
+test('saving an API key goes to the main process and re-checks the agents', async () => {
+  localStorage.clear();
+  const svc = fakeService();
+  const saved = [];
+  let detects = 0;
+  const detect = svc.detect;
+  svc.detect = async () => { detects += 1; return detect(); };
+  svc.saveKey = async (provider, value) => { saved.push([provider, value]); return { ok: true }; };
+  svc.removeKey = async () => ({ ok: true });
+  const m = new AgentConnectionModel(svc);
+  await m.refresh();
+  const before = detects;
+  assert.deepEqual(await m.saveKey('claude', 'sk-ant-xyz'), { ok: true });
+  assert.deepEqual(saved, [['claude', 'sk-ant-xyz']]);
+  assert.equal(detects, before + 1);
+  await m.removeKey('claude');
+  assert.equal(detects, before + 2);
+});
+
+test('a choice made in this session is not undone by the automatic pick on the next check', async () => {
+  localStorage.clear();
+  const svc = fakeService();
+  const m = new AgentConnectionModel(svc);
+  await m.refresh();
+  assert.equal(m.store.state.selected, 'claude');
+  m.select(null); // the demo
+  await m.refresh();
+  assert.equal(m.store.state.selected, null);
+  localStorage.clear();
 });

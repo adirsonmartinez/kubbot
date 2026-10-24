@@ -1,5 +1,7 @@
-// Draws the Supabase node, its status label and the schema cards from SupabaseViewModel.
+// Draws the Supabase node, its status label and the schema cards from SupabaseViewModel. The node is
+// built along +x from the plaza and turned up the screen, into the integrations band (layout.js).
 import { buildSupabaseNode } from './builders/supabaseBuilder.js';
+import { INTEGRATIONS, integrationToWorld, SCHEMA_CENTER } from '../../viewmodels/layout.js';
 import { buildSchema } from './builders/schemaBuilder.js';
 import { strings } from '../../i18n/es.js';
 
@@ -7,14 +9,15 @@ export function createSupabaseView({ sceneView, labels, supabaseViewModel, supab
   const node = buildSupabaseNode();
   node.group.userData.pick = { type: 'supabase' };
   node.group.visible = false;
+  node.group.rotation.y = INTEGRATIONS.rotation;
   sceneView.layers.map.add(node.group);
 
-  const schema = buildSchema(sceneView.renderer, supabaseModel.tables, node.trunkStart);
+  const schema = buildSchema(sceneView.renderer, supabaseModel.tables, integrationToWorld(node.trunkStart), integrationToWorld(SCHEMA_CENTER));
   sceneView.layers.map.add(schema.group);
 
   const label = labels.add({
     html: '<span class="dot"></span><span class="txt"></span> <b></b>',
-    anchor: node.labelAnchor,
+    anchor: { ...integrationToWorld(node.labelAnchor), y: node.labelAnchor.y },
     className: 'sb-label',
     hidden: true,
   });

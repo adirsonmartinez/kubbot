@@ -63,4 +63,10 @@ function composePrompt({ config, skills }, { mode, recent, task } = {}) {
   ].filter(Boolean).join('\n\n');
 }
 
-module.exports = { loadVoice, composePrompt, styleHints, MODES };
+// "Mejorar mi mensaje": only the refine rules and the mode's line (the answer is JSON, not a chat reply)
+function composeRefinePrompt({ config }, { mode } = {}) {
+  const m = MODES.includes(mode) ? mode : (config.defaultMode ?? 'vibe');
+  return [config.refine.base.join('\n'), config.refine.modes[m]].filter(Boolean).join('\n\n');
+}
+
+module.exports = { loadVoice, composePrompt, composeRefinePrompt, styleHints, MODES };

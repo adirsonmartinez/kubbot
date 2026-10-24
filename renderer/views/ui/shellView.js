@@ -2,6 +2,7 @@
 // (explorer as a guide or as the full tree, risks with "Reparar"), stage tabs, project map and status bar.
 // Only draws ShellViewModel and forwards clicks to view model actions.
 import { strings } from '../../i18n/es.js';
+import { daysAgo } from '../../core/format.js';
 import { TAG_COLOR } from '../../models/folderTags.js';
 import { createDevTree } from './devTreeView.js';
 import { icon } from '../icons.js';
@@ -40,7 +41,7 @@ function addTip(button, title, info) {
   button.appendChild(tip);
 }
 
-export function createShellView({ shellViewModel: vm, modeModel, repairViewModel, repairHistory, serversViewModel, actions }) {
+export function createShellView({ shellViewModel: vm, modeModel, approval = null, repairViewModel, repairHistory, serversViewModel, actions }) {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
   const devTree = createDevTree({
@@ -580,16 +581,20 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     }
   }
 
-  // --- Empty state: recent projects ---
+  // --- Empty state: recent projects (all the ones kept, most recent first, with when they were opened) ---
   const emptyRecent = $('empty-recent');
   function renderRecent(state) {
-    if (!state.recent.length) return emptyRecent.replaceChildren();
-    emptyRecent.replaceChildren(el('p', 'side-label', S.recent), ...state.recent.slice(0, 5).map((r) => {
+    const label = el('p', 'empty-label', S.recent);
+    if (!state.recent.length) return emptyRecent.replaceChildren(label, el('p', 'empty-none', strings.emptyState.recentNone));
+    emptyRecent.replaceChildren(label, ...state.recent.map((r) => {
       const b = el('button', 'recent-row');
       b.type = 'button';
       b.title = r.root;
-      b.innerHTML = icon('folder');
-      b.append(el('strong', '', r.name), el('span', '', r.root.replace(/^\/Users\/[^/]+/, '~')));
+      const tile = el('span', 'recent-tile');
+      tile.innerHTML = icon('folder'); // static icon
+      const days = daysAgo(r.at);
+      b.append(tile, el('strong', '', r.name), el('span', 'recent-path', r.root.replace(/^\/Users\/[^/]+/, '~')));
+      if (days !== null) b.append(el('span', 'recent-when', strings.emptyState.when(days)));
       b.addEventListener('click', () => vm.openRecent(r.root));
       return b;
     }));
@@ -646,6 +651,10 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
       ...(state.open ? [] : [el('span', 'status-strong', S.status.noProject)]), // when open, the breadcrumb names it
       ...(job ? [el('span', 'status-remi', `${strings.repair.name}: ${(job.source === 'agent' ? strings.repair.stepsAgent(job.agentLabel) : strings.repair.steps)[job.step]}`)] : []),
       el('span', 'status-mode', `${strings.mode.title}: ${strings.mode[modeModel.store.state.mode]}`),
+      // Only when changes are not approved one by one, so the person always knows
+      ...(approval && approval.store.state.mode !== 'manual'
+        ? [el('span', `status-perm ${approval.store.state.mode}`, strings.chat.permissions.status(strings.chat.permissions.names[approval.store.state.mode]))]
+        : []),
       el('span', 'status-agent', S.status.agent),
     );
   }
@@ -662,6 +671,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     }
   }, { immediate: true });
   modeModel.store.subscribe(() => render(vm.store.state));
+  approval?.store.subscribe(() => render(vm.store.state));
   repairViewModel.store.subscribe(() => render(vm.store.state));
   repairHistory.store.subscribe(() => render(vm.store.state));
   serversViewModel.store.subscribe(() => (vm.store.state.side === 'servers' ? render(vm.store.state) : syncServerMenu()));

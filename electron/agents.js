@@ -14,12 +14,23 @@ fs.mkdirSync(WORKDIR, { recursive: true });
 
 const t = require("./strings");
 const { parseAgentLine } = require("./agentEvents");
+const { opencodeConfig, opencodeEnv, opencodeArgs, FALLBACK_LINE } = require("./opencode");
 
 const AGENTS = {
   claude: { label: t.agents.claude, bin: "claude", login: "claude auth login" },
   grok: { label: t.agents.grok, bin: "grok", login: "grok login --oauth" },
   codex: { label: t.agents.codex, bin: "codex", login: "codex login" },
+  // Locked to the Platanus tools by its config (opencode.js); it uses the providers OpenCode is signed in to
+  opencode: { label: t.agents.opencode, bin: "opencode", login: "opencode auth login", format: "opencode" },
 };
+// OpenCode's own config and global config folder, apart from the person's (opencode.js)
+const OPENCODE_HOME = path.join(os.homedir(), ".platanus", "opencode");
+// Development only (PLATANUS_SIM=1): "Simulador", a fake Claude Code CLI that plays scripted scenarios
+// through the real pipeline and the real Platanus tools (scripts/sim/fakeAgent.js). Never in a release.
+const SIM = process.env.PLATANUS_SIM === "1";
+if (SIM) {
+  AGENTS.sim = { label: t.agents.sim, bin: process.execPath, script: path.join(__dirname, "..", "scripts", "sim", "fakeAgent.js"), format: "claude", login: "" };
+}
 
 // The CLIs only read proxy environment variables, not the system proxy that VPN apps (Psiphon, corporate
 // clients) set, so without this they connect directly and fail with ECONNREFUSED. `resolved` is Electron's
@@ -69,6 +80,12 @@ async function loginStatus(id, bin) {
     const r = await quick(bin, ["login", "status"], 8000);
     return r.ok && !/not logged in/i.test(r.out);
   }
+  if (id === "opencode") {
+    // "N credentials" in `opencode providers list` (ANSI colors stripped)
+    const r = await quick(bin, ["providers", "list"], 8000);
+    const n = /(\d+)\s+credentials?/i.exec(r.out.replace(/\x1b\[[0-9;]*m/g, ""))?.[1];
+    return n === undefined ? null : Number(n) > 0;
+  }
   return null; // Grok exposes no login status: known on first use
 }
 
@@ -83,6 +100,7 @@ const binPaths = {};
 // [{ id, label, installed, loggedIn, version, path }], checked in parallel
 function detect() {
   return Promise.all(Object.entries(AGENTS).map(async ([id, a]) => {
+    if (a.script) return { id, label: a.label, installed: true, loggedIn: true, version: "sim", path: a.script };
     const path_ = await which(a.bin);
     if (!path_) return { id, label: a.label, installed: false, loggedIn: false, version: "", path: "" };
     binPaths[id] = path_;
@@ -103,7 +121,7 @@ function login(id) {
   return true;
 }
 
-const resumeIds = {}; // conversation continuity per agent and session ("chat" | "repair")
+const resumeIds = {}; // conversation continuity per agent and session ("chat" | "repair" | "refine")
 
 // Grok's built-in tools (terminal, file edits, subagents, media…) are removed: it only acts through
 // Platanus' MCP tools (use_tool). Verified: with these flags `touch` from a prompt is not possible.
@@ -180,10 +198,26 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, s
   ];
 }
 
+// OpenCode: its config (0600, rewritten each run with this run's MCP address and system prompt) and
+// a clean environment; the command never carries --auto/--yolo (opencode.js)
+function spawnOpencode({ prompt, systemPrompt, mcpUrl, continued, model }, session, env) {
+  const configHome = path.join(OPENCODE_HOME, "xdg");
+  const configFile = path.join(OPENCODE_HOME, "config.json");
+  fs.mkdirSync(configHome, { recursive: true });
+  fs.writeFileSync(configFile, JSON.stringify(opencodeConfig({ mcpUrl, systemPrompt })), { mode: 0o600 });
+  fs.chmodSync(configFile, 0o600);
+  const resume = continued ? resumeIds[`opencode:${session}`] : null;
+  return spawn(binPaths.opencode ?? "opencode", opencodeArgs({ prompt, workdir: WORKDIR, model, resume }), {
+    env: opencodeEnv(env, { configFile, configHome }), cwd: WORKDIR, stdio: ["ignore", "pipe", "pipe"],
+  });
+}
+
 // Each CLI line -> chat events (agentEvents.js); the session id is kept to continue the conversation
-function parseLine(id, session, line, emit) {
-  for (const e of parseAgentLine(id, line)) {
+function parseLine(format, session, line, emit, id = format) {
+  for (const e of parseAgentLine(format, line)) {
     if (e.type === "session") resumeIds[`${id}:${session}`] = e.id;
+    // OpenCode without a provider of its own (its free tier only works inside its app)
+    else if (e.type === "error" && format === "opencode" && /free tier|ProviderAuth|no provider/i.test(e.message)) emit({ type: "error", message: t.agents.opencodeNoProvider });
     else if (e.type === "error") emit({ type: "error", message: e.message || t.agents.failed });
     else emit(e);
   }
@@ -194,25 +228,36 @@ const running = new Map();
 // One run per agent and session at a time (the window serializes its requests; this is a safety net).
 function run(id, opts, emit) {
   if (!AGENTS[id]) return emit({ type: "error", message: t.agents.unknown }), emit({ type: "done" }), null;
-  const session = opts.session === "repair" ? "repair" : "chat";
+  const session = ["repair", "refine"].includes(opts.session) ? opts.session : "chat";
   const key = `${id}:${session}`;
   running.get(key)?.kill("SIGTERM");
-  const env = { ...ENV, ...opts.proxyEnv };
-  const child = spawn(binPaths[id] ?? AGENTS[id].bin, argsFor(id, { ...opts, session }), { env, cwd: WORKDIR, stdio: ["ignore", "pipe", "pipe"] });
+  const agent = AGENTS[id];
+  const format = agent.format ?? id; // the simulator speaks Claude Code's stream JSON
+  // opts.proxyEnv: the system proxy (VPNs); opts.env: the API key of this agent, when the person saved one
+  // (keyStore.js); both only for this run
+  const env = { ...ENV, ...(opts.proxyEnv ?? {}), ...(opts.env ?? {}) };
+  const child = id === "opencode" ? spawnOpencode(opts, session, env) : agent.script
+    ? spawn(agent.bin, [agent.script, ...argsFor(format, { ...opts, session })], { env: { ...env, ELECTRON_RUN_AS_NODE: "1" }, cwd: WORKDIR, stdio: ["ignore", "pipe", "pipe"] })
+    : spawn(binPaths[id] ?? agent.bin, argsFor(id, { ...opts, session }), { env, cwd: WORKDIR, stdio: ["ignore", "pipe", "pipe"] });
   running.set(key, child);
   let buffer = "";
   let stderr = "";
+  let blocked = false; // stopped by the OpenCode guard: that error is the only one shown
   child.stdout.on("data", (chunk) => {
     buffer += chunk.toString("utf8");
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
-    lines.forEach((l) => l.trim() && parseLine(id, session, l.trim(), emit));
+    if (!blocked) lines.forEach((l) => l.trim() && parseLine(format, session, l.trim(), emit, id));
   });
-  child.stderr.on("data", (c) => (stderr = (stderr + c.toString("utf8")).slice(-2000)));
+  child.stderr.on("data", (c) => {
+    stderr = (stderr + c.toString("utf8")).slice(-2000);
+    // OpenCode without its locked agent would run with its own tools: stop it right away
+    if (id === "opencode" && !blocked && FALLBACK_LINE.test(stderr)) { blocked = true; emit({ type: "error", message: t.agents.opencodeUnsafe }); child.kill("SIGTERM"); }
+  });
   child.on("error", (err) => emit({ type: "error", message: t.agents.cannotStart(AGENTS[id].bin, err.message) }));
   child.on("close", (code, signal) => {
-    if (buffer.trim()) parseLine(id, session, buffer.trim(), emit);
-    if (signal) emit({ type: "error", message: t.agents.interrupted });
+    if (buffer.trim() && !blocked) parseLine(format, session, buffer.trim(), emit, id);
+    if (blocked) { /* already said why */ } else if (signal) emit({ type: "error", message: t.agents.interrupted });
     else if (code !== 0 && code !== null) {
       const hint = /login|auth|sign in|unauthori/i.test(stderr) ? t.agents.loginHint : "";
       emit({ type: "error", message: t.agents.exitCode(code) + hint });
@@ -223,4 +268,4 @@ function run(id, opts, emit) {
   return child;
 }
 
-module.exports = { detect, login, run, proxyEnvFor };
+module.exports = { detect, login, run, SIM, proxyEnvFor };

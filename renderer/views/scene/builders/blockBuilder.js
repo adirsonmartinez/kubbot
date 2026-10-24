@@ -1,5 +1,5 @@
-// Plain block for a folder (temporary stand-in for the detailed buildings while we define how a
-// building unfolds its contents). Height still grows with the file count; problems light up the base.
+// A folder as a plain cube: the more files inside (at any depth), the taller it is (layout.boxHeight).
+// Problems light up the rim of its platform.
 import * as THREE from 'three';
 import { box, glowPad, materials as M, platform } from '../materials.js';
 import { LEVEL_STYLE } from '../../theme.js';

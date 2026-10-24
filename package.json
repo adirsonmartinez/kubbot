@@ -15,7 +15,7 @@
     "build:web": "node scripts/build-web.js",
     "dist:mac": "electron-builder --mac --publish never",
     "dist:win": "electron-builder --win --publish never",
-    "test": "node --test electron/mcpServer.test.js electron/agentEvents.test.js electron/agentVoice.test.js electron/servers.test.js electron/git.test.js electron/agents.test.js tests/renderer/*.test.mjs tests/secrets.test.mjs"
+    "test": "node --test electron/mcpServer.test.js electron/agentEvents.test.js electron/agentVoice.test.js electron/servers.test.js electron/git.test.js electron/approval.test.js electron/fileOpen.test.js electron/lineDiff.test.js electron/keyStore.test.js electron/opencode.test.js electron/agents.test.js scripts/sim/fakeAgent.test.js tests/renderer/*.test.mjs tests/secrets.test.mjs"
   },
   "build": {
     "appId": "us.platan.hack26.team12.ide",
@@ -63,11 +63,31 @@
     }
   },
   "devDependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
+    "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.12",
+    "@codemirror/lang-javascript": "^6.2.5",
+    "@codemirror/lang-json": "^6.0.2",
+    "@codemirror/lang-markdown": "^6.5.2",
+    "@codemirror/lang-python": "^6.2.1",
+    "@codemirror/lang-sql": "^6.10.0",
+    "@codemirror/lang-yaml": "^6.1.3",
+    "@codemirror/language": "^6.13.1",
+    "@codemirror/legacy-modes": "^6.5.5",
+    "@codemirror/search": "^6.7.2",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.15",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/roboto-mono": "^5.3.0",
     "@hugeicons/core-free-icons": "^4.3.5",
+    "@lezer/highlight": "^1.2.5",
     "border-beam": "^1.4.1",
+    "codemirror": "^6.0.2",
     "electron": "^45.0.0",
     "electron-builder": "^26.18.0",
     "esbuild": "^0.28.2",
+    "metal-fx": "^2.0.11",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "thinking-orbs": "^0.3.2"
