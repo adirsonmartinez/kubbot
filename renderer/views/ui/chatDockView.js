@@ -7,7 +7,7 @@ const KEY = 'platanus.chat.dock.v1';
 const MIN_W = 300;
 const MAX_W = 720;
 
-export function createChatDockView({ workspace, stage, chat, pinButton, info }) {
+export function createChatDockView({ workspace, chat, pinButton }) {
   let state = { pinned: false, width: 372 };
   try { state = { ...state, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { /* nothing saved */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* private mode */ } };
@@ -30,15 +30,12 @@ export function createChatDockView({ workspace, stage, chat, pinButton, info }) 
   function apply() {
     const docked = state.pinned && visible();
     body.style.setProperty('--chat-w', `${state.width}px`);
+    // The information area above the chat is filled by the cards that dock there (see floater.js)
     if (docked && !body.classList.contains('chat-docked')) {
       workspace.appendChild(dock);
       dock.appendChild(chat);
-      const hud = info();
-      if (hud) infoArea.appendChild(hud);
     } else if (!docked && body.classList.contains('chat-docked')) {
       workspace.appendChild(chat);
-      const hud = info();
-      if (hud) stage.appendChild(hud);
       dock.remove();
     }
     body.classList.toggle('chat-docked', docked);
