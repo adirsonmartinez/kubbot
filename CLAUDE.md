@@ -24,7 +24,8 @@ renderer/
   core/           Observable (reactive state), event bus (EVENTS), formatting helpers
   i18n/es.js      every user-facing string (also tag labels, folder names, repair texts)
   services/       bridges to Electron (no logic): workspaceService (disk), agentService (agents + MCP),
-                  mcpBridge (answers the MCP tools that need the window), serverService (listening servers)
+                  mcpBridge (answers the MCP tools that need the window), serverService (listening servers),
+                  handTrackingService (camera -> hand landmarks with MediaPipe, local model in assets/hands/)
   models/         data and rules; no DOM, no three.js, no UI state
     projectModel, fileTree, securityModel (traffic light), supabaseModel, demoProject
     agentModel (chat brain: scripted demo or the user's agent), agentConnectionModel (which agent,
@@ -32,18 +33,20 @@ renderer/
     folderTags (tag and folder KEYS by name; labels live in es.js), modeModel (Vibe / Dev),
     repairHistoryModel (task list of repairs, per project, in localStorage),
     answerFormat (the agent's ```sugerencias block -> next steps),
-    serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo)
+    serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo),
+    handGesture (pinch tracker: hand landmarks -> drag or turn)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
     camera, map (security radar: folders and files with problems), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
-    repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open)
+    repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open),
+    handControl (camera on/off, pinch and move pans the map, pinch and turn rotates it)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, robotView, inputController,
                   builders/ (block, folderIcon, fileIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader, robot)
   views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown with answer cards and
                   file links, chatCards: folder / file cards), icons (DOM helper over views/icons.js), thinkingOrb
                   (libraries.dev orbs over the package engine), agentPicker
                   (+ effortSlider), chatMenu, agentConnect, devTree, hoverCard, hud,
-                  repairPanel, remiJump, panels (breadcrumb, schema, git), controls, labels
+                  repairPanel, remiJump, panels (breadcrumb, schema, git), controls, handControl (hand button + camera preview), labels
                   floating layout: iconBar (reorderable icons), draggable (side panel / chat by
                   header), floater (map cards: move, minimize, dock), chatDock (pinned chat column),
                   floatingMenu (⋯ menus: one layer above the app, anchored to its button, flips up, keyboard)
@@ -90,6 +93,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 - Git from the chat (`models/gitIntent.js` parses what the person types; never the agent's output) only runs in the desktop app. `electron/git.js` validates every revision and branch name (a value starting with `-` would be a git option) and `main.js` asks before commit (shows the files; refuses if one is a secret per the MCP blocklist), revert, reset and switch. New branches are only logged. Tests: `electron/git.test.js`.
 - The agent only acts through the local MCP tools. `platanus_write_file` always opens a confirmation dialog and backs up the previous version to `~/.platanus/backups/` (undo from the repair history). Secrets (`.env*`, keys, `.git/`, `.ssh/`, `.npmrc`…) are refused on the normalized and the real path.
 - Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`; Codex read-only, without the user's config and with its shell, browser, computer use, plugins and subagents disabled (`CODEX_DISABLED`). Do not loosen these flags.
+- The window only gets the camera (video only, never the microphone) and clipboard writes, and only for the app's page (`allowPermission` in `electron/main.js`); every other permission is denied. Hand tracking runs locally (`docs/features/hand-gestures/`).
 - Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
 
 ## Visual style ("digital twin", dark)

@@ -41,7 +41,10 @@
         }
       ],
       "category": "public.app-category.developer-tools",
-      "identity": null
+      "identity": null,
+      "extendInfo": {
+        "NSCameraUsageDescription": "Platanus usa la cámara solo si activas mover el mapa con la mano. La imagen no sale de tu computador."
+      }
     },
     "win": {
       "target": [
@@ -70,6 +73,7 @@
     "thinking-orbs": "^0.3.2"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.1.1",
     "three": "^0.160.0"
   }
 }

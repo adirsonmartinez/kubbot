@@ -12,6 +12,20 @@ export const strings = {
     rotateLeft: 'Girar a la izquierda (Q)',
     rotateRight: 'Girar a la derecha (E)',
     reset: 'Centrar vista',
+    hands: 'Mover el mapa con la mano (cámara)',
+  },
+
+  // Moving the map with a hand in front of the camera (the image never leaves the computer)
+  hands: {
+    starting: 'Encendiendo la cámara…',
+    noHand: 'Muestra tu mano a la cámara',
+    open: 'Junta pulgar e índice para agarrar el mapa',
+    pinching: { grab: 'Agarrado: mueve o gira la mano', pan: 'Moviendo el mapa', rotate: 'Girando el mapa' },
+    errors: {
+      denied: 'No hay permiso para usar la cámara. Actívalo en la configuración del sistema.',
+      noCamera: 'No encontré una cámara.',
+      failed: 'No pude iniciar el seguimiento de la mano.',
+    },
   },
 
   git: {

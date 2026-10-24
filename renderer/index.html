@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <!-- Only local code is loaded: no remote scripts inside the app ('unsafe-inline' is for the import map) -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Platanus</title>
   <link rel="stylesheet" href="styles/main.css" />
@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="styles/agents.css" />
   <link rel="stylesheet" href="styles/chat.css" />
   <script type="importmap">
-    { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/", "thinking-orbs/engine": "./vendor/thinking-orbs/engine.es.js" } }
+    { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/", "thinking-orbs/engine": "./vendor/thinking-orbs/engine.es.js", "@mediapipe/tasks-vision": "../node_modules/@mediapipe/tasks-vision/vision_bundle.mjs" } }
   </script>
 </head>
 <body class="shell no-project"><!-- start screen until a project opens (avoids a flash of the panels) -->
@@ -77,6 +77,15 @@
       <button id="reset-view" data-i18n-title="controls.reset" data-i18n-aria="controls.reset">
         <i data-icon="center"></i>
       </button>
+    </div>
+    <div class="group">
+      <button id="hand-control" aria-pressed="false" data-i18n-title="controls.hands" data-i18n-aria="controls.hands">
+        <i data-icon="hand"></i>
+      </button>
+    </div>
+    <div id="hand-preview" hidden>
+      <div class="hand-video"></div>
+      <span class="hand-status"></span>
     </div>
   </div>
 
