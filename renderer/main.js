@@ -149,15 +149,13 @@ createIconBarView({ bar: document.getElementById('stage-tabs') });
 const workspaceEl = document.getElementById('workspace');
 makeDraggable({ el: document.getElementById('sidebar'), handle: document.querySelector('#sidebar .card-head'), key: 'sidebar', area: workspaceEl });
 makeDraggable({ el: document.getElementById('chat'), handle: document.querySelector('#chat .chat-head'), key: 'chat', area: workspaceEl, disabled: () => document.body.classList.contains('chat-docked') });
+createChatDockView({ workspace: workspaceEl, chat: document.getElementById('chat'), pinButton: document.getElementById('chat-pin') });
 // Cards on the map can be dragged anywhere and minimized
 for (const [id, title] of [['hud', strings.floater.hud]]) {
-  makeFloating({ el: document.getElementById(id), key: id, stage, title, labels: strings.floater });
+  // With the chat pinned, the security card docks above it (or floats on the map if dragged out)
+  makeFloating({ el: document.getElementById(id), key: id, stage, title, labels: strings.floater, dockArea: () => document.querySelector('body.chat-docked #chat-dock-info') });
 }
 // Pin for the chat: a column on the right with the security HUD above it
-createChatDockView({
-  workspace: workspaceEl, stage, chat: document.getElementById('chat'), pinButton: document.getElementById('chat-pin'),
-  info: () => document.getElementById('hud-float'),
-});
 
 // Chat options: the "+" in the composer, and the floating button when the chat is minimized or closed
 const $id = (id) => document.getElementById(id);
