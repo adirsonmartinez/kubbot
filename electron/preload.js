@@ -3,6 +3,11 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Lets the CSS leave room for the macOS window buttons (see styles/shell.css)
+window.addEventListener('DOMContentLoaded', () => {
+  if (process.platform === 'darwin') document.documentElement.classList.add('is-mac');
+});
+
 const on = (channel) => (callback) => {
   const listener = (_e, payload) => callback(payload);
   ipcRenderer.on(channel, listener);

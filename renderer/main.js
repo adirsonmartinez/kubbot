@@ -15,6 +15,8 @@ import { TowerViewModel } from './viewmodels/towerViewModel.js';
 import { SupabaseViewModel } from './viewmodels/supabaseViewModel.js';
 import { MapViewModel } from './viewmodels/mapViewModel.js';
 import { ChatViewModel } from './viewmodels/chatViewModel.js';
+import { ShellViewModel } from './viewmodels/shellViewModel.js';
+import { GraphViewModel } from './viewmodels/graphViewModel.js';
 
 import { createSceneView } from './views/scene/sceneView.js';
 import { createMapView } from './views/scene/mapView.js';
@@ -25,6 +27,8 @@ import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
 import { createPanelsView } from './views/ui/panelsView.js';
 import { createChatView } from './views/ui/chatView.js';
+import { createShellView } from './views/ui/shellView.js';
+import { createGraphView } from './views/ui/graphView.js';
 import { applyStrings } from './views/ui/domStrings.js';
 
 // --- Models ---
@@ -41,10 +45,12 @@ const towerViewModel = new TowerViewModel({ securityModel, camera: cameraViewMod
 const supabaseViewModel = new SupabaseViewModel({ supabaseModel, projectModel, camera: cameraViewModel, bus });
 const mapViewModel = new MapViewModel({ projectModel, securityModel, camera: cameraViewModel, towerViewModel, supabaseViewModel });
 const chatViewModel = new ChatViewModel({ agentModel, bus });
+const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
+const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
 
 // --- Views ---
 applyStrings();
-const sceneView = createSceneView(cameraViewModel);
+const sceneView = createSceneView(cameraViewModel, document.getElementById('stage')); // the map lives in the IDE stage
 const labels = createLabelLayer(document.getElementById('map-labels'), sceneView);
 const mapView = createMapView({ sceneView, labels, mapViewModel });
 const towerView = createTowerView({ sceneView, labels, towerViewModel, cameraViewModel, mapView });
@@ -60,6 +66,8 @@ createInputController({
 createControlsView({ cameraViewModel });
 createPanelsView({ mapViewModel, towerViewModel, supabaseViewModel });
 createChatView({ chatViewModel });
+createShellView({ shellViewModel, cameraViewModel });
+createGraphView({ graphViewModel, shellViewModel, mapViewModel });
 
 // --- Wiring between layers ---
 projectModel.store.subscribe((state, previous) => {

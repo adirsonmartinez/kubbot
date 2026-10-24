@@ -17,7 +17,9 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: t.windowTitle,
-    backgroundColor: '#f2f0ff',
+    backgroundColor: '#0a0b0f',
+    // macOS: integrated title bar; the window buttons sit inside the app's 44px title bar
+    ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 15 } } : {}),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, // the page sees neither Node nor Electron, only what preload exposes
