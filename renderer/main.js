@@ -105,7 +105,6 @@ const actions = {
   },
   showRisks: () => shellViewModel.store.state.side === 'risks' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('risks'),
   showGraph: () => shellViewModel.setStage('graph'),
-  showProject: () => shellViewModel.setStage('project'),
   // Send a file to the chat so the agent checks whether its risk is real
   audit(path, reason) {
     if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();

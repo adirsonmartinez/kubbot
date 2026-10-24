@@ -295,7 +295,7 @@ export const strings = {
       openRecent: 'Abrir reciente',
       noRecent: 'Sin proyectos recientes',
     },
-    rail: { explorer: 'Explorador', risks: 'Riesgos', repairs: 'Reparaciones', servers: 'Servidores', agent: 'Conecta tu agente', map: 'Mapa 3D', project: 'Mapa del proyecto', graph: 'Grafo de amenazas', git: 'Ramas de git', chat: 'Agente' },
+    rail: { explorer: 'Explorador', risks: 'Riesgos', repairs: 'Reparaciones', servers: 'Servidores', agent: 'Conecta tu agente', map: 'Mapa 3D', graph: 'Grafo de amenazas', git: 'Ramas de git', chat: 'Agente' },
     // Shown when hovering a rail button or a tab
     railInfo: {
       explorer: 'Las partes de tu proyecto con etiquetas y su semáforo.',
@@ -303,10 +303,9 @@ export const strings = {
       repairs: 'Historial de lo que se reparó, lo que falta verificar y lo que falló.',
       servers: 'Lo que está escuchando en un puerto de tu computadora, y si tu red lo puede ver.',
       agent: 'Elige qué IA responde y conéctala desde tu editor.',
-      map: 'Tu proyecto como una ciudad: cada carpeta es un edificio.',
+      map: 'Tu proyecto en 3D: solo aparecen las carpetas y archivos con problemas.',
       graph: 'El camino que seguiría un atacante hasta tus datos.',
       git: 'Tus ramas y commits, y si algún commit subió un secreto.',
-      project: 'Cómo está repartido el código, con etiquetas por carpeta.',
       chat: 'Habla con el agente en palabras sencillas.',
     },
     tabInfo: {
@@ -314,16 +313,6 @@ export const strings = {
       graph: (red) => (red ? `${red} archivos en riesgo en el camino` : 'Sin caminos abiertos'),
     },
     recent: 'Recientes',
-    project: {
-      title: 'Mapa del proyecto',
-      summary: (folders, files) => `Cómo está repartido el código · ${folders} carpetas · ${files} archivos`,
-      filter: 'Filtrar:',
-      clear: 'Quitar filtro',
-      none: 'Ninguna carpeta tiene esa etiqueta.',
-      showOnMap: 'Ver en el mapa',
-      empty: 'Abre un proyecto para ver cómo está repartido.',
-      inside: (name) => `dentro de ${name}`,
-    },
     explorerGuide: 'Guía de tu proyecto: qué hay en cada parte.',
     allFiles: 'Archivos sueltos',
     sidebar: {
@@ -403,7 +392,6 @@ export const strings = {
     tabMap: 'Mapa',
     tabGraph: 'Grafo',
     tabGit: 'Git',
-    tabProject: 'Proyecto',
     title: 'Grafo de amenazas',
     description: 'Cada caja es una parte de tu proyecto. La línea roja es el camino que haría un atacante desde internet; las naranjas son datos que llegan sin revisar. Arrastra para moverte y usa la rueda para acercar.',
     fit: 'Encuadrar',
@@ -517,7 +505,6 @@ export const strings = {
       repairWorst: 'Reparar el riesgo más grave',
       history: 'Historial de reparaciones',
       graph: 'Ver el grafo de amenazas',
-      project: 'Ver el mapa del proyecto',
       mode: (tech) => (tech ? 'Hablar en modo Vibe' : 'Hablar en modo Dev'),
       newChat: 'Nueva conversación',
     },

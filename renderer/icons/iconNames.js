@@ -10,7 +10,6 @@ export const ICON_NAMES = {
   plug: 'Plug01Icon',
   home: 'Home03Icon',
   gitBranch: 'GitBranchIcon',
-  dashboard: 'DashboardSquare01Icon',
   graph: 'HierarchyCircle01Icon',
   sidebar: 'SidebarLeftIcon',
   plus: 'PlusSignIcon',

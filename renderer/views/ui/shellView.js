@@ -2,13 +2,12 @@
 // (explorer as a guide or as the full tree, risks with "Reparar"), stage tabs, project map and status bar.
 // Only draws ShellViewModel and forwards clicks to view model actions.
 import { strings } from '../../i18n/es.js';
-import { TAG_COLOR, TAGS } from '../../models/folderTags.js';
+import { TAG_COLOR } from '../../models/folderTags.js';
 import { createDevTree } from './devTreeView.js';
 import { icon } from '../icons.js';
 import { createFloatingMenu } from './floatingMenu.js';
 
 const S = strings.shell;
-const P = S.project;
 const LEVEL_LABEL = strings.security.levels;
 const RISK_ICON = {
   red: icon('alert'),
@@ -50,7 +49,6 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     onRepair: (path, button) => actions.repair(path, button),
     isRepairing: (path) => repairViewModel.isQueued(path),
   });
-  let tagFilter = null; // project map filter
 
   // --- Menus (title bar). Items can be a function so they are rebuilt when the menu opens. ---
   const MENUS = [
@@ -559,7 +557,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     return parts;
   }
 
-  // --- Stage tabs (map / project / graph) with icon, badge and hover card ---
+  // --- Stage tabs (map / git / graph) with icon, badge and hover card ---
   const tabs = [...document.querySelectorAll('.icon-bar [data-stage]')]; // map and git on top, the rest in the side dock
   for (const tab of tabs) tab.addEventListener('click', () => vm.setStage(tab.dataset.stage));
 
@@ -567,7 +565,6 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     const cracked = state.guide.filter((g) => g.depth === 0 && g.red).length;
     const info = {
       map: [S.rail.map, S.tabInfo.map(state.guide.filter((g) => g.depth === 0).length, cracked), cracked],
-      project: [P.title, P.summary(state.guide.length, state.counts.red + state.counts.yellow + state.counts.green), 0],
       graph: [S.rail.graph, S.tabInfo.graph(state.counts.red), state.counts.red],
       git: [S.rail.git, S.railInfo.git, 0],
     };
@@ -582,56 +579,6 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
       em.hidden = true;
       tab.querySelector('.tip').replaceChildren(el('strong', '', title), el('small', '', state.open ? text : S.status.noProject));
     }
-  }
-
-  // --- Project map (stage): every part of the code with tags, like in Obra ---
-  const projectPanel = $('project-panel');
-  function renderProject(state) {
-    if (!state.open) return projectPanel.replaceChildren(el('p', 'side-empty', P.empty));
-    const files = state.counts.red + state.counts.yellow + state.counts.green + state.counts.grey;
-    const head = el('header', 'project-head');
-    head.append(el('h2', '', P.title), el('p', '', P.summary(state.guide.length, files)));
-    const used = TAGS.filter((t) => state.guide.some((g) => g.tags.includes(t)));
-    const filters = el('div', 'tag-row filters');
-    filters.appendChild(el('span', 'filter-label', P.filter));
-    used.forEach((t) => filters.appendChild(tagChip(t, { active: tagFilter === t, onClick: () => { tagFilter = tagFilter === t ? null : t; renderProject(vm.store.state); } })));
-    if (tagFilter) {
-      const clear = el('button', 'link', P.clear);
-      clear.type = 'button';
-      clear.addEventListener('click', () => { tagFilter = null; renderProject(vm.store.state); });
-      filters.appendChild(clear);
-    }
-    const visible = state.guide.filter((g) => !tagFilter || g.tags.includes(tagFilter));
-    const maxFiles = Math.max(1, ...state.guide.map((g) => g.files));
-    const grid = el('div', 'project-grid');
-    visible.forEach((g, i) => {
-      const card = el('article', `project-card${g.red ? ' cracked' : ''}`);
-      card.style.setProperty('--i', String(Math.min(i, 20)));
-      const top = el('div', 'project-card-top');
-      const titles = el('div');
-      const parent = g.depth ? g.path.split('/')[0] : '';
-      titles.append(
-        el('h3', '', modeModel.tech ? `${g.path}/` : g.name),
-        el('p', 'mono', modeModel.tech ? g.name : `${g.path}/`),
-      );
-      top.append(titles, counters(g.red, g.yellow));
-      const tags = el('div', 'tag-row');
-      g.tags.forEach((t) => tags.appendChild(tagChip(t)));
-      const bar = el('div', 'size-bar');
-      const fill = el('i');
-      fill.style.width = `${(g.files / maxFiles) * 100}%`;
-      fill.style.background = TAG_COLOR[g.tags[0]] ?? 'var(--accent)';
-      bar.appendChild(fill);
-      const foot = el('div', 'project-card-foot');
-      const go = el('button', 'pill', P.showOnMap);
-      go.type = 'button';
-      go.addEventListener('click', () => vm.showFolder(parent || g.path));
-      foot.append(el('span', 'mono', `${strings.map.files(g.files)}${g.size ? ` · ${strings.hover.size(g.size)}` : ''}`), go);
-      card.append(top, el('p', 'project-summary', g.summary), tags, bar, foot);
-      grid.appendChild(card);
-    });
-    if (!visible.length) grid.appendChild(el('p', 'side-empty', P.none));
-    projectPanel.replaceChildren(head, filters, grid);
   }
 
   // --- Empty state: recent projects ---
@@ -664,12 +611,9 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     for (const button of stageButtons) button.classList.toggle('active', button.dataset.stageButton === state.stage);
     for (const b of document.querySelectorAll('.mode-toggle button')) b.classList.toggle('active', b.dataset.mode === modeModel.store.state.mode);
     body.classList.toggle('stage-graph', state.stage === 'graph');
-    body.classList.toggle('stage-project', state.stage === 'project');
     body.classList.toggle('stage-git', state.stage === 'git');
     $('graph-panel').hidden = state.stage !== 'graph';
-    projectPanel.hidden = state.stage !== 'project';
     renderTabs(state);
-    if (state.stage === 'project') renderProject(state);
     renderRecent(state);
 
     sidebarTitle.textContent = S.sidebar[state.side];
