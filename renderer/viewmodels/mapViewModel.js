@@ -27,6 +27,7 @@ export class MapViewModel {
   #bus;
   #session = 0;
   #welcomeSession = null; // session of a project just created, until it gets its first file
+  #home = { x: 0, z: 0, zoom: 1 }; // the initial view: integrations down to the top-level folders
 
   // `version` changes whenever the map must be redrawn; `path` is the open folder, at any depth ('' = none);
   // `welcome`: a new, empty project, where a robot on the plaza asks what to build
@@ -92,6 +93,12 @@ export class MapViewModel {
     const open = this.store.state.path;
     const isOpen = open === path || open.startsWith(`${path}/`);
     this.enterFolder(isOpen ? parentOf(path) : path);
+  }
+
+  // "Center view": back to the initial angle and framing (open folders stay open)
+  home() {
+    this.#camera.reset();
+    this.#camera.flyTo(this.#home, this.#home.zoom);
   }
 
   // One level up: a subfolder goes back to its parent, a top-level folder closes
@@ -375,6 +382,14 @@ export class MapViewModel {
       version: this.store.state.version + 1,
     });
 
+    // The initial view: from the integrations (their nodes, not the empty ends of the band) down to the
+    // top-level rows as they are with nothing open
+    const bottom = firstBlock.endV + TREE.itemHalf.top;
+    const width = Math.max(firstBlock.width / 2, 6) + 3;
+    const lastNode = Math.max(6, ...nodes.map((n) => n.u + 4));
+    const home = fitView([toWorld(-6, integrationV), toWorld(lastNode, integrationV), toWorld(-width, bottom), toWorld(width, bottom)]);
+    this.#home = { x: home.x, z: home.z, zoom: home.zoom };
+
     this.#supabase.setOnScreen(true);
     if (opened) {
       // The newest level, with its parent folder above it
@@ -384,12 +399,7 @@ export class MapViewModel {
         this.#camera.flyTo(view, Math.min(view.zoom, 1.1));
       }
     } else if (newSession || announce) {
-      // From the integrations (their nodes, not the empty ends of the band) down to the top-level folders
-      const bottom = topBlock.endV + TREE.itemHalf.top;
-      const width = Math.max(topBlock.width / 2, 6) + 3;
-      const lastNode = Math.max(6, ...nodes.map((n) => n.u + 4));
-      const view = fitView([toWorld(-6, integrationV), toWorld(lastNode, integrationV), toWorld(-width, bottom), toWorld(width, bottom)]);
-      this.#camera.flyTo(view, view.zoom);
+      this.#camera.flyTo(this.#home, this.#home.zoom);
     }
     if (announce && path) this.#announce(path, findNode(tree, path).children ?? []);
   }

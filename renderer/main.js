@@ -160,7 +160,7 @@ createInputController({
   onToggleView: () => shellViewModel.setStage(appViewModel.view === 'git' ? 'map' : 'git'),
   onHover: (pick, x, y) => hoverCard.show(appViewModel.view === 'map' ? pick : null, x, y),
 });
-createControlsView({ cameraViewModel });
+createControlsView({ cameraViewModel, onReset: () => (appViewModel.view === 'map' ? mapViewModel.home() : cameraViewModel.reset()) });
 createHandControlView({ handControlViewModel, video: handTracking.video });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
 createChatView({ chatViewModel, connection, modeModel, onLocate: (path) => actions.locate(path) });

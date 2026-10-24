@@ -35,7 +35,7 @@ function setup(tree = TREE) {
   const events = [];
   for (const name of ['folderOpened', 'fileSelected']) bus.on(EVENTS[name], (p) => events.push([name, p]));
   const vm = new MapViewModel({
-    projectModel, securityModel: security, camera: { flyTo: (to, zoom) => flights.push({ ...to, zoom }) }, supabaseViewModel: supabase, bus,
+    projectModel, securityModel: security, camera: { flyTo: (to, zoom) => flights.push({ ...to, zoom }), reset() {} }, supabaseViewModel: supabase, bus,
   });
   projectModel.store.set({ session: 1 }); // first compute
   return { vm, security, projectModel, events, flights, state: () => vm.store.state };
@@ -317,6 +317,15 @@ test('Supabase joins the same road and lit line as the other integrations', () =
   assert.ok(integrationLines.some((l) => l.status === 'connected' && at(l.to).v > 0));
   projectModel.store.set({ integrationStatus: { supabase: 'disconnected' } });
   assert.equal(state().integrationLines.length, 0);
+});
+
+test('"center view" goes back to the initial view, even with a folder open', () => {
+  const { vm, flights } = setup();
+  const initial = flights.at(-1);
+  vm.enterFolder('src');
+  assert.notDeepEqual(flights.at(-1), initial);
+  vm.home();
+  assert.deepEqual(flights.at(-1), initial);
 });
 
 // A new project: the workspace creates an empty folder and opens it
