@@ -401,6 +401,14 @@ function refreshMenu() {
 async function nativeMenu() {
   const m = t.menu;
   const isMac = process.platform === 'darwin';
+  const editItems = [
+    { role: 'undo', label: m.undo },
+    { role: 'redo', label: m.redo },
+    { role: 'cut', label: m.cut },
+    { role: 'copy', label: m.copy },
+    { role: 'paste', label: m.paste },
+    { role: 'selectAll', label: m.selectAll },
+  ];
   const template = [
     ...(process.platform === 'darwin' ? [{
       label: 'Platanus',
@@ -412,21 +420,13 @@ async function nativeMenu() {
         { role: 'unhide', label: m.unhide },
         { type: 'separator' },
         { role: 'quit', label: m.quit },
+        ...editItems.map((item) => ({ ...item, visible: false, acceleratorWorksWhenHidden: true })),
       ],
     }] : []),
     ...(isMac ? [await projectMenu()] : []),
-    {
-      label: m.edit,
-      submenu: [
-        { role: 'undo', label: m.undo },
-        { role: 'redo', label: m.redo },
-        { type: 'separator' },
-        { role: 'cut', label: m.cut },
-        { role: 'copy', label: m.copy },
-        { role: 'paste', label: m.paste },
-        { role: 'selectAll', label: m.selectAll },
-      ],
-    },
+    // macOS fills any Edit menu with Writing Tools, AutoFill, Dictation and Emoji, so on the Mac
+    // there is no Edit menu: its shortcuts live as hidden items of the app menu and keep working
+    ...(isMac ? [] : [{ label: m.edit, submenu: editItems }]),
     {
       label: m.window,
       submenu: [
