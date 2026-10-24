@@ -44,7 +44,7 @@ body::after {
 }
 
 /* Shared glass surface */
-#schema-panel, #git-panel, #hud, #chat {
+#schema-panel, #git-panel, #chat {
   background: var(--glass);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -62,27 +62,7 @@ body::after {
 
 /* --- Map controls (bottom left) and the hand camera preview: styles/controls.css --- */
 
-/* --- HUD: security score and counters (top left, map view) --- */
-#hud {
-  position: fixed; top: 16px; left: 16px; z-index: 2;
-  display: flex; align-items: center; gap: 22px; padding: 12px 20px 12px 14px;
-}
-#hud[hidden] { display: none; }
-.hud-ring { display: flex; align-items: center; gap: 10px; }
-.hud-ring svg { width: 48px; height: 48px; transform: rotate(-90deg); }
-.hud-ring circle { fill: none; stroke-width: 5; }
-.hud-ring .track { stroke: rgba(255, 255, 255, 0.08); }
-.hud-ring .value { stroke: var(--accent); stroke-linecap: round; filter: drop-shadow(0 0 4px var(--accent)); transition: stroke-dashoffset 0.6s ease; }
-#hud[data-level="red"] .hud-ring .value { stroke: var(--danger); filter: drop-shadow(0 0 4px var(--danger)); }
-#hud[data-level="yellow"] .hud-ring .value { stroke: var(--warn); filter: drop-shadow(0 0 4px var(--warn)); }
-#hud[data-level="green"] .hud-ring .value { stroke: var(--ok); filter: drop-shadow(0 0 4px var(--ok)); }
-#hud[data-level="red"] [data-field="score"] { color: var(--danger); }
-#hud[data-level="yellow"] [data-field="score"] { color: var(--warn); }
-#hud[data-level="green"] [data-field="score"] { color: var(--ok); }
-#hud strong { display: block; font: 600 18px var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
-#hud span { display: block; font-size: 11px; color: var(--muted); }
-.hud-stat.risk strong { color: var(--danger); }
-.hud-stat.review strong { color: var(--warn); }
+/* --- HUD: security score and counters: styles/hud.css --- */
 
 /* --- Panels (top left, below the HUD) --- */
 #schema-panel, #git-panel {
