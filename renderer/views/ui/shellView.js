@@ -262,12 +262,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
   // Each row: one minimal icon (stop, or resume when paused) and a ⋯ button. The ⋯ menu is a single
   // floating layer (floatingMenu.js) anchored to that button, so the side panel never cuts it off.
   const SV = S.servers;
-  const SERVER_ICON = { // static SVG, no server data
-    stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
-    play: '<svg viewBox="0 0 24 24"><path d="M7.5 5.5v13l11-6.5z"/></svg>',
-    more: '<svg viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18.5" cy="12" r="1.5"/></svg>',
-    close: '<svg viewBox="0 0 24 24"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg>',
-  };
+  const SERVER_ICON = { stop: icon('stop'), play: icon('play'), more: icon('more'), close: icon('close') };
   const serverMenu = createFloatingMenu({ id: 'server-menu', onDismiss: () => serversViewModel.closeMenu() });
 
   function iconButton(icon, label, onClick, { disabled = false, menuKey = null, expanded = false } = {}) {

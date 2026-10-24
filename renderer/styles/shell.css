@@ -455,7 +455,7 @@ body.mode-tech .side-name { font-family: var(--mono); }
   border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer;
   transition: background-color .15s ease, color .15s ease, border-color .15s ease;
 }
-.icon-btn svg { width: 15px; height: 15px; fill: currentColor; stroke: none; }
+.icon-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; }
 .icon-btn:hover:not(:disabled) { background: var(--panel-2); color: var(--ink); }
 .icon-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
 .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

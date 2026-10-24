@@ -23,6 +23,17 @@ export const ICON_NAMES = {
   arrowUp: 'ArrowUp02Icon',
   grip: 'DragDropVerticalIcon',
   eye: 'ViewIcon',
+  // Servers panel and its ⋯ menu
+  openExternal: 'LinkSquare02Icon',
+  globe: 'Globe02Icon',
+  appWindow: 'AppWindowIcon',
+  pause: 'PauseIcon',
+  play: 'PlayIcon',
+  stop: 'StopIcon',
+  terminal: 'ComputerTerminal01Icon',
+  close: 'Cancel01Icon',
+  output: 'TextAlignLeftIcon',
+  more: 'MoreHorizontalIcon',
   // chat: answer cards, map cards, chips, run steps, Vibe / Dev
   sparkles: 'SparklesIcon',
   vibe: 'MagicWand01Icon',

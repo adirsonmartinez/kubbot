@@ -2,6 +2,7 @@
 // It lives outside the scrolling side panel, so it is never cut off nor drawn behind the next cards.
 // Menu-button pattern: the first item gets focus on open; ↑/↓, Home/End move; Esc closes and gives the
 // focus back to the button; Tab closes. Only draws: what is open and what each item does come from outside.
+import { icon as svgIcon } from '../icons.js';
 
 const GAP = 6; // space between the button and the menu
 const MARGIN = 8; // the menu never touches the window edges
@@ -17,17 +18,10 @@ export function placeMenu(anchor, size, viewport) {
   return { top: Math.round(top), left: Math.round(left), placement };
 }
 
-// Line icons for the items (static SVG, no data inside)
+// Menu item icon keys -> Hugeicons names (views/icons.js)
 const ICONS = {
-  open: '<svg viewBox="0 0 24 24"><path d="M14 5h5v5"/><path d="M19 5l-8 8"/><path d="M18 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h4"/></svg>',
-  browser: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c2.5 2.6 2.5 13.4 0 16M12 4c-2.5 2.6-2.5 13.4 0 16"/></svg>',
-  app: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M4 9h16"/></svg>',
-  pause: '<svg viewBox="0 0 24 24"><path d="M9 6.5v11M15 6.5v11"/></svg>',
-  play: '<svg viewBox="0 0 24 24"><path d="M8 6.5v11l9.5-5.5z"/></svg>',
-  stop: '<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/></svg>',
-  terminal: '<svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="M7.5 10l3 2.5-3 2.5M12.5 15h4"/></svg>',
-  remove: '<svg viewBox="0 0 24 24"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg>',
-  output: '<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></svg>',
+  open: 'openExternal', browser: 'globe', app: 'appWindow', pause: 'pause', play: 'play', stop: 'stop',
+  terminal: 'terminal', remove: 'close', output: 'output',
 };
 
 const node = (tag, className, text) => {
@@ -48,7 +42,7 @@ function build(entries) {
     item.tabIndex = -1;
     const icon = node('span', 'mi-icon');
     icon.setAttribute('aria-hidden', 'true');
-    if (entry.icon) icon.innerHTML = ICONS[entry.icon] ?? '';
+    if (ICONS[entry.icon]) icon.innerHTML = svgIcon(ICONS[entry.icon]);
     item.append(icon, node('span', 'mi-label', entry.label));
     item.addEventListener('click', (e) => { e.stopPropagation(); entry.run(); });
     return item;
