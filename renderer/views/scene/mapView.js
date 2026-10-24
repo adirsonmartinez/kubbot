@@ -4,11 +4,11 @@
 // ground. Folder labels are short (name and risk); files only get one when they have a problem, so a big
 // project does not drown in names (hover shows the rest).
 import * as THREE from 'three';
-import { box, groundLink, materials as M } from './materials.js';
+import { box, glowLines, groundLink, materials as M } from './materials.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { buildBlock } from './builders/blockBuilder.js';
 import { buildFolderIcon } from './builders/folderIconBuilder.js';
-import { buildFileIcons, buildPlaza } from './builders/plazaBuilder.js';
+import { buildFileIcons } from './builders/plazaBuilder.js';
 import { buildIntegration } from './builders/integrationBuilder.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
@@ -30,7 +30,6 @@ function buildFolder(f) {
 const BRANCH_FILE_SCALE = 1.5; // files inside an open folder
 const ROAD_WIDTH = { top: 0.35, branch: 0.2 };
 const ICON_RISE_STAGGER = 0.06;
-const MAX_PLAZA_LABELS = 3;     // more root files with a problem than this: their names only on hover
 
 // Last line of a label: its problems, if any
 function riskLine(counts) {
@@ -44,7 +43,7 @@ function riskLine(counts) {
 const folderLabel = (f) => `<strong>${escapeHtml(f.name)}/</strong>${riskLine(f.counts)}`;
 const hasProblem = (f) => f.level === 'yellow' || f.level === 'red';
 
-// Files on the map are always direct children of what is shown (the plaza or the open folder): the name is enough
+// Files on the map are always direct children of what is shown (the root or the open folder): the name is enough
 const fileLabel = (f) => `<strong class="${f.level}">${escapeHtml(f.name)}</strong>`;
 
 export function createMapView({ sceneView, labels, mapViewModel }) {
@@ -127,7 +126,7 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
 
     // The integrations' nodes (Supabase draws itself), turned like it
     state.integrations.forEach((integration) => {
-      const node = buildIntegration(integration.key);
+      const node = buildIntegration(integration.key, integration.status);
       node.group.position.set(integration.x, 0, integration.z);
       node.group.rotation.y = INTEGRATIONS.rotation;
       group.add(node.group);
@@ -140,21 +139,31 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
       }));
     });
 
+    // Integrations' ways lit over their roads: green when connected, amber with an incident (they glow)
+    state.integrationLines.forEach(({ from, to, status }) => {
+      const glow = status === 'incident' ? glowLines.warn : glowLines.ok;
+      groundLink(group, glow.halo, from.x, from.z, to.x, to.z, 0.7, 0.06).castShadow = false;
+      groundLink(group, glow.core, from.x, from.z, to.x, to.z, 0.16, 0.07).castShadow = false;
+    });
+
     // The roads of the tree
     state.links.forEach(([x1, z1, x2, z2, kind]) => {
       groundLink(group, M.road, x1, z1, x2, z2, ROAD_WIDTH[kind], 0.05).castShadow = false;
     });
 
-    // The project's plaza with its root files
+    // The project's root has no platform: its name floats where the folders' trunk meets the integrations
     const { plaza, root } = state;
-    const built = buildPlaza(plaza);
-    group.add(built.group);
-    addFiles(built, plaza.files, animate, plaza.files.filter(hasProblem).length <= MAX_PLAZA_LABELS);
-    addMore(plaza.more, plaza.size / 2, plaza.size / 2);
+
+    // Root files, below the folders
+    const rootIcons = buildFileIcons(state.rootFiles.files, BRANCH_FILE_SCALE);
+    group.add(rootIcons.group);
+    addFiles(rootIcons, state.rootFiles.files, animate);
+    const lastRoot = state.rootFiles.files.at(-1);
+    if (lastRoot) addMore(state.rootFiles.more, lastRoot.x + 1.2, lastRoot.z + 1.2);
     const summary = root.red + root.yellow ? strings.map.watched(root.total) : strings.map.allClear;
     ownLabels.push(labels.add({
       html: `<strong>${escapeHtml(plaza.name)}</strong><span>${summary}</span>${riskLine(root.counts)}`,
-      anchor: { x: 0, y: built.top + 2, z: -plaza.size / 2 },
+      anchor: { x: 0, y: 2.3, z: 0 },
       className: 'root',
     }));
 

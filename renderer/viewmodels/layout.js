@@ -71,7 +71,7 @@ export function treeBlock(count, { parentU, parentV, startV, pitch, cols, rowGap
 
 // Integrations (Supabase…) live in a darker band across the top of the map, above the plaza. Their
 // builders work along +x from the plaza; INTEGRATIONS.rotation turns that axis up the screen.
-export const INTEGRATIONS = { rotation: (3 * Math.PI) / 4, bandTop: -20, bandBottom: -8, margin: 9, minWidth: 48 };
+export const INTEGRATIONS = { rotation: (3 * Math.PI) / 4, bandTop: -23, bandBottom: -8, margin: 9, minWidth: 48 };
 export function integrationToWorld({ x, z }) {
   const c = Math.cos(INTEGRATIONS.rotation), s = Math.sin(INTEGRATIONS.rotation);
   return { x: x * c + z * s, z: -x * s + z * c };
@@ -82,8 +82,8 @@ export function integrationToWorld({ x, z }) {
 export const INTEGRATION_ROW = { firstU: 12, pitch: 11, busV: -10 };
 export const integrationV = (INTEGRATIONS.bandTop + INTEGRATIONS.bandBottom) / 2;
 
-// Supabase, in the integrations' own axes (+x away from the plaza, up the screen once rotated)
-export const SUPABASE_NODE = { x: 14, z: 0 };
+// Supabase, in the integrations' own axes (+x up the screen once rotated), in line with the other nodes
+export const SUPABASE_NODE = { x: -integrationV, z: 0 };
 export const SCHEMA_CENTER = { x: SUPABASE_NODE.x - 0.4, z: SUPABASE_NODE.z - 13 };
 
 // Camera target and zoom that fit ground points on screen at the default camera angle. Screen across is

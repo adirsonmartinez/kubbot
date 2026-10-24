@@ -1,5 +1,6 @@
 // An integration node in the band at the top of the map (Vercel, GitHub, Clerk, PostHog): a dark platform
-// like Supabase's, a small silver emblem that hints at the service, and a purple light for "connected".
+// like Supabase's, a small silver emblem that hints at the service (it spins while there is a connection)
+// and a light: purple when connected, amber with an incident, off when disconnected.
 // Origin at the center of the platform, on the ground.
 import * as THREE from 'three';
 import { box, cylinder, materials as M } from '../materials.js';
@@ -52,16 +53,19 @@ const EMBLEMS = {
   },
 };
 
-export function buildIntegration(key) {
+const LIGHT = { connected: () => M.accentSolid, incident: () => M.warnSolid, disconnected: () => M.slab };
+
+export function buildIntegration(key, status = 'connected') {
   const g = new THREE.Group();
   box(g, M.slabEdge, PLATFORM, 0.3, PLATFORM, 0, 0, 0);
   box(g, M.slab, PLATFORM - 0.4, 0.25, PLATFORM - 0.4, 0, 0.3, 0);
-  const led = box(g, M.accentSolid, 0.5, 0.06, 0.12, 0, BASE, PLATFORM / 2 - 0.45); // "connected"
+  const led = box(g, (LIGHT[status] ?? LIGHT.connected)(), 0.5, 0.06, 0.12, 0, BASE, PLATFORM / 2 - 0.45);
   led.castShadow = false;
   const emblem = EMBLEMS[key]?.(g) ?? null;
 
+  const live = status !== 'disconnected';
   function update(t) {
-    if (emblem) emblem.rotation.y = t * 0.5;
+    if (emblem && live) emblem.rotation.y = t * 0.5;
   }
 
   return { group: g, update, labelY: BASE + 3 };

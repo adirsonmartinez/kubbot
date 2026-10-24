@@ -9,6 +9,7 @@ export const PALETTE = {
   accent: 0x8b83ff, // team purple
   warn: 0xffc24a,
   danger: 0xff5a6a,
+  ok: 0x3ddc97, // healthy integrations (the same green as the UI's --ok)
 };
 
 const cache = {};
@@ -66,6 +67,20 @@ export const materials = {
   get remiHandle()       { return material('remiHandle', 0x7a5230, { metalness: 0 }); },
   // Remi's sparks
   get spark()      { return material('spark', 0xffd25a, { emissive: 0xffb020, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0 }); },
+};
+
+// Lines that glow the same from every angle and zoom (unlit): an integration's lit way. A bright core in
+// its true color, and a soft additive halo under it (so the glow does not depend on the bloom pass).
+const glowCache = {};
+function glowLine(name, color) {
+  return (glowCache[name] ??= {
+    core: new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.15), toneMapped: false }),
+    halo: new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }),
+  });
+}
+export const glowLines = {
+  get ok()   { return glowLine('ok', PALETTE.ok); },
+  get warn() { return glowLine('warn', PALETTE.warn); },
 };
 
 const geometries = {

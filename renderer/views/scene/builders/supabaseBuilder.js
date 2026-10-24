@@ -1,11 +1,11 @@
-// Supabase node: stacked database disks, floating bolt logo, server rack, and the cable to the
-// main building with data packets. When vulnerable it turns red, blinks and shows a warning sign.
+// Supabase node: stacked database disks, floating bolt logo and server rack. It reaches the project
+// by the same road as the other integrations (drawn by mapView). When vulnerable it turns red, blinks
+// and shows a warning sign.
 import * as THREE from 'three';
 import { box, cylinder, materials as M, warningSign } from '../materials.js';
 import { SUPABASE_NODE as SB } from '../../../viewmodels/layout.js';
 
 const BASE = 0.55;
-const CABLE_START = { x: 2.6, z: SB.z }; // edge of the smallest plaza (bigger plazas simply cover the start)
 
 export function buildSupabaseNode() {
   const g = new THREE.Group();
@@ -69,24 +69,6 @@ export function buildSupabaseNode() {
   glow.position.set(db.x, B + 3.5, db.z + 1.5);
   g.add(glow);
 
-  // --- Cable from the main building ---
-  const from = CABLE_START;
-  const toX = SB.x - 2.7;
-  const length = toX - from.x;
-  const cableY = 0.55;
-  box(g, M.glass, length, 0.18, 0.3, from.x + length / 2, cableY, from.z);
-  for (let x = from.x + 0.6; x < toX; x += 1.4) box(g, M.slabEdge, 0.3, cableY, 0.5, x, 0, from.z); // posts
-
-  // Data packets travelling both ways
-  const packetGeometry = new THREE.BoxGeometry(0.32, 0.32, 0.32);
-  const packets = Array.from({ length: 6 }, (_, i) => {
-    const outbound = i % 2 === 0; // HQ -> Supabase (teal) or Supabase -> HQ (green)
-    const mesh = new THREE.Mesh(packetGeometry, outbound ? M.accentLit : M.supabaseLit);
-    mesh.castShadow = true;
-    g.add(mesh);
-    return { mesh, outbound, phase: i / 6 };
-  });
-
   let vulnerable = false;
 
   function setVulnerable(on) {
@@ -100,15 +82,6 @@ export function buildSupabaseNode() {
     bolt.rotation.y = t * 1.2;
     bolt.position.y = B + 4.4 + Math.sin(t * 2) * 0.15;
     M.supabaseLit.emissiveIntensity = 0.7 + 0.35 * Math.sin(t * 3) ** 2;
-    packets.forEach((p) => {
-      const k = (t * 0.25 + p.phase) % 1;
-      const u = p.outbound ? k : 1 - k;
-      // Outbound packets ride slightly left of the cable, inbound ones slightly right
-      p.mesh.position.set(from.x + length * u, cableY + 0.34, from.z + (p.outbound ? -0.18 : 0.18));
-      p.mesh.rotation.y = t * 3;
-      // While vulnerable, data leaving Supabase is red (a leak)
-      p.mesh.material = p.outbound ? M.accentLit : (vulnerable ? M.dangerLit : M.supabaseLit);
-    });
 
     if (!vulnerable) {
       glow.intensity = 0;

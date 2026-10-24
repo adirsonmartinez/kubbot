@@ -46,8 +46,8 @@ test('a project without problems shows every top-level folder and root file, all
   assert.equal(state().status, 'ready');
   assert.deepEqual(state().buildings.map((b) => b.path), ['app', 'docs']);
   assert.ok(state().buildings.every((b) => b.level === 'green'));
-  assert.deepEqual(state().plaza.files.map((f) => f.path), ['package.json', 'README.md']);
-  assert.equal(state().plaza.more, 0);
+  assert.deepEqual(state().rootFiles.files.map((f) => f.path), ['package.json', 'README.md']);
+  assert.equal(state().rootFiles.more, 0);
   assert.equal(state().opened, null);
 });
 
@@ -61,13 +61,32 @@ test('folders with problems come first (worst first), then the rest by name', ()
   assert.equal(docs.level, 'green');
 });
 
-test('every root file is on the plaza, riskiest first; past the limit the rest is counted', () => {
+test('root files hang below the top-level folders, riskiest first; past the limit the rest is counted', () => {
   const { state } = setup();
-  assert.deepEqual(state().plaza.files.map((f) => f.path), ['.env', 'package.json', 'README.md']);
-  assert.equal(state().plaza.files[0].level, 'red');
-  const many = setup(Array.from({ length: 30 }, (_, i) => file(`f${String(i).padStart(2, '0')}.txt`)));
-  assert.equal(many.state().plaza.files.length, 24);
-  assert.equal(many.state().plaza.more, 6);
+  const { rootFiles, buildings } = state();
+  assert.deepEqual(rootFiles.files.map((f) => f.path), ['.env', 'package.json', 'README.md']);
+  assert.equal(rootFiles.files[0].level, 'red');
+  const lowest = Math.max(...buildings.map((b) => at(b).v));
+  rootFiles.files.forEach((f) => assert.ok(at(f).v > lowest + 2));
+  const many = setup(Array.from({ length: 60 }, (_, i) => file(`f${String(i).padStart(2, '0')}.txt`)));
+  assert.equal(many.state().rootFiles.files.length, 48);
+  assert.equal(many.state().rootFiles.more, 12);
+});
+
+test('with no folders, root files hang right below the plaza', () => {
+  const { state } = setup([file('README.md'), file('index.html')]);
+  state().rootFiles.files.forEach((f) => assert.ok(at(f).v > state().plaza.size / 2));
+});
+
+test('an open folder pushes the root files down too', () => {
+  const { vm, state } = setup();
+  const before = Math.min(...state().rootFiles.files.map((f) => at(f).v));
+  vm.enterFolder('src');
+  const items = [...state().opened.folders, ...state().opened.files];
+  const lowestItem = Math.max(...items.map((f) => at(f).v));
+  const after = Math.min(...state().rootFiles.files.map((f) => at(f).v));
+  assert.ok(after > before);
+  assert.ok(after > lowestItem + 2);
 });
 
 test('opening a folder unfolds its direct subfolders and files below it', () => {
@@ -80,12 +99,12 @@ test('opening a folder unfolds its direct subfolders and files below it', () => 
   assert.deepEqual(opened.folders.map((f) => f.path), ['src/lib']);
   assert.equal(opened.folders[0].level, 'red'); // the key two levels down
   assert.deepEqual(opened.files.map((f) => f.path), ['src/login.js', 'src/index.js']); // riskiest first
-  // Below the folder (down on screen), centered under it
+  // Below the folder (down on screen), under it (nudged right of the road on the left edge)
   const [src] = state().buildings;
   const items = [...opened.folders, ...opened.files];
   items.forEach((f) => assert.ok(at(f).v > at(src).v + 2));
   const mean = items.reduce((sum, f) => sum + at(f).u, 0) / items.length;
-  assert.ok(Math.abs(mean - at(src).u) < 0.01);
+  assert.ok(Math.abs(mean - at(src).u) < 4);
   assert.equal(src.open, true);
 });
 
@@ -178,11 +197,12 @@ test('locating a deep file opens the folder it is in and points at its icon', ()
   assert.equal(spot.folder, 'src');
 });
 
-test('locating a root file points at the plaza', () => {
-  const { vm } = setup();
+test('locating a root file points at its icon', () => {
+  const { vm, state } = setup();
   const spot = vm.locateFile('.env');
+  const icon = state().rootFiles.files.find((f) => f.path === '.env');
   assert.equal(spot.folder, '');
-  assert.equal(spot.x, 0);
+  assert.deepEqual([spot.x, spot.z], [icon.x, icon.z]);
 });
 
 test('showing a file opens its folder and its card in the chat', () => {
@@ -260,6 +280,40 @@ test('integrations sit in the band, in a row to the right of Supabase', () => {
   });
   const us = integrations.map((i) => at(i).u);
   assert.deepEqual(us, [...us].sort((a, b) => a - b));
+});
+
+test('lit lines: each live integration lights its way to the folders; a disconnected one stays dark', () => {
+  const { state, projectModel } = setup();
+  projectModel.store.set({
+    integrations: ['supabase', 'vercel', 'clerk', 'posthog'], usesSupabase: true,
+    integrationStatus: { vercel: 'connected', clerk: 'incident', posthog: 'disconnected' },
+  });
+  const { integrations, integrationLines } = state();
+  const [vercel, clerk, posthog] = integrations;
+  const touches = (node) => integrationLines.filter((l) => [l.from, l.to].some((p) => Math.abs(p.x - node.x) < 1e-9 && Math.abs(p.z - node.z) < 1e-9));
+  assert.equal(touches(vercel)[0].status, 'connected');
+  assert.equal(touches(clerk)[0].status, 'incident');
+  assert.equal(touches(posthog).length, 0); // dark: nothing lit reaches it
+  // The trunk down to the folders carries Vercel: purple
+  const trunk = integrationLines.find((l) => Math.abs(at(l.from).u) < 1e-9 && Math.abs(at(l.to).u) < 1e-9);
+  assert.equal(trunk.status, 'connected');
+  // The road beyond Clerk (toward PostHog) is not lit
+  const beyond = integrationLines.filter((l) => Math.max(at(l.from).u, at(l.to).u) > at(clerk).u + 1e-9);
+  assert.equal(beyond.length, 0);
+});
+
+test('Supabase joins the same road and lit line as the other integrations', () => {
+  const { state, projectModel } = setup();
+  projectModel.store.set({ integrations: ['supabase'], usesSupabase: true, integrationStatus: { supabase: 'connected' } });
+  const { integrationLines, links } = state();
+  // Its drop runs on the trunk's line (u = 0), from the node down to the integrations' road
+  const drop = integrationLines.find((l) => Math.abs(at(l.from).u) < 1e-9 && at(l.from).v < -12);
+  assert.equal(drop.status, 'connected');
+  assert.ok(links.some(([x1, z1]) => Math.abs(screenOf(x1, z1).u) < 1e-9 && screenOf(x1, z1).v < -12));
+  // …and its way goes on down the trunk
+  assert.ok(integrationLines.some((l) => l.status === 'connected' && at(l.to).v > 0));
+  projectModel.store.set({ integrationStatus: { supabase: 'disconnected' } });
+  assert.equal(state().integrationLines.length, 0);
 });
 
 // A new project: the workspace creates an empty folder and opens it
