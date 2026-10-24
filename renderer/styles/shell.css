@@ -751,7 +751,7 @@ body.chat-min #chat.card.min {
 .chat-launcher { position: fixed; right: 18px; bottom: 40px; z-index: 35; display: none; }
 body.chat-min .chat-launcher, body.chat-closed .chat-launcher { display: block; }
 /* Start screen (no project): no dock, side panel, chat, chat button, search or Vibe/Dev, nothing to navigate yet */
-body.no-project #stage-tabs, body.no-project #sidebar, body.no-project .chat-launcher { display: none; }
+body.no-project #stage-tabs, body.no-project #sidebar { display: none; }
 body.no-project #search, body.no-project #mode-toggle { visibility: hidden; } /* keep their place so the title bar does not shift */
 body.chat-min #chat.card.min { display: none; }
 .chat-launcher-button {

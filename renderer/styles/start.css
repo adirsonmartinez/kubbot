@@ -20,6 +20,10 @@
   -webkit-mask-composite: xor; mask-composite: exclude;
 }
 
+/* Nothing else on the start screen: no map controls (zoom, turn, center, hand) and no chat button.
+   Here, after shell.css, so it wins over "show the chat button while the chat is closed". */
+body.no-project #controls, body.no-project .chat-launcher { display: none; }
+
 /* ---------- Left: what to do ---------- */
 .empty-main { display: flex; flex-direction: column; align-items: flex-start; padding: 32px 28px; }
 .empty-tile {
