@@ -12,7 +12,6 @@ import { AgentModel } from './models/agentModel.js';
 import { GitModel } from './models/gitModel.js';
 
 import { CameraViewModel } from './viewmodels/cameraViewModel.js';
-import { TowerViewModel } from './viewmodels/towerViewModel.js';
 import { SupabaseViewModel } from './viewmodels/supabaseViewModel.js';
 import { MapViewModel } from './viewmodels/mapViewModel.js';
 import { ChatViewModel } from './viewmodels/chatViewModel.js';
@@ -21,7 +20,6 @@ import { AppViewModel } from './viewmodels/appViewModel.js';
 
 import { createSceneView } from './views/scene/sceneView.js';
 import { createMapView } from './views/scene/mapView.js';
-import { createTowerView } from './views/scene/towerView.js';
 import { createSupabaseView } from './views/scene/supabaseView.js';
 import { createInputController } from './views/scene/inputController.js';
 import { createGitView } from './views/scene/gitView.js';
@@ -44,9 +42,8 @@ const gitModel = new GitModel(workspace);
 
 // --- ViewModels ---
 const cameraViewModel = new CameraViewModel();
-const towerViewModel = new TowerViewModel({ securityModel, camera: cameraViewModel, bus });
 const supabaseViewModel = new SupabaseViewModel({ supabaseModel, projectModel, camera: cameraViewModel, bus });
-const mapViewModel = new MapViewModel({ projectModel, securityModel, camera: cameraViewModel, towerViewModel, supabaseViewModel });
+const mapViewModel = new MapViewModel({ projectModel, securityModel, camera: cameraViewModel, supabaseViewModel, bus });
 const chatViewModel = new ChatViewModel({ agentModel, bus });
 const gitViewModel = new GitViewModel({ gitModel, camera: cameraViewModel, bus });
 const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitViewModel });
@@ -56,7 +53,6 @@ applyStrings();
 const sceneView = createSceneView(cameraViewModel);
 const labels = createLabelLayer(document.getElementById('map-labels'), sceneView);
 const mapView = createMapView({ sceneView, labels, mapViewModel });
-const towerView = createTowerView({ sceneView, labels, towerViewModel, cameraViewModel, mapView });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
 const gitView = createGitView({ sceneView, labels, gitViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
@@ -65,7 +61,7 @@ sceneView.onFrame(labels.update); // last: after every view moved its anchors
 const projectOpen = () => mapViewModel.store.state.status === 'ready';
 const pickers = {
   map: () => ({
-    targets: [...supabaseView.pickTargets(), ...mapView.pickTargets(), ...towerView.pickTargets()],
+    targets: [...supabaseView.pickTargets(), ...mapView.pickTargets()],
     handle: (pick) => mapViewModel.handlePick(pick),
   }),
   git: () => ({ targets: gitView.pickTargets(), handle: (pick) => gitViewModel.handlePick(pick) }),
@@ -79,7 +75,7 @@ createInputController({
 });
 createControlsView({ cameraViewModel });
 createViewSwitcherView({ appViewModel, sceneView, labels });
-createPanelsView({ appViewModel, mapViewModel, towerViewModel, supabaseViewModel, gitViewModel });
+createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
 createChatView({ chatViewModel });
 createHudView({ appViewModel, mapViewModel, gitViewModel });
 

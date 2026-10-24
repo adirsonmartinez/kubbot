@@ -22,13 +22,13 @@ renderer/
   services/       workspaceService: window.platanus, or a demo project in a plain browser
   models/         data and rules; no DOM, no three.js, no UI state
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
-  views/scene/    three.js: sceneView, mapView, towerView, supabaseView, inputController, builders/
+  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, inputController, builders/
   views/ui/       HTML: chat, panels, controls, labels
   styles/main.css
 ```
 
 - **Models** expose an `Observable` `store` and methods. Example: `securityModel.scoreOf(path)` -> `{ level, reason | reasonKey, by }`.
-- **ViewModels** subscribe to models, expose their own `store` and actions (`mapViewModel.openFolder(path)`, `towerViewModel.focusFloor(i)`). They talk to each other through the event bus (`core/eventBus.js`, names in `EVENTS`).
+- **ViewModels** subscribe to models, expose their own `store` and actions (`mapViewModel.enterFolder(path)`, `gitViewModel.focusLane(name)`). They talk to each other through the event bus (`core/eventBus.js`, names in `EVENTS`).
 - **Views** subscribe to ViewModels and draw; user input only calls ViewModel actions. Clickable 3D objects carry `userData.pick = { type, ...ids }` and `MapViewModel.handlePick()` routes them.
 - Change state only through `store.set(patch)`. Bump `version` when a view has to rebuild.
 
@@ -39,6 +39,10 @@ renderer/
 - **Only problems glow**: safe stays calm (silver, no glow). Glowing = emissive above the bloom threshold (`materials.*Lit`, `glowPad`); small pieces use the `*Solid` variants so they do not blob.
 - Colors and materials live in `views/scene/materials.js` (`PALETTE`) and `views/theme.js` (`LEVEL_STYLE`); UI tokens in `styles/main.css` (`:root`). Do not hardcode new colors elsewhere.
 - UI: dark glass panels (blur, 1px border), small cyan dot in titles, mono font for paths and numbers.
+
+## Map navigation
+
+The map shows one folder at a time: a plaza in the middle with the folder's own files (cubes with their traffic light, riskiest at the front) and its subfolders as blocks around it. Clicking a block enters that folder; the breadcrumb or Esc go back up. `MapViewModel.path` is the folder on screen (`''` = root). The Supabase node only appears at the root. Folders are plain blocks for now (`BUILDING_STYLE` in `mapView.js`).
 
 ## Views
 
@@ -59,7 +63,7 @@ Git is read only: `electron/git.js` runs fixed `git` commands with `execFile` (n
 - `feature/<short-name>` from `develop` (`git flow feature start chat-approvals`), merged back with `git flow feature finish`.
 - `release/<version>` from `develop` to freeze and polish (the hour-26 feature freeze is a release branch).
 - `hotfix/<version>` from `main` for urgent fixes during the demo; merged into `main` and `develop`.
-- Never commit directly to `main`. Commit messages in English, imperative mood ("Add tower view").
+- Never commit directly to `main`. Commit messages in English, imperative mood ("Add git view").
 
 ## Run
 

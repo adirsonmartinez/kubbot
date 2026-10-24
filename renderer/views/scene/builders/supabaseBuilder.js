@@ -5,7 +5,7 @@ import { box, cylinder, materials as M, warningSign } from '../materials.js';
 import { SUPABASE_NODE as SB } from '../../../viewmodels/layout.js';
 
 const BASE = 0.55;
-const CABLE_START = { x: 5.2, z: 3.8 }; // right edge of the main building platform, by its server stack
+const CABLE_START = { x: 2.6, z: SB.z }; // edge of the smallest plaza (bigger plazas simply cover the start)
 
 export function buildSupabaseNode() {
   const g = new THREE.Group();

@@ -1,8 +1,9 @@
-// Panels over the scene: empty state, open building, Supabase schema (map view) and git summary (git view).
+// Panels over the scene: empty state, breadcrumb and Supabase schema (map view), git summary (git view).
 import { strings } from '../../i18n/es.js';
 import { LEVEL_STYLE } from '../theme.js';
+import { escapeHtml } from '../../core/format.js';
 
-export function createPanelsView({ appViewModel, mapViewModel, towerViewModel, supabaseViewModel, gitViewModel }) {
+export function createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel }) {
   const $ = (id) => document.getElementById(id);
   const onMap = () => appViewModel.view === 'map';
 
@@ -10,16 +11,21 @@ export function createPanelsView({ appViewModel, mapViewModel, towerViewModel, s
   $('open-project').addEventListener('click', () => mapViewModel.openProject());
   const renderEmpty = () => { $('empty-state').hidden = mapViewModel.store.state.status === 'ready'; };
 
-  // Open building
-  $('folder-close').addEventListener('click', () => mapViewModel.closeFolder());
-  const renderFolder = () => {
-    const state = towerViewModel.store.state;
-    $('folder-panel').hidden = state.path === null || !onMap();
-    if (state.path === null) return;
-    $('folder-title').textContent = state.name;
-    $('folder-summary').textContent = strings.panels.folderSummary(state.total, state.floors.length, state.hiddenFloors);
-    $('folder-legend').innerHTML = ['red', 'yellow', 'green']
-      .map((l) => `<span title="${strings.security.levels[l]}"><i class="lvl" style="background:${LEVEL_STYLE[l].color}"></i>${state.counts[l]}</span>`)
+  // Breadcrumb: where you are; every segment but the last goes back to that folder
+  $('crumbs').addEventListener('click', (e) => {
+    const target = e.target.closest('[data-path]');
+    if (target) mapViewModel.enterFolder(target.dataset.path);
+  });
+  const renderBreadcrumb = () => {
+    const { status, crumbs, plaza } = mapViewModel.store.state;
+    $('breadcrumb').hidden = status !== 'ready' || !onMap();
+    if (status !== 'ready') return;
+    $('crumbs').innerHTML = crumbs.map((c, i) => (i === crumbs.length - 1
+      ? `<strong>${escapeHtml(c.name)}</strong>`
+      : `<button type="button" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button><span class="sep">/</span>`)).join('');
+    $('crumbs').title = crumbs.length > 1 ? strings.panels.upHint : '';
+    $('level-legend').innerHTML = ['red', 'yellow', 'green']
+      .map((l) => `<span title="${strings.security.levels[l]}"><i class="lvl" style="background:${LEVEL_STYLE[l].color}"></i>${plaza.counts[l]}</span>`)
       .join('');
   };
 
@@ -57,10 +63,9 @@ export function createPanelsView({ appViewModel, mapViewModel, towerViewModel, s
     $('git-risky').hidden = !risky;
   };
 
-  const renderAll = () => { renderEmpty(); renderFolder(); renderSchema(); renderGit(); };
+  const renderAll = () => { renderEmpty(); renderBreadcrumb(); renderSchema(); renderGit(); };
   appViewModel.store.subscribe(renderAll);
-  mapViewModel.store.subscribe(() => { renderEmpty(); renderGit(); });
-  towerViewModel.store.subscribe(renderFolder);
+  mapViewModel.store.subscribe(() => { renderEmpty(); renderBreadcrumb(); renderGit(); });
   supabaseViewModel.store.subscribe(renderSchema);
   gitViewModel.store.subscribe(renderGit);
   renderAll();

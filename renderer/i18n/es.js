@@ -4,7 +4,6 @@ import { plural } from '../core/format.js';
 
 const files = (n) => plural(n, 'archivo', 'archivos');
 const folders = (n) => plural(n, 'carpeta', 'carpetas');
-const floors = (n) => plural(n, 'piso', 'pisos');
 
 export const strings = {
   controls: {
@@ -56,8 +55,8 @@ export const strings = {
     backToMap: 'Volver al mapa',
     schemaTitle: 'Supabase · esquema public',
     schemaSummary: (tables, hasError) => (hasError ? `${tables} tablas · 1 con error` : `${tables} tablas · todo en orden`),
-    folderSummary: (fileCount, floorCount, hidden) =>
-      `${files(fileCount)} · ${floors(floorCount)}` + (hidden ? ` (+${hidden} sin mostrar)` : ''),
+    breadcrumbLabel: 'Ruta de la carpeta',
+    upHint: 'Esc sube un nivel',
   },
 
   hud: {
@@ -73,6 +72,7 @@ export const strings = {
     risk: (n) => `${n} en riesgo`,
     review: (n) => `${n} a revisar`,
     rootSummary: (fileCount, folderCount) => `${files(fileCount)} · ${folders(folderCount)}`,
+    levelSummary: (fileCount, folderCount) => `${files(fileCount)} · ${plural(folderCount, 'subcarpeta', 'subcarpetas')}`,
     emptyFolder: 'vacía',
     defaultProjectName: 'proyecto',
   },
@@ -126,13 +126,13 @@ export const strings = {
       fixNow: 'Corregir ahora',
     },
 
-    folderOpened: ({ name, files: fileCount, floors: floorCount, counts }) => {
-      const head = `🏢 ${name} · ${files(fileCount)} en ${floors(floorCount)}`;
+    folderOpened: ({ name, files: fileCount, folders: folderCount, counts }) => {
+      const head = `📂 ${name} · ${files(fileCount)} · ${plural(folderCount, 'subcarpeta', 'subcarpetas')}`;
       if (!fileCount) return `${head}\n\nTodavía no tiene archivos.`;
       const summary = `🔴 ${counts.red} en riesgo · 🟡 ${counts.yellow} a revisar · 🟢 ${counts.green} seguros`;
       const hint = counts.red
-        ? 'Los cubitos rojos están adelante en cada piso. Haz clic en uno para ver el motivo.'
-        : 'Haz clic en un piso para verlo de cerca, o en un cubito para ver su detalle.';
+        ? 'Los archivos con riesgo están al frente de la plaza. Haz clic en uno para ver el motivo.'
+        : 'Haz clic en un archivo para ver su detalle, o en una subcarpeta para entrar.';
       return `${head}\n${summary}\n\n${hint}`;
     },
     fileSelected: ({ path, levelText, reason, source }) => `📄 ${path}\n${levelText} · ${reason}\n\n${source}`,

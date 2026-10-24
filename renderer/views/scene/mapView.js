@@ -1,25 +1,26 @@
-// Draws the project map from MapViewModel: main building, folder buildings, roads and their labels.
-// New buildings rise from the ground; buildings already seen in this session just appear.
-// A cyan pulse travels along each road, from the main building to the folder.
+// Draws one folder level from MapViewModel: the plaza with the folder's files in the middle and its
+// subfolders as blocks around it, linked by roads with cyan pulses. Entering a folder plays a short
+// transition (its block grows and fades, the rest sinks), then the new level rises.
 import * as THREE from 'three';
 import { groundLink, materials as M } from './materials.js';
-import { buildHeadquarters, HQ_BASE, HQ_TOWER } from './builders/headquartersBuilder.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { buildBlock } from './builders/blockBuilder.js';
+import { buildPlaza } from './builders/plazaBuilder.js';
 import { folderHeight } from '../../viewmodels/layout.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
 
-// 'blocks': plain cubes (temporary, while we define how buildings unfold); 'detailed': full buildings
+// 'blocks': plain cubes (temporary, while the building design is defined); 'detailed': full buildings
 const BUILDING_STYLE = 'blocks';
-const ROOT_BLOCK_SIZE = 4.5;
 const FOLDER_BLOCK_SIZE = 3;
 
 const RISE_SPEED = 2.2;
+const CUBE_RISE_STAGGER = 0.015;
 const PULSE_SPEED = 0.35; // road lengths per second
+const TRANSITION_SECONDS = 0.35;
 const pulseGeometry = new THREE.BoxGeometry(0.9, 0.08, 0.16);
 
-// Second line of a building label: its problems, if any
+// Second line of a label: its problems, if any
 function riskLine(counts) {
   if (counts.red) return `<em class="risk">${strings.map.risk(counts.red)}</em>`;
   if (counts.yellow) return `<em class="review">${strings.map.review(counts.yellow)}</em>`;
@@ -28,94 +29,116 @@ function riskLine(counts) {
 
 export function createMapView({ sceneView, labels, mapViewModel }) {
   let group = null;
-  let entries = new Map();      // path -> { group, label }
+  let ownLabels = [];
+  let entries = new Map();      // folder path -> { group } (blocks on screen)
+  let shownPath = null;         // level on screen
   let session = null;
-  const seen = new Set();       // folders already shown this session (they do not animate again)
+  const seen = new Set();       // levels already shown this session (they do not rise again)
   const risers = [];            // { group, k }
+  const fileCubes = [];         // { mesh, height, baseY, index }
+  let cubeT = 0;
   const pulses = [];            // { mesh, to, phase }
-  const hidden = new Set();     // buildings replaced by an open building
+  let transition = null;        // { target, t, done }
 
   function clear() {
     if (group) sceneView.layers.map.remove(group);
-    entries.forEach((e) => e.label.remove());
+    ownLabels.forEach((l) => l.remove());
+    ownLabels = [];
     entries = new Map();
     risers.length = 0;
+    fileCubes.length = 0;
     pulses.length = 0;
     group = null;
   }
 
   function render(state) {
     clear();
+    shownPath = state.path;
     if (state.status !== 'ready') return;
     if (state.session !== session) {
       session = state.session;
       seen.clear();
     }
+    const firstVisit = !seen.has(state.path);
+    seen.add(state.path);
 
     group = new THREE.Group();
     sceneView.layers.map.add(group);
 
-    // Main building: the root folder
-    const blocks = BUILDING_STYLE === 'blocks';
-    const rootBlock = blocks
-      ? buildBlock({ size: ROOT_BLOCK_SIZE, height: state.root.height * 0.6, level: state.root.level })
-      : null;
-    const hq = rootBlock ? rootBlock.group : buildHeadquarters(state.root.height);
-    hq.userData.pick = { type: 'folder', path: '' };
-    group.add(hq);
-    const rootLabelY = rootBlock ? rootBlock.top + 1 : HQ_BASE + state.root.height + 5.6;
-    const rootLabel = labels.add({
-      html: `<strong>${escapeHtml(state.projectName)}</strong><span>${strings.map.rootSummary(state.root.total, state.root.dirs)}</span>${riskLine(state.root.counts)}`,
-      anchor: rootBlock ? { x: 0, y: rootLabelY, z: 0 } : { x: HQ_TOWER.x, y: rootLabelY, z: HQ_TOWER.z },
+    // Plaza with the folder's own files
+    const { plaza } = state;
+    const built = buildPlaza(plaza);
+    group.add(built.group);
+    fileCubes.push(...built.cubes);
+    cubeT = firstVisit ? 0 : Infinity;
+    if (firstVisit) built.cubes.forEach(({ mesh }) => { mesh.scale.y = 0.001; });
+    ownLabels.push(labels.add({
+      html: `<strong>${escapeHtml(plaza.name)}</strong><span>${strings.map.levelSummary(plaza.total, plaza.folders)}</span>${riskLine(plaza.counts)}`,
+      anchor: { x: 0, y: built.top + 2, z: -plaza.size / 2 },
       className: 'root',
-    });
-    entries.set('', { group: hq, label: rootLabel });
+    }));
 
-    // First-level folders around it
+    // Subfolders around it
     state.buildings.forEach((b) => {
       groundLink(group, M.road, 0, 0, b.x, b.z, 0.35, 0.05).castShadow = false;
       const pulse = new THREE.Mesh(pulseGeometry, M.accentLit);
       pulse.rotation.y = -Math.atan2(b.z, b.x);
       group.add(pulse);
       pulses.push({ mesh: pulse, to: { x: b.x, z: b.z }, phase: (b.order * 0.37) % 1 });
-      const building = blocks
+
+      const building = BUILDING_STYLE === 'blocks'
         ? buildBlock({ size: FOLDER_BLOCK_SIZE, height: folderHeight(b.files), level: b.level })
         : buildFolderBuilding(b);
       building.group.position.set(b.x, 0, b.z);
       building.group.userData.pick = { type: 'folder', path: b.path };
       group.add(building.group);
-      const label = labels.add({
+      ownLabels.push(labels.add({
         html: `<strong>${escapeHtml(b.name)}/</strong><span>${strings.map.files(b.files)}</span>${riskLine(b.counts)}`,
         anchor: { x: b.x, y: building.top + 0.9, z: b.z },
-      });
-      entries.set(b.path, { group: building.group, label });
-      if (!seen.has(b.path)) {
-        seen.add(b.path);
+      }));
+      entries.set(b.path, { group: building.group });
+      if (firstVisit) {
         building.group.scale.y = 0.001;
         risers.push({ group: building.group, k: -b.order * 0.06 }); // staggered
       }
     });
-
-    hidden.forEach((path) => apply(path, true));
   }
 
-  function apply(path, isHidden) {
-    const entry = entries.get(path);
-    if (!entry) return;
-    entry.group.visible = !isHidden;
-    entry.label.el.hidden = isHidden;
+  // Entering a folder that is on screen: its block grows and fades, everything else sinks, then redraw
+  function playEnter(state) {
+    const entry = entries.get(state.path);
+    if (!entry || !group) return render(state);
+    const target = entry.group;
+    target.traverse((o) => {
+      if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; }
+    });
+    ownLabels.forEach((l) => { l.el.hidden = true; });
+    transition = { target, t: 0, done: () => render(state) };
   }
 
   mapViewModel.store.subscribe((state, previous) => {
-    if (!previous || state.version !== previous.version) render(state);
+    if (previous && state.version === previous.version) return;
+    const goingDeeper = previous && state.session === previous.session && shownPath !== null &&
+      state.path !== shownPath && state.path.startsWith(shownPath ? `${shownPath}/` : '');
+    if (goingDeeper && !transition) playEnter(state);
+    else render(state);
   }, { immediate: true });
 
   sceneView.onFrame((t, dt) => {
-    pulses.forEach((p) => {
-      const k = (t * PULSE_SPEED + p.phase) % 1;
-      p.mesh.position.set(p.to.x * k, 0.06, p.to.z * k);
-      p.mesh.visible = k > 0.18 && k < 0.85; // hidden under the platforms at both ends
-    });
+    if (transition) {
+      transition.t += dt / TRANSITION_SECONDS;
+      const k = Math.min(transition.t, 1);
+      const s = 1 + k * 1.6;
+      transition.target.scale.set(s, 1 + k * 0.4, s);
+      transition.target.traverse((o) => { if (o.isMesh) o.material.opacity = 1 - k; });
+      group?.children.forEach((c) => { if (c !== transition.target) c.position.y = -k * 1.5; });
+      if (k >= 1) {
+        const { done } = transition;
+        transition = null;
+        done();
+      }
+    }
+
     for (let i = risers.length - 1; i >= 0; i--) {
       const r = risers[i];
       r.k = Math.min(r.k + dt * RISE_SPEED, 1);
@@ -123,14 +146,28 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
       r.group.scale.y = Math.max(1 - (1 - k) ** 3, 0.001);
       if (r.k >= 1) risers.splice(i, 1);
     }
+
+    if (cubeT !== Infinity) {
+      cubeT += dt * 3;
+      let rising = false;
+      fileCubes.forEach(({ mesh, height, baseY, index }) => {
+        const k = Math.min(Math.max(cubeT - index * CUBE_RISE_STAGGER, 0), 1);
+        if (k < 1) rising = true;
+        const h = Math.max(height * (1 - (1 - k) ** 3), 0.001);
+        mesh.scale.y = h;
+        mesh.position.y = baseY + h / 2; // grow from the plaza, not from the middle
+      });
+      if (!rising) cubeT = Infinity;
+    }
+
+    pulses.forEach((p) => {
+      const k = (t * PULSE_SPEED + p.phase) % 1;
+      p.mesh.position.set(p.to.x * k, 0.06, p.to.z * k);
+      p.mesh.visible = k > 0.18 && k < 0.85; // hidden under the platforms at both ends
+    });
   });
 
   return {
-    pickTargets: () => (group ? [group] : []),
-    // The tower view hides a building while its open version is on screen
-    setBuildingHidden(path, isHidden) {
-      if (isHidden) hidden.add(path); else hidden.delete(path);
-      apply(path, isHidden);
-    },
+    pickTargets: () => (group && !transition ? [group] : []),
   };
 }

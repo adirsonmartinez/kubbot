@@ -14,6 +14,8 @@ export class SupabaseViewModel {
   #vulnerabilityTimer = null;
   #returnView = null;
   #session = 0;
+  #inProject = false; // the open project uses Supabase
+  #onScreen = true;   // the map is showing the root level (the node lives there)
 
   store = new Observable({ visible: false, vulnerable: false, latencyMs: 12, schemaOpen: false, tables: [] });
 
@@ -56,6 +58,18 @@ export class SupabaseViewModel {
     return this.#model.tables.map((t) => ({ ...t, exposed: this.#model.isExposed(t) }));
   }
 
+  // The map tells whether the root level is on screen
+  setOnScreen(on) {
+    this.#onScreen = on;
+    this.#updateVisibility();
+  }
+
+  #updateVisibility() {
+    const visible = this.#inProject && this.#onScreen;
+    if (!visible && this.store.state.schemaOpen) this.openSchema(false);
+    if (visible !== this.store.state.visible) this.store.set({ visible });
+  }
+
   #onProject({ open, usesSupabase, session }) {
     if (session !== this.#session) {
       // New project: start clean and arm the demo vulnerability again
@@ -64,10 +78,9 @@ export class SupabaseViewModel {
       this.#vulnerabilityTimer = null;
       this.#model.setVulnerable(false);
     }
-    const visible = open && usesSupabase;
-    if (!visible && this.store.state.schemaOpen) this.openSchema(false);
-    this.store.set({ visible });
-    if (visible && !this.#vulnerabilityTimer) {
+    this.#inProject = open && usesSupabase;
+    this.#updateVisibility();
+    if (this.#inProject && !this.#vulnerabilityTimer) {
       this.#vulnerabilityTimer = setTimeout(() => this.#model.setVulnerable(true), VULNERABILITY_DELAY_MS);
     }
   }
