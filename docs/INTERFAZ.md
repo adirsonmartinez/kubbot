@@ -27,28 +27,151 @@ seguridad y la ruta solo cuenta la carpeta actual.
 - **Modelos:** verificados contra cada CLI instalada (Claude: Fable 5.1, Opus 5.5, Sonnet 5.5, Haiku 5.5;
   Grok 4.7 / 4.7 Fast / 4.6; Codex GPT-6.1 Sol / 6 Sol / 6 Luna). **Cuánto piensa** es una barra: de
   Rápido a Máximo (más esfuerzo, más tiempo y más gasto del plan).
-- **Respuestas en vivo:** cada respuesta es una tarjeta con el agente, el modelo, un cronómetro, los
-  pasos (herramientas de Platanus con el archivo que tocan; subagentes con sus pasos anidados), el
-  razonamiento plegado, la respuesta en Markdown y al final tiempo, turnos y tokens.
+- **Respuestas en vivo:** cada respuesta es una tarjeta del agente.
+  - En **Vibe** cuenta lo que hace con frases simples: arriba qué está haciendo ahora ("Leyendo
+    `login.js`…"), luego cada paso ("Leí `login.js`", "Marqué `db.js` en rojo" con su punto de color;
+    al tocar el nombre se abre el archivo en el chat) y, al terminar, la lista se pliega en un resumen ("Leí 3 archivos · 1 en
+    rojo") y dice cuánto tardó. Sin modelo, razonamiento ni tokens (`renderer/models/runStory.js`).
+  - En **Dev** muestra el modelo, un cronómetro, los pasos técnicos (herramientas de Platanus con el
+    archivo que tocan; subagentes con sus pasos anidados), el razonamiento plegado y al final tiempo,
+    turnos y tokens. Cambiar de modo redibuja las tarjetas que ya están.
 - **Comparar respuestas:** la misma pregunta a dos agentes a la vez (selector del chat o el panel).
 - **Botón "+":** nueva conversación, reparar lo más grave, historial, grafo, mapa del proyecto, conectar
   tu agente o tu editor (MCP), Vibe/Dev.
-- **Cómo te habla (Vibe / Dev):** el interruptor del chat (✨ / `</>`, junto al selector) o el de arriba
+- **Cómo te habla (Vibe / Dev):** el interruptor del chat (💬 / `</>`, junto al selector; al pasar el mouse dice qué hace cada uno) o el de arriba
   a la derecha. **Vibe**: palabras simples, comparaciones de la vida diaria, sin código. **Dev**: rutas,
   causa técnica y fragmentos cortos. El agente además **se adapta a cómo escribes**: si escribes corto
   responde corto, si usas términos técnicos los nombra, si dices "no entiendo" lo explica más simple.
   Todo eso se configura en `agent/` (ver abajo), no en el código.
+- **Mejorar mi mensaje (lápiz con chispas, junto al "+"):** ordena lo que escribiste como una
+  especificación con la prueba primero, con la forma de los documentos ODD de gentle-shell:
+  - Vibe usa "Qué quiero", "Por qué", "Dónde", "Qué no tocar", "Pasos" (T1, T2… con "Listo cuando")
+    y "Primero la prueba".
+  - Dev usa "Objetivo", "Alcance", "Restricciones", "Tareas" y "TDD" (RED → GREEN → REFACTOR).
+  - La escribe tu agente con su propia sesión, sin tocar la conversación (`agent/voice.json` → `refine`).
+    Sin agente se arma en la app.
+  - "Deshacer" devuelve tu texto.
+  - Al enviarla, el chat la muestra con formato y el agente trabaja tarea por tarea.
+  - Archivos: `renderer/models/promptSpec.js` y `renderer/viewmodels/composerViewModel.js`.
+- **Ayuda mientras escribes:**
+  - Escribe `@` o el comienzo de un nombre para ver los archivos del proyecto. Se elige con ↑ ↓ y
+    Tab/Enter, y Esc cierra la lista.
+  - Avisos: "Cuéntame un poco más", "¿Te refieres a login.js?" (al tocarlo lo agrega) y "Parece una
+    clave: no la pegues aquí".
+  - Los archivos con secretos nunca se ofrecen (`renderer/models/promptAssist.js`).
+- **Permisos del agente (menú del agente, debajo de "Quién responde"):**
+  - **Manual:** pregunta antes de cada cambio.
+  - **Auto:** guarda solo los cambios simples. Sigue preguntando por dependencias, publicación/CI,
+    migraciones, scripts o borrar más de la mitad de un archivo.
+  - **Sin preguntar:** guarda todo. Pide confirmación al activarlo y vuelve a Manual al abrir la app.
+  - En los tres modos se guarda copia para deshacer y las claves se bloquean siempre.
+  - Si no está en Manual, la barra de abajo dice "Cambios: Auto" o "Cambios: Sin preguntar".
+  - Reglas en `electron/approval.js`.
 - **Respuestas interactivas:** el agente arma su respuesta con **tarjetas** (⚠ riesgo, ✓ está bien,
-  💡 idea, ☑ tu siguiente paso, ⓘ nota). Los **nombres de archivo son enlaces**: un clic lo muestra en el
-  mapa con su tarjeta. Al final propone **próximos pasos** como botones: preguntas, "Reparar x",
-  "Auditar x", "Ver x en el mapa".
+  💡 idea, ☑ tu siguiente paso, ⓘ nota). Al final propone **próximos pasos** como botones: preguntas,
+  "Reparar x", "Auditar x", "Ver x en el mapa" y "Abrir x".
+- **Abrir archivos desde el chat:** tocar un nombre de archivo (o "Abrir x") abre su tarjeta en el chat,
+  y una carpeta va al mapa.
+  - La tarjeta muestra las primeras 30 líneas numeradas y su semáforo. "Sin evaluar" significa que
+    nadie lo revisó; antes la regla de ejemplo decía "Seguro".
+  - Botones:
+    - **Abrir en el navegador**, solo para páginas, imágenes y PDF: nunca ejecuta un script o un programa.
+    - **Mostrar en la carpeta**.
+    - **Ver en el mapa**, solo si está en rojo o amarillo, porque el radar oculta lo demás.
+    - **¿Qué es este archivo?** y **Revisar este archivo**.
+  - Los archivos con claves nunca se muestran ni se abren.
+  - Los archivos que cambian en disco llegan como una tarjeta con "Abrir x" por archivo.
+  - Archivos: `renderer/models/fileOpen.js`, `electron/fileOpen.js` y `fs:open` / `fs:kind` en
+    `electron/main.js`.
 - **Mapa → chat como tarjetas:** abrir una carpeta muestra su semáforo como barra (rojo/amarillo/verde)
   con "Ver los riesgos", "Reparar lo más grave" y "Explícame esta carpeta"; tocar un archivo muestra su
   nivel, el motivo y "¿Qué es este archivo?", "Reparar con Remi", "Auditar en el chat".
-- **Mientras trabaja** (efectos de [libraries.dev](https://libraries.dev)): si tarda más de 2 s, un
-  **orbe** en el avatar y en cada paso dice qué hace (buscar, leer, escribir, coordinar ayudantes…); si
-  tarda más de 3 s, una **luz recorre el borde** de la caja de texto. Con "reducir movimiento" del
-  sistema, se quedan quietos.
+- **Mientras trabaja** (efectos de [libraries.dev](https://libraries.dev)):
+  - **Orbe:** aparece desde el primer momento, en lugar de los tres puntos, en el avatar, en
+    "Pensando…" y en cada paso del agente o de Remi ("Leyendo un archivo…"). Su forma dice qué hace:
+    buscar, leer, escribir o coordinar ayudantes.
+  - Hay un solo orbe por actividad: el paso en curso. Si no hay ninguno, lo lleva la cabecera de la
+    tarjeta, la fila "Pensando…" o el avatar. Los pasos anteriores quedan con su ícono y un check.
+  - Los nueve estados de la librería tienen su tarea en Platanus (`STEP_ORB`):
+
+    | Estado | Tarea |
+    |---|---|
+    | `breathing` | pensar |
+    | `searching` | mirar el proyecto, revisar riesgos, buscar en el mapa |
+    | `working` | leer un archivo |
+    | `composing` | guardar un arreglo, escribir la respuesta |
+    | `solving` | semáforo y reparación |
+    | `weaving` | ayudantes |
+    | `connecting` | probar un agente |
+    | `shaping` | "Mejorar mi mensaje" |
+    | `listening` | esperar tu aprobación para guardar un cambio |
+
+  - Mientras trabaja, la tarjeta muestra una **píldora** con el orbe vivo y lo que hace ("Leyendo
+    vercel.json…"), como en libraries.dev. El avatar de la tarjeta es el orbe quieto.
+  - Los orbes que quedan fuera de la vista no se dibujan, y con "reducir movimiento" quedan quietos
+    (`views/ui/thinkingOrb.js`).
+  - **Luz en el borde:** si tarda más de 3 s, recorre el borde de la caja de texto por dentro. El margen
+    de la caja está en su contenedor, así que el recuadro de la luz mide lo mismo que la caja.
+  - **Metal líquido** (metal-fx): en el botón de enviar, con reflejo en el selector de modelo. Sin
+    WebGL2 queda el botón normal.
+  - Con "reducir movimiento" del sistema, los efectos quedan quietos.
+- **Diseño del chat:** vidrio claro con refracción ("liquid glass") y la paleta y tipografía de
+  libraries.dev (`renderer/styles/chat-glass.css`, cargada después de `chat.css`).
+  - El panel desenfoca, satura y dobla un poco la luz de lo que tiene detrás, con el filtro SVG
+    `#liquid-glass` de `index.html` (Chromium lo acepta en `backdrop-filter`). Lleva un borde con
+    reflejo arriba y una sombra suave.
+  - Las tarjetas, las píldoras y la caja de texto son capas de vidrio más claras dentro del panel.
+  - Paleta de libraries.dev en oscuro: texto blanco, gris para lo secundario, píldoras neutras y
+    código sin color. El color queda solo para los efectos y el semáforo.
+  - Letra **Inter**, y **Roboto Mono** para el código. Las sirve la propia app (`renderer/vendor/fonts`,
+    copiadas por `npm run vendor`; licencia OFL).
+  - Si el sistema pide "reducir transparencia", el panel queda sólido.
+  - Las tarjetas del agente dicen **"Agente"**. Su avatar es el **orbe**: animado mientras trabaja,
+    quieto al terminar. En Dev, la línea de abajo dice el agente, el modelo y el esfuerzo. Al comparar
+    agentes, cada tarjeta muestra su nombre.
+- **Cambios en vivo:** cuando el agente guarda un archivo, su paso muestra la diferencia línea por línea,
+  con lo agregado en verde, lo quitado en rojo y los números de línea (`electron/lineDiff.js`).
+  - Mientras espera tu aprobación (modo Manual) muestra el **cambio propuesto**, así ves qué apruebas.
+    Al guardarse muestra el **cambio aplicado**, y si lo rechazas, "No aprobado".
+  - En Dev viene abierto. En Vibe va plegado ("Ver lo que cambió · 2 líneas nuevas · 1 quitada").
+  - Funciona igual en las reparaciones de Remi.
+- **Encabezado del chat:** el logo y el nombre del agente conectado, y cómo está conectado ("Con tu
+  suscripción" o "Con clave de API ··1234"). El modelo y el esfuerzo están en el botón de la caja de texto.
+- **Menú del agente** (botón de la caja de texto: logo, modelo y barras de esfuerzo):
+  - **Agente:** Claude, ChatGPT · Codex y Grok, cada uno con su logo y cómo está conectado; un check
+    marca el que responde. Uno sin conectar tiene **"Conectar"**, que permite iniciar sesión con tu cuenta
+    o **pegar una clave de API**.
+  - **Permisos:** Manual, Auto o Sin preguntar.
+  - **Más opciones**, plegado: modelo, cuánto piensa y comparar respuestas.
+  - La primera vez, la app elige sola el mejor agente conectado (Claude, ChatGPT · Codex, Grok).
+- **Más agentes** (investigados en la documentación oficial y el código fuente de cada uno, y verificados):
+  - **OpenCode** responde dentro del chat, encerrado en las herramientas de Platanus (`electron/opencode.js`):
+    - Lleva su propia configuración, con un agente `platanus` que niega todo salvo `platanus_*`, y
+      apaga los agentes de OpenCode.
+    - Corre en un entorno sin variables `OPENCODE_*` heredadas, con la configuración global aislada y
+      con `--pure`.
+    - Si OpenCode intenta usar su agente por defecto, se detiene.
+    - Comprobado con `opencode debug agent platanus`: todas sus herramientas propias quedan apagadas.
+    - Usa los proveedores en los que OpenCode tenga sesión, o las claves guardadas aquí.
+  - **Cursor, Gemini y Qwen** no permiten quitarles su terminal ni el acceso a archivos, así que no se
+    ejecutan dentro del chat. Aparecen en **"Otros agentes"** con la configuración MCP lista para copiar
+    y su comando de instalación (`renderer/models/mcpSnippets.js`).
+  - **Kimi** también aparece en "Otros agentes". Kimi Code tiene una lista de herramientas permitidas
+    que lo haría seguro dentro del chat, pero hay que comprobarlo con el programa instalado antes de
+    activarlo.
+- **Claves de API** (`electron/keyStore.js`):
+  - Se guardan cifradas con el llavero del sistema, en `~/.platanus/keys.json` (permisos 600).
+  - Nunca vuelven a la ventana: solo se ve que existe y sus últimos 4 caracteres.
+  - El programa de cada IA las recibe como variable de entorno solo en esa ejecución:
+    `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` o `XAI_API_KEY`.
+  - Una clave con formato equivocado no se guarda, y si el sistema no puede cifrar, tampoco.
+
+- **Una reparación = una tarjeta:** Remi y el agente, con lo que hacen ahora ("Leí secrets.test.mjs",
+  "Marqué secrets.test.mjs en verde"), la explicación del agente y el resultado al pie.
+  - Al terminar, los pasos se pliegan en un resumen ("Leí 1 archivo · 1 en verde").
+  - Mientras dura, el mapa no publica tarjetas de carpeta o archivo, aunque Remi lo mueva.
+  - Una pregunta que espera a que el agente termine otra cosa dice "Esperando turno…" con un orbe lento.
+  - El texto que el agente escribe después de usar una herramienta empieza un párrafo nuevo.
 - **Conecta tu agente:** tarjetas por agente (sesión, versión, uso, último error, Usar / Entrar / Probar),
   el servidor MCP local con sus herramientas y su actividad en vivo, y los textos para Claude Code,
   Cursor, Codex y Gemini. La dirección del servidor lleva una llave privada: en pantalla sale tapada y
@@ -87,7 +210,7 @@ falló. Desde ahí se marca como verificado, se deshace un cambio o se reintenta
 | `views/ui/chatCardsView.js` | Tarjetas de carpeta y archivo en el chat, botones de acción. |
 | `icons/iconNames.js`, `views/icons.js` | Íconos [Hugeicons](https://hugeicons.com) (gratis, MIT): se nombran en `iconNames.js` y `npm run icons` copia solo esos. `views/ui/icons.js` los da como elementos para el chat. |
 | `views/ui/thinkingOrb.js` | Orbes de libraries.dev con el motor del paquete (sin React). |
-| `vendor/border-beam.js` | Generado por `scripts/vendor-ui.js` (border-beam + React en un archivo). No se sube a git. |
+| `vendor/react-ui.js` | Generado por `scripts/vendor-ui.js` (border-beam y metal-fx con un solo React). Se sube a git para que la app no dependa de las librerías de desarrollo. |
 | `models/answerFormat.js` | Lee el bloque de sugerencias de la respuesta (preguntas, reparar, auditar, ver). |
 | `views/ui/agentPickerView.js`, `effortSlider.js`, `chatMenuView.js` | Selector de agente/modelo/esfuerzo/comparar, barra de esfuerzo, menú "+" y del botón flotante. |
 | `views/ui/agentConnectView.js` | Panel "Conecta tu agente". |
@@ -121,6 +244,16 @@ sistema) asegura que se escriba.
 
 En la carpeta de datos de Electron: `recent.json` (proyectos recientes) y `mcp-token` (llave del servidor
 MCP, solo legible por tu usuario). Las copias de los cambios del agente van a `~/.platanus/backups/`.
+
+## Puntaje de seguridad (anillo del mapa)
+
+- Parte de 100 y resta 15 por cada archivo en rojo y 5 por cada uno en amarillo, sin bajar de 0
+  (`securityScore` en `renderer/models/securityModel.js`). Así cada reparación se nota en el número;
+  antes era "archivos en verde ÷ total" y en un proyecto grande casi no se movía.
+- El color del anillo y del número es el peor semáforo abierto: rojo, amarillo o verde.
+- Reparaciones: si el agente revisa un archivo, no cambia nada y lo marca en verde, es una **falsa
+  alarma**. Queda en verde con el estado "Falsa alarma", en lugar de quedar en amarillo como un plan
+  pendiente.
 
 ## Seguridad (resumen)
 

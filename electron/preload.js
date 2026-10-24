@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('platanus', {
 
   tree: (rel = '.') => ipcRenderer.invoke('fs:tree', rel),
   read: (rel) => ipcRenderer.invoke('fs:read', rel),
+  open: (rel, how) => ipcRenderer.invoke('fs:open', rel, how), // how: 'default' (browser…) | 'reveal'
+  kind: (rel) => ipcRenderer.invoke('fs:kind', rel), // 'file' | 'dir' | null
   mkdir: (rel) => ipcRenderer.invoke('fs:mkdir', rel),
   write: (rel, content) => ipcRenderer.invoke('fs:write', rel, content),
   remove: (rel) => ipcRenderer.invoke('fs:delete', rel),
@@ -58,6 +60,12 @@ contextBridge.exposeInMainWorld('platanus', {
   },
 
   // The user's own agent (subscription CLIs) and the local MCP server it talks to
+  // API keys: the window can save or remove one, and list which agents have one (never the key back)
+  keys: {
+    list: () => ipcRenderer.invoke('keys:list'),
+    set: (provider, value) => ipcRenderer.invoke('keys:set', provider, value),
+    remove: (provider) => ipcRenderer.invoke('keys:remove', provider),
+  },
   agents: {
     detect: () => ipcRenderer.invoke('agents:detect'),
     login: (id) => ipcRenderer.invoke('agents:login', id),
@@ -72,7 +80,9 @@ contextBridge.exposeInMainWorld('platanus', {
     reply: (payload) => ipcRenderer.invoke('mcp:reply', payload),
     onScore: on('agent:score'), // ({ path, level, reason }) => ...
     onChanged: on('agent:changed'), // ({ path, reason, created, backup, at }) => ...
+    onAwaiting: on('agent:awaiting'), // ({ path, waiting }) => ... while the person is asked to approve a change
     undo: (change) => ipcRenderer.invoke('agent:undo', change),
+    setApproval: (mode) => ipcRenderer.invoke('agent:approval', mode), // 'manual' | 'auto' | 'bypass'
   },
   onMenuAction: on('menu:action'), // ({ action: 'newProject'|'openProject'|'openRecent'|'closeProject', root? }) => ...
   onChanged: on('fs:changed'), // (paths) => ...

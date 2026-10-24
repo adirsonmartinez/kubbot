@@ -2,22 +2,17 @@
 // Renders six sections: intro, agents, compare, MCP server, recent activity, editor snippets.
 import { strings } from '../../i18n/es.js';
 import { CATALOG, modelLabel } from '../../models/agentConnectionModel.js';
+import { mcpSnippet, maskUrl } from '../../models/mcpSnippets.js';
+import { thinkingOrb, STEP_ORB } from './thinkingOrb.js';
 
 const C = strings.connect;
 const H = strings.hub;
 const T = strings.chat?.run?.tools ?? {};
 
-// The MCP address carries a private key: mask on screen, copy the real one.
-const mask = (text, url) => text.split(url).join(url.replace(/\/mcp\/[a-f0-9]+$/, '/mcp/••••••••'));
-
-function snippets(url) {
-  return [
-    { key: 'claude', code: `claude mcp add --transport http platanus ${url}` },
-    { key: 'cursor', code: JSON.stringify({ mcpServers: { platanus: { url } } }, null, 2) },
-    { key: 'codex', code: `[mcp_servers.platanus]\nurl = "${url}"` },
-    { key: 'gemini', code: JSON.stringify({ mcpServers: { platanus: { httpUrl: url } } }, null, 2) },
-  ];
-}
+// The configs per editor / CLI (renderer/models/mcpSnippets.js); the private key is masked on screen
+const SNIPPETS = ['claude', 'cursor', 'codex', 'gemini', 'kimi', 'qwen', 'opencode'];
+const snippets = (url) => SNIPPETS.map((key) => ({ key, code: mcpSnippet(key, url) }));
+const mask = maskUrl;
 
 async function copy(button, textToCopy) {
   try {
@@ -79,7 +74,8 @@ export function createAgentConnectView({ container, connection, modeModel }) {
     }
     if (agent && agent.loggedIn !== false) {
       const running = state.testing?.[agent.id] === 'running';
-      const test = el('button', `hub-btn hub-btn-test${running ? ' disabled' : ''}`, running ? H.testing : H.test);
+      const test = el('button', `hub-btn hub-btn-test${running ? ' disabled' : ''}`, running ? null : H.test);
+      if (running) test.append(thinkingOrb(STEP_ORB.connect, { size: 20 }), document.createTextNode(H.testing)); // connecting to the agent
       test.type = 'button';
       test.disabled = running;
       test.title = H.testHint;

@@ -1,6 +1,7 @@
 // Access to the project on disk. Inside Electron everything goes through window.platanus
 // (the preload bridge). In a plain browser it serves a demo project so the UI can be built without Electron.
 import { DEMO_TREE } from '../models/demoProject.js';
+import { findNode } from '../models/fileTree.js';
 import { DEMO_GIT } from '../models/demoGit.js';
 
 const DESKTOP_ONLY = { ok: false, error: 'desktop-only' };
@@ -25,6 +26,8 @@ export function createWorkspaceService(bridge = window.platanus) {
       openRecent: async () => DESKTOP_ONLY,
       tree: async () => ({ ok: true, data: demo.tree }),
       read: async () => DESKTOP_ONLY,
+      open: async () => DESKTOP_ONLY,
+      kind: async (path) => ({ ok: true, data: (path && findNode(demo.tree, path)?.type) || null }),
       mkdir: async () => DESKTOP_ONLY,
       write: async () => DESKTOP_ONLY,
       remove: async () => DESKTOP_ONLY,
@@ -44,6 +47,8 @@ export function createWorkspaceService(bridge = window.platanus) {
     openRecent: (root) => bridge.openRecentWorkspace(root),
     tree: (path = '.') => bridge.tree(path),
     read: (path) => bridge.read(path),
+    open: (path, how) => bridge.open(path, how),
+    kind: (path) => bridge.kind(path),
     mkdir: (path) => bridge.mkdir(path),
     write: (path, content) => bridge.write(path, content),
     remove: (path) => bridge.remove(path),

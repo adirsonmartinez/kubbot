@@ -16,6 +16,8 @@ export const EVENTS = Object.freeze({
   repairTool: 'repair:tool',           // { path, name }
   repairChanged: 'repair:changed',     // { path, change } the agent wrote a file (approved)
   repairFinished: 'repair:finished',   // { entry } history entry with its final status
+  agentAwaiting: 'agent:awaiting',     // { path, waiting, diff? } the agent waits for the person to approve a change
+  agentChanged: 'agent:changed',       // { path, reason, diff, … } the agent saved a change (approved or by the permissions mode)
 });
 
 export function createEventBus() {

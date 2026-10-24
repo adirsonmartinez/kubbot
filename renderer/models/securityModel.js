@@ -46,3 +46,11 @@ export class SecurityModel {
     return true;
   }
 }
+
+// The project's security score (the ring on the map): starts at 100 and every open risk takes points
+// off, so each repair moves it (a share of files would barely change in a big project).
+const RED_POINTS = 15;
+const YELLOW_POINTS = 5;
+export const securityScore = ({ red = 0, yellow = 0 } = {}) => Math.max(0, 100 - red * RED_POINTS - yellow * YELLOW_POINTS);
+// The ring's color: the worst light still open
+export const scoreLevel = ({ red = 0, yellow = 0 } = {}) => (red ? 'red' : yellow ? 'yellow' : 'green');

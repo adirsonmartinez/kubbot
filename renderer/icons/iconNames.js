@@ -36,7 +36,19 @@ export const ICON_NAMES = {
   more: 'MoreHorizontalIcon',
   // chat: answer cards, map cards, chips, run steps, Vibe / Dev
   sparkles: 'SparklesIcon',
-  vibe: 'MagicWand01Icon',
+  vibe: 'BubbleChatIcon', // "te hablo simple" (a wand looked like an editing tool)
+  improve: 'AiEditingIcon', // "Mejorar mi mensaje"
+  openExternal: 'SquareArrowUpRightIcon', // "Abrir en el navegador"
+  folderOpen: 'FolderOpenIcon', // "Mostrar en la carpeta"
+  // The connected agent's mark in the chat header
+  claude: 'ClaudeIcon',
+  codex: 'ChatGptIcon',
+  grok: 'GrokIcon',
+  opencode: 'CommandLineIcon',
+  cursorApp: 'CodeSquareIcon',
+  kimi: 'KimiAiIcon',
+  gemini: 'GoogleGeminiIcon',
+  qwen: 'QwenIcon',
   dev: 'SourceCodeIcon',
   arrowRight: 'ArrowRight01Icon',
   ask: 'MessageQuestionIcon',
