@@ -140,7 +140,7 @@ body::after {
 .rb-bubble {
   --rb: var(--accent);
   --rb-soft: rgba(139, 131, 255, 0.16);
-  position: relative; width: 272px; margin-bottom: 14px; padding: 10px 12px 12px;
+  position: relative; width: 272px; padding: 10px 12px 12px;
   border-radius: 16px; border: 1.5px solid transparent;
   /* Glass inside, a slowly turning beam on the border */
   background:
@@ -149,16 +149,16 @@ body::after {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 0 26px var(--rb-soft), 0 16px 40px rgba(0, 0, 0, 0.55);
   backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur);
   animation: rb-beam 6s linear infinite;
-  transform-origin: 50% 100%;
+  transform-origin: 0 var(--tail-y, 50%); /* pops out of the robot's head */
 }
 .rb-bubble.tone-success { --rb: var(--ok, #3ddc97); --rb-soft: rgba(61, 220, 151, 0.18); }
 .rb-bubble.tone-warn { --rb: var(--warn); --rb-soft: rgba(255, 194, 74, 0.2); }
 .rb-bubble.tone-danger { --rb: var(--danger); --rb-soft: rgba(255, 90, 106, 0.24); animation: rb-beam 2.4s linear infinite; }
-/* Tail pointing at the robot's head */
+/* Tail on the left side, at the robot's head (--tail-y is set by robotView) */
 .rb-bubble::after {
-  content: ""; position: absolute; left: 50%; bottom: -8px; width: 14px; height: 14px;
-  transform: translateX(-50%) rotate(45deg); border-radius: 0 0 4px 0;
-  background: rgb(16, 15, 28); border: 1.5px solid var(--rb); border-top: 0; border-left: 0;
+  content: ""; position: absolute; left: -8px; top: var(--tail-y, 50%); width: 14px; height: 14px;
+  transform: translateY(-50%) rotate(45deg); border-radius: 0 0 0 4px;
+  background: rgb(16, 15, 28); border: 1.5px solid var(--rb); border-top: 0; border-right: 0;
 }
 .rb-bubble.pop { animation: rb-pop .45s var(--spring, cubic-bezier(.34, 1.56, .64, 1)) both, rb-beam 6s linear infinite; }
 .rb-bubble.tone-danger.pop { animation: rb-pop .45s var(--spring, cubic-bezier(.34, 1.56, .64, 1)) both, rb-shake .5s .3s ease-in-out, rb-beam 2.4s linear infinite; }
@@ -258,7 +258,7 @@ body::after {
 
 /* Minimized: a pill above the robot; it pulses when a new tip is waiting */
 .rb-pill {
-  display: inline-flex; align-items: center; gap: 6px; margin-bottom: 8px; padding: 5px 11px 5px 8px;
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 8px;
   border-radius: 999px; border: 1px solid rgba(139, 131, 255, 0.5); cursor: pointer;
   background: rgba(16, 15, 28, 0.92); color: var(--text); font: 600 11px var(--sans);
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45); animation: rb-pop .35s var(--spring, cubic-bezier(.34, 1.56, .64, 1)) both;
@@ -272,7 +272,7 @@ body::after {
 }
 
 @keyframes rb-beam { to { --rb-angle: 360deg; } }
-@keyframes rb-pop { from { opacity: 0; transform: translateY(10px) scale(.82); } }
+@keyframes rb-pop { from { opacity: 0; transform: translateX(-10px) scale(.82); } }
 @keyframes rb-shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
 @keyframes rb-fade { from { opacity: 0; transform: translateY(3px); } }
 @keyframes rb-blink { 50% { opacity: 0; } }

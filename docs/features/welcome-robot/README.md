@@ -37,9 +37,15 @@ El robot se queda y reacciona al proyecto real. En orden de prioridad:
 5. **Guarda una foto de tu avance 📸**: hace un commit llamado "Primera versión".
 6. **¡Lo estás haciendo increíble!** Se despide.
 
+### El robot
+
+- Un robot flotante y redondeado, sin aristas: cabeza grande de perla con una cara de vidrio oscuro donde se encienden dos ojos de cápsula y una sonrisa, orejas con anillos de luz, antena curva con un orbe, cuerpo de huevo con un corazón de luz, manos flotantes y un propulsor con un anillo de luz en el suelo.
+- Tiene expresiones: sonríe y saluda; ante un riesgo pone cara de preocupación (ojos inclinados y boca de "¡oh!"); mueve la boca y mira su globo mientras "habla"; parpadea; el corazón late y el anillo respira con el vaivén.
+- Está abajo a la izquierda de la etiqueta del proyecto, lejos del árbol de carpetas (que crece hacia abajo a la derecha). Escala `SCALE = 1.6` en `robotView.js`.
+
 ### El globo
 
-- Un solo globo sobre la cabeza del robot. Cada mensaje nuevo entra con un salto: unos puntitos de "pensando", el texto se escribe solo (un clic lo muestra completo) y los botones entran uno por uno.
+- Un solo globo a la derecha del robot, con la colita en su cabeza. Si no cabe, se desliza en vertical para quedar siempre entero en pantalla, sin tapar al robot. Cada mensaje nuevo entra con un salto: unos puntitos de "pensando", el texto se escribe solo (un clic lo muestra completo) y los botones entran uno por uno.
 - El borde tiene un brillo que gira con el color del tono: morado (preguntas y consejos), verde (logros), ámbar o rojo **solo para riesgos**, como pide la guía visual.
 - El robot salta con cada mensaje, mueve la cabeza diciendo "no" ante un riesgo y su antena parpadea mientras "habla".
 - **Minimizar** lo deja como una pastilla "Guía" que late cuando llega un consejo nuevo. **×** cierra la guía.
@@ -73,7 +79,8 @@ Si el robot le pasa un pedido al agente y no hay ningún agente conectado, se ab
 ## Archivos
 
 - `renderer/viewmodels/robotDialogViewModel.js`: las dos fases (entrevista y guía), la recomendación, los consejos y deshacer. No toca el DOM.
-- `renderer/views/scene/robotView.js`: el robot 3D, el globo, la escritura animada y la pastilla. Estilos en el bloque "Welcome robot" de `renderer/styles/main.css` (clases `rb-*`).
+- `renderer/views/scene/builders/robotBuilder.js`: la forma del robot (y `setFace` para su expresión). Sus materiales (`robotShell`, `robotTrim`, `robotFace`, `robotGlow`, `glowLines.accent`) están en `renderer/views/scene/materials.js`.
+- `renderer/views/scene/robotView.js`: la animación del robot, el globo, la escritura animada y la pastilla. Estilos en el bloque "Welcome robot" de `renderer/styles/main.css` (clases `rb-*`).
 - `renderer/i18n/es.js` → `map.welcome`: preguntas, recomendaciones (`stacks`), analogías, consejos (`tips`) y los pedidos al agente (`scaffoldPrompt`, `talkPrompt`). **Para cambiar lo que dice el robot o qué recomienda, se edita solo este archivo.**
 - `renderer/main.js`: acciones `openChat`, `askAgent` (con el pedido en espera) y `saveProgress`.
 - `renderer/models/agentModel.js`: `isGitCommand`.
