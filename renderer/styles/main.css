@@ -17,6 +17,19 @@
   --radius: 12px;
   --blur: blur(14px) saturate(140%);
   --sans: system-ui, -apple-system, "Segoe UI", "Inter", sans-serif;
+  /* Editor syntax colors: cool tones around the accent (amber, red and green stay for security) */
+  --syntax-keyword: #a59fff;
+  --syntax-string: #9fc2ff;
+  --syntax-number: #7fd3e6;
+  --syntax-type: #cdbfff;
+  --syntax-property: #b4bfcc;
+  --syntax-definition: #f2f4f6;
+  --syntax-comment: #6b7480;
+  --syntax-meta: #8b83ff;
+  --syntax-gutter: rgba(0, 0, 0, 0.12);
+  --syntax-active-line: rgba(255, 255, 255, 0.035);
+  --syntax-selection: rgba(139, 131, 255, 0.3);
+  --syntax-match: rgba(139, 131, 255, 0.16);
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 }
 

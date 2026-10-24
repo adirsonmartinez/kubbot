@@ -1248,15 +1248,21 @@ body:not(.chat-closed):not(.chat-min) #stage .editor:not(.moved) { right: 402px;
 .editor-notice-btn { border: 1px solid rgba(255, 194, 74, .4); border-radius: 6px; background: transparent; color: var(--warn); font: 600 11px var(--sans); padding: 3px 9px; cursor: pointer; }
 
 .editor-body { position: relative; display: flex; flex: 1; min-height: 0; }
-.editor-gutter, .editor-text { margin: 0; padding: 10px 0; font: 12px/1.6 var(--mono); tab-size: 2; }
-.editor-gutter {
-  flex: none; min-width: 34px; padding-left: 10px; padding-right: 10px; overflow: hidden; text-align: right;
-  color: var(--faint); background: rgba(0, 0, 0, .12); border-right: 1px solid var(--line); user-select: none;
-}
-.editor-text {
-  flex: 1; min-width: 0; padding-left: 12px; padding-right: 12px; border: 0; outline: none; resize: none;
-  background: transparent; color: var(--text); caret-color: var(--accent); white-space: pre; overflow: auto;
-}
-.editor-text::selection { background: rgba(139, 131, 255, .3); }
-.editor-gutter[hidden], .editor-text[hidden], .editor-message[hidden] { display: none; }
+.editor-code { flex: 1; min-width: 0; }
+.editor-code[hidden], .editor-message[hidden] { display: none; }
 .editor-message { flex: 1; display: grid; place-items: center; padding: 20px; color: var(--muted); font-size: 12px; text-align: center; }
+
+/* Syntax colors (CodeMirror's classHighlighter: one tok-* class per token kind) */
+.editor-code .tok-keyword, .editor-code .tok-operatorKeyword, .editor-code .tok-modifier, .editor-code .tok-controlKeyword { color: var(--syntax-keyword); }
+.editor-code .tok-string, .editor-code .tok-string2, .editor-code .tok-url, .editor-code .tok-link { color: var(--syntax-string); }
+.editor-code .tok-number, .editor-code .tok-bool, .editor-code .tok-atom, .editor-code .tok-literal { color: var(--syntax-number); }
+.editor-code .tok-typeName, .editor-code .tok-className, .editor-code .tok-namespace, .editor-code .tok-tagName { color: var(--syntax-type); }
+.editor-code .tok-propertyName, .editor-code .tok-attributeName, .editor-code .tok-labelName { color: var(--syntax-property); }
+.editor-code .tok-definition, .editor-code .tok-variableName.tok-definition { color: var(--syntax-definition); }
+.editor-code .tok-comment { color: var(--syntax-comment); font-style: italic; }
+.editor-code .tok-meta, .editor-code .tok-heading, .editor-code .tok-macroName { color: var(--syntax-meta); font-weight: 600; }
+.editor-code .tok-punctuation, .editor-code .tok-operator { color: var(--muted); }
+.editor-code .tok-strong { font-weight: 700; }
+.editor-code .tok-emphasis { font-style: italic; }
+.editor-code .tok-strikethrough { text-decoration: line-through; }
+.editor-code .tok-invalid { text-decoration: underline wavy var(--muted); }

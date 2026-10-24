@@ -83,6 +83,16 @@ export const strings = {
     confirmClose: (name) => `"${name}" tiene cambios sin guardar. ¿Cerrar y perderlos?`,
     stale: 'El archivo cambió en el disco mientras lo editabas.',
     reload: 'Recargar del disco',
+    // CodeMirror's own texts (search panel, folding), by its English phrase
+    phrases: {
+      'Find': 'Buscar', 'Replace': 'Reemplazar', 'next': 'siguiente', 'previous': 'anterior', 'all': 'todos',
+      'match case': 'mayúsculas', 'regexp': 'expresión regular', 'by word': 'palabra completa',
+      'replace': 'reemplazar', 'replace all': 'reemplazar todo', 'close': 'cerrar',
+      'current match': 'coincidencia actual', 'on line': 'en la línea', 'replaced match on line $': 'reemplazada en la línea $',
+      'replaced $ matches': '$ reemplazos', 'Go to line': 'Ir a la línea', 'go': 'ir',
+      'Folded lines': 'Líneas plegadas', 'Unfolded lines': 'Líneas desplegadas', 'to': 'a', 'folded code': 'código plegado',
+      'unfold': 'desplegar', 'Fold line': 'Plegar línea', 'Unfold line': 'Desplegar línea', 'Control character': 'Carácter de control',
+    },
     errors: {
       notFound: 'El archivo ya no existe.',
       notFile: 'No es un archivo.',
