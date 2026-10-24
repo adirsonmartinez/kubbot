@@ -25,7 +25,8 @@ renderer/
   i18n/es.js      every user-facing string (also tag labels, folder names, repair texts)
   services/       bridges to Electron (no logic): workspaceService (disk), agentService (agents + MCP),
                   mcpBridge (answers the MCP tools that need the window), serverService (listening servers),
-                  handTrackingService (camera -> hand landmarks with MediaPipe, local model in assets/hands/)
+                  handTrackingService (camera -> up to two hands' landmarks with MediaPipe, local model in assets/hands/;
+                  GPU or CPU, one hand when the CPU is too slow)
   models/         data and rules; no DOM, no three.js, no UI state
     projectModel (tree + detected integrations), fileTree, securityModel (traffic light), supabaseModel, demoProject,
     demoIntegrations (demo projects shown as connected to every integration)
@@ -35,12 +36,15 @@ renderer/
     repairHistoryModel (task list of repairs, per project, in localStorage),
     answerFormat (the agent's ```sugerencias block -> next steps),
     serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo),
-    handGesture (pinch tracker: hand landmarks -> drag or turn)
+    handGesture (pinch -> drag; two pinches, one holding and the other moving: up/down -> zoom, sideways -> turn;
+    open hand -> cursor; holding still -> select;
+    thresholds relative to the hand's size, with hysteresis)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
     camera, map (the whole project; problems glow), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open),
-    handControl (camera on/off, pinch and move pans the map, pinch and turn rotates it),
+    handControl (camera on/off, pinch and move pans the map; one hand holds and the other moves: up or down zooms
+    around the holding hand, sideways turns; an open hand moves a cursor that selects by holding still ~800 ms; fps; spec/003),
     editor (files clicked on the map as tabs: edit, save with the read mtime, disk changes reload or mark stale)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, robotView, inputController,
                   builders/ (block, glassFolder, folderIcon, fileIcon, plaza, folder, git, schema, supabase, integration, remi, remiModelLoader, robot)
@@ -48,7 +52,9 @@ renderer/
                   file links, chatCards: folder / file cards), icons (DOM helper over views/icons.js), thinkingOrb
                   (libraries.dev orbs over the package engine), agentPicker
                   (+ effortSlider), chatMenu, agentConnect, devTree, hoverCard, hud,
-                  repairPanel, remiJump, editor (floating file editor with tabs, CodeMirror with syntax colors; secrets open flagged), panels (breadcrumb, schema, git), controls, handControl (hand button + camera preview), labels
+                  repairPanel, remiJump, editor (floating file editor with tabs, CodeMirror with syntax colors; secrets open flagged), panels (breadcrumb, schema, git), controls, handControl (hand button + camera preview + "?" with the gestures),
+                  handCursor (purple cursor + hold-still ring; selects like a click), handTargets (what the cursor may
+                  select: 3D picks, and in panels anything clickable except data-gesture="never"), labels
                   floating layout: iconBar (reorderable icons), draggable (the chat by
                   header), floater (map cards: move, minimize, dock), chatDock (pinned chat column),
                   floatingMenu (⋯ menus: one layer above the app, anchored to its button, flips up, keyboard)
@@ -84,7 +90,7 @@ agent/            voice.json + skills/modo-vibe, skills/modo-dev (see agent/READ
 tests/renderer/   node:test unit tests for models and view models (renderer/package.json marks ESM for Node)
 tests/secrets.test.mjs  fails if any tracked file contains a credential
 docs/INTERFAZ.md  the interface: layout, chat and agents, repairs, where each piece lives, what is stored
-spec/             feature specs (TEMPLATE.md, 001-running-servers.md)
+spec/             feature specs (TEMPLATE.md, 001-running-servers.md, 003-hand-gestures.md)
 docs/             one README per feature (docs/features/<name>/README.md, in Spanish) and an index (docs/README.md)
 ```
 
@@ -100,6 +106,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 - The agent only acts through the local MCP tools. `platanus_write_file` always opens a confirmation dialog and backs up the previous version to `~/.platanus/backups/` (undo from the repair history). Secrets (`.env*`, keys, `.git/`, `.ssh/`, `.npmrc`…) are refused on the normalized and the real path.
 - Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`; Codex read-only, without the user's config and with its shell, browser, computer use, plugins and subagents disabled (`CODEX_DISABLED`). Do not loosen these flags.
 - The window only gets the camera (video only, never the microphone) and clipboard writes, and only for the app's page (`allowPermission` in `electron/main.js`); every other permission is denied. Hand tracking runs locally (`docs/features/hand-gestures/`).
+- Hand gestures select anything clickable in panels (`handTargets.js`), except what carries `data-gesture="never"` and everything inside it. Mark `never` on every action that runs without a confirmation dialog and changes code or security: repair, verify / mark fixed, undo an agent change, the approval mode, server actions (and `#server-menu`), the hand button. Actions that open a native `confirm()` (commit, revert, reset, switch, agent writes) are safe because, while a dialog is open, `electron/main.js` sends `dialog:state` and the hand selects nothing.
 - Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
 
 ## Visual style ("digital twin", dark)

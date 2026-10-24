@@ -2,6 +2,7 @@
 // Right or middle drag, or Shift + drag: orbit (sideways rotates, up/down tilts).
 // Wheel / pinch: zoom toward the cursor. Arrows or WASD: pan. Q / E: quarter turns. Click: pick.
 // G switches between the map and the git view; Esc closes whatever is open in the active view.
+// Returns { pickAtScreen, zoomAt } so hand gestures pick and zoom with this same code (no second raycaster).
 const CLICK_TOLERANCE_PX = 6;
 const ROTATE_SPEED = 0.008;
 const TILT_SPEED = 0.005;
@@ -70,14 +71,19 @@ export function createInputController({ sceneView, cameraViewModel: camera, pick
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('pointerleave', () => onHover(null));
 
-  canvas.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const before = sceneView.groundPointAt(e.clientX, e.clientY);
-    camera.setZoomNow(camera.zoom * Math.exp(-e.deltaY * 0.001));
+  // Zoom keeping the ground point under (clientX, clientY) in place
+  function zoomAt(factor, clientX, clientY) {
+    const before = sceneView.groundPointAt(clientX, clientY);
+    camera.setZoomNow(camera.zoom * factor);
     sceneView.syncCamera();
-    const after = sceneView.groundPointAt(e.clientX, e.clientY);
+    const after = sceneView.groundPointAt(clientX, clientY);
     if (before && after) camera.panBy(before.x - after.x, before.z - after.z);
     sceneView.syncCamera();
+  }
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    zoomAt(Math.exp(-e.deltaY * 0.001), e.clientX, e.clientY);
   }, { passive: false });
 
   window.addEventListener('keydown', (e) => {
@@ -97,4 +103,6 @@ export function createInputController({ sceneView, cameraViewModel: camera, pick
       sceneView.syncCamera();
     }
   });
+
+  return { pickAtScreen: pickAt, zoomAt };
 }

@@ -186,6 +186,8 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
     // Issue 5: store type and path in data attributes for reliable checks
     row.dataset.type = node.type;
     row.dataset.path = node.path;
+    // Opening a folder or a file: the hand may select the row (not its buttons) (spec/003-hand-gestures.md, D1)
+    row.dataset.gesture = 'safe';
 
     // ---- folder row ----
     if (node.type === 'dir') {
@@ -252,6 +254,7 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
       if ((node.level === 'red' || node.level === 'yellow') && !isRepairing(node.path)) {
         const repBtn = h('button', 'devtree-action-btn devtree-repair', S.repair);
         repBtn.type = 'button';
+        repBtn.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
         repBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           onRepair(node.path, repBtn);

@@ -26,7 +26,7 @@ export function createPanelsView({ appViewModel, mapViewModel, supabaseViewModel
     if (status !== 'ready') return;
     $('crumbs').innerHTML = crumbs.map((c, i) => (i === crumbs.length - 1
       ? `<strong>${escapeHtml(c.name)}</strong>`
-      : `<button type="button" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button><span class="sep">/</span>`)).join('');
+      : `<button type="button" data-gesture="safe" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button><span class="sep">/</span>`)).join('');
     $('crumbs').title = crumbs.length > 1 ? strings.panels.upHint : '';
     $('level-legend').innerHTML = ['red', 'yellow', 'green']
       .map((l) => `<span class="${l}${plaza.counts[l] ? '' : ' zero'}" title="${strings.panels.levelCount(l, plaza.counts[l])}"><i class="lvl" style="background:${LEVEL_STYLE[l].color}"></i>${plaza.counts[l]}</span>`)

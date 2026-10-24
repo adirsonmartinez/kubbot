@@ -17,6 +17,7 @@ export const ICON_NAMES = {
   rotateRight: 'RedoIcon',
   center: 'Gps01Icon',
   hand: 'HandGrabIcon', // move the map with a hand in front of the camera
+  help: 'HelpCircleIcon', // the gestures, under the camera preview
   bot: 'BotIcon',
   pin: 'PinIcon',
   arrowUp: 'ArrowUp02Icon',
