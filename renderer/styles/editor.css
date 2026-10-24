@@ -78,3 +78,11 @@
 /* Code: the gutter blends into the glass */
 #stage .editor-code .cm-gutters { border-right: 1px solid var(--lg-line); }
 #stage .editor-message { color: var(--lg-muted); font: 12.5px var(--lg-font); }
+
+/* Scrollbars like the chat's: thin, translucent thumb, no track, no white corner */
+#stage .editor { color-scheme: dark; }
+#stage .editor .cm-scroller { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .16) transparent; }
+#stage .editor .cm-scroller::-webkit-scrollbar { width: 10px; height: 10px; }
+#stage .editor .cm-scroller::-webkit-scrollbar-track, #stage .editor .cm-scroller::-webkit-scrollbar-corner { background: transparent; }
+#stage .editor .cm-scroller::-webkit-scrollbar-thumb { border: 3px solid transparent; border-radius: 99px; background: rgba(255, 255, 255, .14) padding-box; }
+#stage .editor .cm-scroller::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, .26); }
