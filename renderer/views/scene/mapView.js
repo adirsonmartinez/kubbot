@@ -1,28 +1,35 @@
-// Draws the project map from MapViewModel: the project's plaza in the middle (its root files), every
-// top-level folder around it, linked by plain roads, and the open folder's subfolders (small folders)
-// and files on a tray beside it. Problems glow; anything that appears for the first time rises from the
-// ground. Labels follow the mode (friendly names in Vibe, folder names and counts in Dev); files only get
-// one when they have a problem, so a big project does not drown in names (hover shows the rest).
+// Draws the project tree from MapViewModel: the integrations band across the top, the project's plaza
+// (its root files), the row of top-level folders below it, and the open path unfolding further down
+// (small folders and files), all linked by plain roads. Problems glow; anything that appears for the first time rises from the
+// ground. Folder labels are short (name and risk); files only get one when they have a problem, so a big
+// project does not drown in names (hover shows the rest).
 import * as THREE from 'three';
-import { groundLink, materials as M } from './materials.js';
+import { box, groundLink, materials as M } from './materials.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { buildBlock } from './builders/blockBuilder.js';
 import { buildFolderIcon } from './builders/folderIconBuilder.js';
-import { buildFileTray, buildPlaza } from './builders/plazaBuilder.js';
+import { buildFileIcons, buildPlaza } from './builders/plazaBuilder.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
-import { TAG_COLOR } from '../../models/folderTags.js';
-import { FOLDER } from '../../viewmodels/layout.js';
+import { BOX, boxHeight, FOLDER, SCREEN_ANGLE, screenOf, toWorld } from '../../viewmodels/layout.js';
 
 // 'folders': isometric folders; 'blocks': plain cubes; 'detailed': full buildings
-const BUILDING_STYLE = 'folders';
+const BUILDING_STYLE = 'blocks';
 
 const RISE_SPEED = 2.2;
-const SUBFOLDER_SCALE = 0.3; // folders inside the open one, on its tray
-const ICON_RISE_STAGGER = 0.06;
+const GLIDE_SPEED = 3; // folders that move (rows making room for an open folder) slide in ~1/3 s
+const SUBFOLDER_SCALE = 0.5; // folders inside an open one
 
-const tagHtml = (tags = []) =>
-  tags.length ? `<span class="tags">${tags.map((t) => `<em style="--c:${TAG_COLOR[t]}">${escapeHtml(strings.tags[t] ?? t)}</em>`).join('')}</span>` : '';
+// A folder in the current style: a box as tall as its file count, an isometric folder or a building
+function buildFolder(f) {
+  if (BUILDING_STYLE === 'blocks') return buildBlock({ size: BOX.size, height: boxHeight(f.files), level: f.level });
+  if (BUILDING_STYLE === 'folders') return buildFolderIcon({ size: FOLDER.size, files: f.files, level: f.level });
+  return buildFolderBuilding(f);
+}
+const BRANCH_FILE_SCALE = 1.5; // files inside an open folder
+const ROAD_WIDTH = { top: 0.35, branch: 0.2 };
+const ICON_RISE_STAGGER = 0.06;
+const MAX_PLAZA_LABELS = 3;     // more root files with a problem than this: their names only on hover
 
 // Last line of a label: its problems, if any
 function riskLine(counts) {
@@ -31,29 +38,28 @@ function riskLine(counts) {
   return '';
 }
 
-function folderLabel(b, tech) {
-  const title = tech || !b.friendly ? `${escapeHtml(b.name)}/` : escapeHtml(b.friendly);
-  const sub = tech ? strings.map.files(b.files) : `${escapeHtml(b.name)}/`;
-  return `<strong>${title}</strong><span>${sub}</span>${tagHtml(b.tags)}${riskLine(b.counts)}`;
-}
-
+// Folder labels, at any zoom and in both modes: the folder's own name and its risk line (the hover card
+// has the rest), so neighbors never cover each other
+const folderLabel = (f) => `<strong>${escapeHtml(f.name)}/</strong>${riskLine(f.counts)}`;
 const hasProblem = (f) => f.level === 'yellow' || f.level === 'red';
-const subfolderLabel = (f) => `<strong>${escapeHtml(f.name)}/</strong>${riskLine(f.counts)}`;
 
 // Files on the map are always direct children of what is shown (the plaza or the open folder): the name is enough
 const fileLabel = (f) => `<strong class="${f.level}">${escapeHtml(f.name)}</strong>`;
 
-export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
+export function createMapView({ sceneView, labels, mapViewModel }) {
   let group = null;
   let ownLabels = [];
   let session = null;
   const seen = new Set();       // 'folder:path' / 'file:path' already shown this session (they do not rise again)
   const risers = [];            // { group, k, to: final scale.y }
+  const lastAt = new Map();     // 'folder:path' -> { x, z } where it was drawn last time
+  const gliders = [];           // { group, from, to, k }
   function clear() {
     if (group) sceneView.layers.map.remove(group);
     ownLabels.forEach((l) => l.remove());
     ownLabels = [];
     risers.length = 0;
+    gliders.length = 0;
     group = null;
   }
 
@@ -66,11 +72,23 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     object.scale.y = 0.001;
   }
 
-  function addFiles(built, files, animate) {
+  // Files get a label when they have a problem, unless there are too many of them (`labeled` false)
+  // Something already on the map that has to move slides from where it was (labels follow its anchor)
+  function glide(key, object, x, z, label) {
+    const from = lastAt.get(key);
+    lastAt.set(key, { x, z });
+    if (!from || (from.x === x && from.z === z)) return;
+    object.position.x = from.x;
+    object.position.z = from.z;
+    gliders.push({ group: object, from, to: { x, z }, k: 0, label, dy: label.anchor.y });
+    label.setAnchor(from.x, label.anchor.y, from.z);
+  }
+
+  function addFiles(built, files, animate, labeled = true) {
     built.icons.forEach(({ mesh, index }) => {
       const f = files[index];
       rise(`file:${f.path}`, mesh, index * ICON_RISE_STAGGER, animate);
-      if (!hasProblem(f)) return;
+      if (!labeled || !hasProblem(f)) return;
       ownLabels.push(labels.add({
         html: fileLabel(f),
         anchor: { x: mesh.position.x + built.group.position.x, y: built.top + 1.2, z: mesh.position.z + built.group.position.z },
@@ -90,17 +108,30 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     if (state.session !== session) {
       session = state.session;
       seen.clear();
+      lastAt.clear();
     }
-    const tech = modeModel.tech;
 
     group = new THREE.Group();
     sceneView.layers.map.add(group);
+
+    // The integrations band across the top, with its name at the left end
+    const { band } = state;
+    box(group, M.band, band.width, 0.03, band.depth, band.x, 0, band.z, SCREEN_ANGLE).castShadow = false;
+    const b0 = screenOf(band.x, band.z);
+    const edge = toWorld(b0.u, b0.v + band.depth / 2);
+    box(group, M.slabEdge, band.width, 0.05, 0.08, edge.x, 0, edge.z, SCREEN_ANGLE).castShadow = false;
+    ownLabels.push(labels.add({ html: `<span>${strings.map.integrations}</span>`, anchor: { ...toWorld(b0.u - band.width / 2 + 5, b0.v - band.depth / 2 + 1.5), y: 0.2 }, className: 'band', align: 'below' }));
+
+    // The roads of the tree
+    state.links.forEach(([x1, z1, x2, z2, kind]) => {
+      groundLink(group, M.road, x1, z1, x2, z2, ROAD_WIDTH[kind], 0.05).castShadow = false;
+    });
 
     // The project's plaza with its root files
     const { plaza, root } = state;
     const built = buildPlaza(plaza);
     group.add(built.group);
-    addFiles(built, plaza.files, animate);
+    addFiles(built, plaza.files, animate, plaza.files.filter(hasProblem).length <= MAX_PLAZA_LABELS);
     addMore(plaza.more, plaza.size / 2, plaza.size / 2);
     const summary = root.red + root.yellow ? strings.map.watched(root.total) : strings.map.allClear;
     ownLabels.push(labels.add({
@@ -109,44 +140,43 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
       className: 'root',
     }));
 
-    // Every top-level folder around it
+    // The row of top-level folders
     state.buildings.forEach((b) => {
-      groundLink(group, M.road, 0, 0, b.x, b.z, 0.35, 0.05).castShadow = false;
-      const building = BUILDING_STYLE === 'folders'
-        ? buildFolderIcon({ size: FOLDER.size, files: b.files, level: b.level })
-        : BUILDING_STYLE === 'blocks'
-          ? buildBlock({ size: FOLDER.size, height: b.height, level: b.level })
-          : buildFolderBuilding(b);
+      const building = buildFolder(b);
       building.group.position.set(b.x, 0, b.z);
       building.group.userData.pick = { type: 'folder', path: b.path };
       group.add(building.group);
-      ownLabels.push(labels.add({
-        html: folderLabel(b, tech),
+      const label = labels.add({
+        html: folderLabel(b),
         anchor: { x: b.x, y: building.top + 0.9, z: b.z },
         className: b.open ? 'open' : '',
-      }));
+      });
+      ownLabels.push(label);
       rise(`folder:${b.path}`, building.group, b.order * 0.06, animate);
+      glide(`folder:${b.path}`, building.group, b.x, b.z, label);
     });
 
-    // The open folder's contents on a tray beside its top-level folder: subfolders, then files
-    const { opened } = state;
-    if (opened) {
-      const folder = state.buildings.find((b) => b.path === opened.top);
-      groundLink(group, M.road, folder.x, folder.z, opened.x, opened.z, 0.35, 0.05).castShadow = false;
-      const tray = buildFileTray(opened);
-      group.add(tray.group);
-      opened.folders.forEach((f, i) => {
-        const sub = buildFolderIcon({ size: FOLDER.size, files: f.files, level: f.level });
+    // The open path, one level per branch: subfolders, then files
+    state.branches.forEach((branch) => {
+      branch.folders.forEach((f, i) => {
+        const sub = buildFolder(f);
         sub.group.scale.setScalar(SUBFOLDER_SCALE);
-        sub.group.position.set(f.x, tray.top, f.z);
+        sub.group.position.set(f.x, 0, f.z);
         sub.group.traverse((o) => { o.userData.pick = { type: 'folder', path: f.path }; });
         group.add(sub.group);
-        ownLabels.push(labels.add({ html: subfolderLabel(f), anchor: { x: f.x, y: tray.top + sub.top * SUBFOLDER_SCALE + 0.5, z: f.z }, className: 'file' }));
+        ownLabels.push(labels.add({
+          html: folderLabel(f),
+          anchor: { x: f.x, y: sub.top * SUBFOLDER_SCALE + 0.5, z: f.z },
+          className: `file${f.open ? ' open' : ''}`,
+        }));
         rise(`folder:${f.path}`, sub.group, i * ICON_RISE_STAGGER, animate);
       });
-      addFiles(tray, opened.files, animate);
-      addMore(opened.more, opened.x + opened.size / 2, opened.z + opened.size / 2);
-    }
+      const icons = buildFileIcons(branch.files, BRANCH_FILE_SCALE);
+      group.add(icons.group);
+      addFiles(icons, branch.files, animate);
+      const last = branch.files.at(-1) ?? branch.folders.at(-1);
+      if (last) addMore(branch.more, last.x + 1.2, last.z + 1.2);
+    });
   }
 
   mapViewModel.store.subscribe((state, previous) => {
@@ -154,12 +184,17 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     render(state);
   }, { immediate: true });
 
-  // Switching Vibe/Dev only rewrites the labels: redraw without the rise animation
-  modeModel.store.subscribe((state, previous) => {
-    if (state.mode !== previous.mode) render(mapViewModel.store.state, { animate: false });
-  });
-
   sceneView.onFrame((t, dt) => {
+    for (let i = gliders.length - 1; i >= 0; i--) {
+      const g = gliders[i];
+      g.k = Math.min(g.k + dt * GLIDE_SPEED, 1);
+      const e = 1 - (1 - g.k) ** 3;
+      const x = g.from.x + (g.to.x - g.from.x) * e, z = g.from.z + (g.to.z - g.from.z) * e;
+      g.group.position.x = x;
+      g.group.position.z = z;
+      g.label.setAnchor(x, g.dy, z);
+      if (g.k >= 1) gliders.splice(i, 1);
+    }
     for (let i = risers.length - 1; i >= 0; i--) {
       const r = risers[i];
       r.k = Math.min(r.k + dt * RISE_SPEED, 1);

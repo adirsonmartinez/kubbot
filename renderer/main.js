@@ -131,7 +131,7 @@ applyStrings();
 applyIcons(); // Hugeicons into the static <i data-icon> slots, before the views look for them
 const sceneView = createSceneView(cameraViewModel, stage); // the map lives in the IDE stage
 const labels = createLabelLayer(document.getElementById('map-labels'), sceneView);
-const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
+const mapView = createMapView({ sceneView, labels, mapViewModel });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
 const gitView = createGitView({ sceneView, labels, gitViewModel });
 createRemiView({ sceneView, labels, repairViewModel });

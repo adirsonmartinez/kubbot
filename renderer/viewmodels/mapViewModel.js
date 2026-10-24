@@ -1,21 +1,23 @@
-// The whole project as a map. In the middle, the project's plaza with its root files; around it, every
-// top-level folder. Safe things stay calm, problems glow (amber / red) and come first. Opening a folder
-// lays out its direct subfolders and files beside it; opening a subfolder goes one level down, beside the
-// same top-level folder. Esc goes back up. It also routes clicks and coordinates the schema.
+// The whole project as a tree that unfolds down the screen. At the top, the project's plaza with its root
+// files; below it, a row with every top-level folder. Opening a folder unfolds its direct subfolders and
+// files in a block below it, and opening one of those unfolds one more level: one path at a time (opening
+// another folder folds the rest). Safe things stay calm, problems glow (amber / red) and come first.
+// Above the plaza, a darker band holds the integrations. Esc goes back up. It also routes clicks and
+// coordinates the schema.
 import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
 import { allFiles, baseName, countDirs, countFiles, findNode } from '../models/fileTree.js';
 import { LEVEL_RANK, worstLevel } from '../models/securityModel.js';
 import { fileTags, folderGuide } from '../models/folderTags.js';
-import { folderHeight, folderSlots, levelZoom, plazaGrid, sideGrid } from './layout.js';
+import { fitView, folderHeight, INTEGRATIONS, plazaGrid, screenOf, toWorld, TREE, treeBlock } from './layout.js';
 
 const WELCOME_ZOOM = 1.9; // close to the plaza of a new project, where the robot stands
 const emptyCounts = () => ({ green: 0, yellow: 0, red: 0, grey: 0 });
 const parentOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 const topFolderOf = (path) => path.split('/')[0];
 const MAX_PLAZA_FILES = 24; // root files on the plaza; the rest is counted ("+N")
-const MAX_SIDE_ITEMS = 48;  // subfolders and files beside an open folder
+const MAX_BRANCH_ITEMS = 48; // subfolders and files below an open folder
 const byRisk = (a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level] || a.path.localeCompare(b.path);
 
 export class MapViewModel {
@@ -31,7 +33,7 @@ export class MapViewModel {
   // `welcome`: a new, empty project, where a robot on the plaza asks what to build
   store = new Observable({
     status: 'empty', session: 0, projectName: '', path: '', crumbs: [],
-    root: null, plaza: null, buildings: [], opened: null, welcome: false, version: 0,
+    root: null, plaza: null, buildings: [], branches: [], opened: null, links: [], band: null, welcome: false, version: 0,
   });
 
   constructor({ projectModel, securityModel, camera, supabaseViewModel, bus }) {
@@ -121,13 +123,13 @@ export class MapViewModel {
   // What the hover card shows for a pick (null = nothing to show)
   //   { kind: 'folder' | 'file', path, name, friendly?, tags, level, files?, red?, yellow?, size?, reason?, reasonKey? }
   describePick(pick) {
-    const { buildings, plaza, opened } = this.store.state;
+    const { buildings, plaza, branches } = this.store.state;
     if (pick.type === 'folder') {
-      const b = [...buildings, ...(opened?.folders ?? [])].find((x) => x.path === pick.path);
+      const b = [...buildings, ...branches.flatMap((x) => x.folders)].find((x) => x.path === pick.path);
       return b ? { kind: 'folder', ...b } : null;
     }
     if (pick.type === 'file') {
-      const file = [...(plaza?.files ?? []), ...(opened?.files ?? [])].find((f) => f.path === pick.path);
+      const file = [...(plaza?.files ?? []), ...branches.flatMap((x) => x.files)].find((f) => f.path === pick.path);
       return file ? { kind: 'file', ...file, tags: fileTags(file.path) } : null;
     }
     return null;
@@ -138,7 +140,7 @@ export class MapViewModel {
     const folder = path.includes('/') ? topFolderOf(path) : '';
     if (folder) this.enterFolder(parentOf(path));
     const icon = this.store.state.opened?.files.find((f) => f.path === path);
-    if (icon) return { folder, x: icon.x, z: icon.z, height: 1, radius: this.store.state.opened.size / 2 }; // just off the tray
+    if (icon) return { folder, x: icon.x, z: icon.z, height: 1, radius: 1.6 }; // just off the icon
     const plaza = this.store.state.plaza;
     return { folder, x: 0, z: 0, height: 1, radius: (plaza?.size ?? 5) / 2 };
   }
@@ -193,14 +195,14 @@ export class MapViewModel {
   }
 
   #recompute({ path = this.store.state.path, announce = false } = {}) {
-    const { open, name, tree, usesSupabase, session } = this.#project.store.state;
+    const { open, name, tree, session } = this.#project.store.state;
     const newSession = session !== this.#session;
     this.#session = session;
     if (newSession) path = '';
     path = open ? this.#existing(tree, path) : '';
 
     if (!open) {
-      this.store.set({ status: 'empty', path: '', crumbs: [], root: null, plaza: null, buildings: [], opened: null, welcome: false, version: this.store.state.version + 1 });
+      this.store.set({ status: 'empty', path: '', crumbs: [], root: null, plaza: null, buildings: [], branches: [], opened: null, links: [], band: null, welcome: false, version: this.store.state.version + 1 });
       return;
     }
 
@@ -214,41 +216,74 @@ export class MapViewModel {
     const files = rootFiles.slice(0, MAX_PLAZA_FILES);
     const grid = plazaGrid(files.length);
 
-    // Every top-level folder, problems first
+    // Links of the tree, in world coordinates [x1, z1, x2, z2, kind]
+    const links = [];
+    const addLinks = (block, kind) => block.links.forEach(([u1, v1, u2, v2]) => {
+      const a = toWorld(u1, v1), b = toWorld(u2, v2);
+      links.push([a.x, a.z, b.x, b.z, kind]);
+    });
+
+    // Every top-level folder, problems first, in rows below the plaza
     const dirs = this.#sortFolders(tree.filter((c) => c.type === 'dir').map((dir) => ({ ...this.#describeFolder(dir), node: dir })));
     const top = path ? topFolderOf(path) : '';
-    const slots = folderSlots(dirs.length, { plazaSize: grid.size, avoidSupabase: usesSupabase });
+    const topOptions = { parentU: 0, parentV: 0, startV: grid.size * Math.SQRT1_2 + TREE.gap + TREE.itemHalf.top, ...TREE.top };
+    const topIndex = dirs.findIndex((d) => d.path === top);
+
+    // The open path: each folder on it unfolds its direct contents (subfolders first, then files) right
+    // below it. Its row of top-level folders stays put; the rows under it move down to make room.
+    const firstBlock = treeBlock(dirs.length, topOptions);
+    const branches = [];
+    const branchLinks = [];
+    let parent = topIndex >= 0 ? firstBlock.slots[topIndex] : null; // { u, v } on screen
+    let endV = parent ? parent.v + TREE.itemHalf.top : 0;
+    const levels = path ? path.split('/').map((_, i, parts) => parts.slice(0, i + 1).join('/')) : [];
+    for (const dirPath of levels) {
+      if (!parent) break;
+      const children = findNode(tree, dirPath).children ?? [];
+      const subfolders = this.#sortFolders(children.filter((c) => c.type === 'dir').map((d) => this.#describeFolder(d)));
+      const inside = children.filter((c) => c.type === 'file').map((f) => this.#describeFile(f)).sort(byRisk);
+      const shown = [...subfolders, ...inside].slice(0, MAX_BRANCH_ITEMS);
+      // Kept right of the top-level rows' spine (when they wrap), so the branch never runs over it
+      const minU = firstBlock.spine === null ? -Infinity : firstBlock.spine + 2;
+      const block = treeBlock(shown.length, { parentU: parent.u, parentV: parent.v, startV: endV + TREE.gap + TREE.itemHalf.branch, minU, ...TREE.branch });
+      branchLinks.push(block);
+      const next = levels[branches.length + 1];
+      const placed = shown.map((item, i) => ({ ...item, ...toWorld(block.slots[i].u, block.slots[i].v), open: item.path === next }));
+      branches.push({
+        path: dirPath,
+        top,
+        ...toWorld(parent.u, (endV + block.endV) / 2 + TREE.gap),
+        width: block.width,
+        folders: placed.slice(0, Math.min(subfolders.length, shown.length)),
+        files: placed.slice(subfolders.length),
+        more: subfolders.length + inside.length - shown.length,
+      });
+      endV = block.endV + TREE.itemHalf.branch;
+      const openIndex = placed.findIndex((item) => item.open);
+      parent = openIndex >= 0 ? block.slots[openIndex] : null;
+    }
+
+    // The top-level rows, with a gap under the open folder's row as tall as its branches
+    const openRow = topIndex >= 0 ? Math.floor(topIndex / TREE.top.cols) : -1;
+    const gap = branches.length ? endV - (firstBlock.slots[topIndex].v + TREE.itemHalf.top) + TREE.gap : 0;
+    const topBlock = treeBlock(dirs.length, { ...topOptions, insert: gap ? { row: openRow, height: gap } : null });
+    addLinks(topBlock, 'top');
+    branchLinks.forEach((block) => addLinks(block, 'branch'));
     const buildings = dirs.map(({ node, ...folder }, i) => ({
       ...folder,
-      x: slots[i].x,
-      z: slots[i].z,
+      ...toWorld(topBlock.slots[i].u, topBlock.slots[i].v),
       height: folderHeight(folder.files),
       ...this.#guideOf(folder.path, node.children ?? []),
       open: folder.path === top,
       order: i,
     }));
+    const opened = branches.at(-1) ?? null;
 
-    // The open folder's direct contents, beside its top-level folder: subfolders first, then files
-    const openBuilding = buildings.find((b) => b.open);
-    let opened = null;
-    if (openBuilding) {
-      const children = findNode(tree, path).children ?? [];
-      const subfolders = this.#sortFolders(children.filter((c) => c.type === 'dir').map((d) => this.#describeFolder(d)));
-      const inside = children.filter((c) => c.type === 'file').map((f) => this.#describeFile(f)).sort(byRisk);
-      const shown = [...subfolders, ...inside].slice(0, MAX_SIDE_ITEMS);
-      const side = sideGrid(shown.length, openBuilding);
-      const placed = shown.map((item, i) => ({ ...item, ...side.slots[i] }));
-      opened = {
-        path,
-        top,
-        x: side.x,
-        z: side.z,
-        size: side.size,
-        folders: placed.slice(0, Math.min(subfolders.length, shown.length)),
-        files: placed.slice(subfolders.length),
-        more: subfolders.length + inside.length - shown.length,
-      };
-    }
+    // The integrations band, across the top, as wide as the tree
+    const treeU = [0, ...links.flatMap(([x1, z1, x2, z2]) => [screenOf(x1, z1).u, screenOf(x2, z2).u])];
+    const halfWidth = Math.max(INTEGRATIONS.minWidth / 2, ...treeU.map(Math.abs)) + INTEGRATIONS.margin;
+    const bandCenter = toWorld(0, (INTEGRATIONS.bandTop + INTEGRATIONS.bandBottom) / 2);
+    const band = { ...bandCenter, width: halfWidth * 2, depth: INTEGRATIONS.bandBottom - INTEGRATIONS.bandTop };
 
     // Project, then each folder down to the open one
     const crumbs = [{ name: projectName, path: '' }];
@@ -277,19 +312,32 @@ export class MapViewModel {
         size: grid.size,
         total,
         folders: buildings.length,
-        ...(opened ? this.#levelsOf(findNode(tree, path).children ?? []) : project),
+        ...(path ? this.#levelsOf(findNode(tree, path).children ?? []) : project),
       },
       buildings,
+      branches,
       opened,
+      links,
+      band,
       welcome: this.#welcomeSession !== null,
       version: this.store.state.version + 1,
     });
 
     this.#supabase.setOnScreen(true);
     if (opened) {
-      if (announce) this.#camera.flyTo({ x: (openBuilding.x + opened.x) / 2, z: (openBuilding.z + opened.z) / 2 }, 1.1);
+      // The newest level, with its parent folder above it
+      if (announce) {
+        const items = [...opened.folders, ...opened.files];
+        const view = fitView([...items, branches.length > 1 ? branches.at(-2).folders.find((f) => f.open) : buildings.find((b) => b.open)]);
+        this.#camera.flyTo(view, Math.min(view.zoom, 1.1));
+      }
     } else if (newSession || announce) {
-      this.#camera.flyTo({ x: 0, z: 0 }, levelZoom(grid.size, buildings.length));
+      // From the integrations (their nodes, not the empty ends of the band) down to the top-level folders
+      const bottom = topBlock.endV + TREE.itemHalf.top;
+      const width = Math.max(topBlock.width / 2, 6) + 3;
+      const nodes = (INTEGRATIONS.bandTop + INTEGRATIONS.bandBottom) / 2;
+      const view = fitView([toWorld(-6, nodes), toWorld(6, nodes), toWorld(-width, bottom), toWorld(width, bottom)]);
+      this.#camera.flyTo(view, view.zoom);
     }
     if (announce && path) this.#announce(path, findNode(tree, path).children ?? []);
   }

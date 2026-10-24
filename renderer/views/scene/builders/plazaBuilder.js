@@ -1,5 +1,5 @@
-// Plazas with files: the project's plaza in the middle of the map (its root files) and the tray next to
-// an open folder (its contents). Files come sorted riskiest first.
+// Files on the map: the project's plaza at the top of the tree (its root files, on a platform) and the
+// files of an open folder (on the ground, below it). Files come sorted riskiest first.
 import * as THREE from 'three';
 import { box, materials as M, platform } from '../materials.js';
 import { PLAZA } from '../../../viewmodels/layout.js';
@@ -34,10 +34,13 @@ export function buildPlaza({ size, cols, files }) {
   return { group: g, top: base, icons };
 }
 
-// tray: { x, z, size, files: [{ path, level, x, z }] } in world units
-export function buildFileTray({ x, z, size, files }) {
+// files: [{ path, level, x, z }] in world units, standing on the ground at `scale`
+export function buildFileIcons(files, scale = 1) {
   const g = new THREE.Group();
-  const base = platform(g, size, size, x, z);
-  const icons = files.map((file, i) => addIcon(g, file, file.x, base, file.z, i));
-  return { group: g, top: base, icons };
+  const icons = files.map((file, i) => {
+    const icon = addIcon(g, file, file.x, 0, file.z, i);
+    icon.mesh.scale.setScalar(scale);
+    return icon;
+  });
+  return { group: g, top: 0, icons };
 }

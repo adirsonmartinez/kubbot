@@ -99,6 +99,7 @@ export const strings = {
     allClear: 'Todo en orden',
     emptyFolder: 'vacía',
     more: (n) => `+${n} más`,
+    integrations: 'Integraciones',
     defaultProjectName: 'proyecto',
     // The robot on the plaza of a new, empty project
     welcome: { title: '¡Hola! Soy tu robot', question: '¿Qué quieres construir hoy?' },

@@ -1,14 +1,20 @@
 // World layout shared by view models (to place things / aim the camera) and views (to build them).
 // Units are map grid cells.
 import { clamp } from '../core/format.js';
-
-export const SUPABASE_NODE = { x: 21, z: 0 };
-export const SCHEMA_CENTER = { x: SUPABASE_NODE.x - 0.4, z: SUPABASE_NODE.z - 13 };
+import { CAMERA } from './cameraViewModel.js';
 
 // Git view: commits advance along X (newest at x = 0), each lane is a row along Z
 export const GIT_LAYOUT = { step: 2.4, laneGap: 3.6, zoom: 1.2 };
 
-// Plaza: the platform in the middle of the map, with the project's root files
+// The map is laid out in tree terms: u goes across the tree, v down it. At a camera azimuth of π/4 that is
+// right and down on screen ((+x, -z) and (+x, +z) on the ground); the default camera (azimuth 0) sees the
+// tree at a diagonal, running down to the right.
+const SQRT1_2 = Math.SQRT1_2;
+export const toWorld = (u, v) => ({ x: (u + v) * SQRT1_2, z: (v - u) * SQRT1_2 });
+export const screenOf = (x, z) => ({ u: (x - z) * SQRT1_2, v: (x + z) * SQRT1_2 });
+export const SCREEN_ANGLE = Math.PI / 4; // rotation (around y) that lines up a box with the screen axes
+
+// Plaza: the platform at the top of the tree, with the project's root files
 export const PLAZA = { cube: 0.7, pitch: 1.0, margin: 0.9, minSize: 5 };
 
 export function plazaGrid(fileCount) {
@@ -20,42 +26,72 @@ export function plazaGrid(fileCount) {
 // Folder on the map: its icon footprint and the platform it stands on
 export const FOLDER = { size: 3, platform: 4.6 };
 
-// Contents of an open folder (subfolders and files): a square grid next to its top-level folder, on its
-// far side from the plaza (so it never covers the roads). Slots are in world units, filled front rows first.
-export const SIDE = { pitch: 1.6, margin: 0.9 };
-export function sideGrid(count, folder) {
-  const { pitch, margin } = SIDE;
-  const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
-  const rows = Math.max(1, Math.ceil(count / cols));
-  const size = cols * pitch + margin * 1.4;
-  const length = Math.hypot(folder.x, folder.z);
-  const [dx, dz] = length ? [folder.x / length, folder.z / length] : [1, 0];
-  const t = (FOLDER.platform / 2 + size / 2 + 0.6) / Math.max(Math.abs(dx), Math.abs(dz));
-  const x = folder.x + dx * t, z = folder.z + dz * t;
-  const x0 = x - ((cols - 1) * pitch) / 2, z0 = z + ((rows - 1) * pitch) / 2;
-  const slots = Array.from({ length: count }, (_, i) => ({ x: x0 + (i % cols) * pitch, z: z0 - Math.floor(i / cols) * pitch }));
-  return { x, z, size, slots };
-}
-
 export const folderHeight = (files) => Math.min(1.2 + Math.log2(1 + files) * 1.4, 9);
 
-// Rings of slots around the plaza. Spacing grows with the plaza so folders never overlap it;
-// the Supabase node and its cable are kept clear when the node is shown.
-export function folderSlots(count, { plazaSize, avoidSupabase }) {
-  const spacing = Math.max(12, plazaSize + 7);
-  const slots = [];
-  for (let i = -8; i <= 8; i++) {
-    for (let j = -8; j <= 8; j++) {
-      if (i === 0 && j === 0) continue;
-      const x = i * spacing, z = j * spacing;
-      // Keep the node and its cable (from the plaza to the node, along X) clear
-      if (avoidSupabase && x > 0 && x < SUPABASE_NODE.x + 7.5 && Math.abs(z - SUPABASE_NODE.z) < 7.5) continue;
-      slots.push({ x, z, distance: Math.hypot(x, z), angle: Math.atan2(x, z) });
-    }
+// A folder as a box: wide and low, a bit taller with each doubling of its files (log scale, capped)
+export const BOX = { size: 2.2, minHeight: 0.8, step: 0.45, maxHeight: 4.5 };
+export const boxHeight = (files) => Math.min(BOX.minHeight + Math.log2(1 + files) * BOX.step, BOX.maxHeight);
+
+// The tree: the plaza at the top, the top-level folders in a row below it, and the open path unfolding
+// one level per block further down. `top` is the row of top-level folders, `branch` the contents of an
+// open folder (smaller items, closer together).
+export const TREE = {
+  top: { pitch: 9, cols: 8, rowGap: 9 },
+  branch: { pitch: 3.4, cols: 10, rowGap: 4.2 },
+  gap: 5,          // from the plaza's edge (or a folder) down to the bar its children hang from, and below
+  itemHalf: { top: 2.6, branch: 1.3 }, // half of an item's depth on screen: where the next level starts
+};
+
+// Items hanging from a parent: rows of up to `cols`, centered under the parent (but never left of `minU`),
+// the first row at `startV`. `insert` opens a gap of `height` after row `row` (an open folder's contents
+// unfold there, and the rows below move down). Links (in screen coordinates [u1, v1, u2, v2]) draw it as a
+// comb: a trunk down from the parent to a bar over the first row, one drop per item, and a spine on the
+// left joining the rows.
+export function treeBlock(count, { parentU, parentV, startV, pitch, cols, rowGap, minU = -Infinity, insert = null }) {
+  const rows = Math.max(1, Math.ceil(count / cols));
+  const width = (Math.min(count, cols) - 1) * pitch;
+  const left = Math.max(parentU - width / 2, minU);
+  const rowV = (r) => startV + r * rowGap + (insert && r > insert.row ? insert.height : 0);
+  const slots = Array.from({ length: count }, (_, i) => ({ u: left + (i % cols) * pitch, v: rowV(Math.floor(i / cols)) }));
+  const links = [];
+  if (!count) return { slots, links, endV: startV, width: 0, spine: null };
+
+  const bar = (r) => rowV(r) - rowGap / 2;
+  const spine = rows > 1 ? left - pitch / 2 : null;
+  links.push([parentU, parentV, parentU, bar(0)]);
+  for (let r = 0; r < rows; r++) {
+    const rowSlots = slots.slice(r * cols, (r + 1) * cols);
+    const ends = rowSlots.map((s) => s.u).concat(r === 0 ? [parentU] : []).concat(spine === null ? [] : [spine]);
+    links.push([Math.min(...ends), bar(r), Math.max(...ends), bar(r)]);
+    rowSlots.forEach((s) => links.push([s.u, bar(r), s.u, s.v]));
   }
-  slots.sort((a, b) => a.distance - b.distance || a.angle - b.angle);
-  return slots.slice(0, count);
+  if (spine !== null) links.push([spine, bar(0), spine, bar(rows - 1)]);
+  return { slots, links, endV: rowV(rows - 1), width, spine };
 }
 
-// Zoom that fits the map: bigger plazas and more folders (a second ring past 4, a third past 8) zoom out
-export const levelZoom = (plazaSize, folderCount) => clamp(1.15 - plazaSize * 0.02 - (folderCount > 4 ? 0.3 : 0) - (folderCount > 8 ? 0.2 : 0), 0.5, 1.1);
+// Integrations (Supabase…) live in a darker band across the top of the map, above the plaza. Their
+// builders work along +x from the plaza; INTEGRATIONS.rotation turns that axis up the screen.
+export const INTEGRATIONS = { rotation: (3 * Math.PI) / 4, bandTop: -20, bandBottom: -8, margin: 9, minWidth: 48 };
+export function integrationToWorld({ x, z }) {
+  const c = Math.cos(INTEGRATIONS.rotation), s = Math.sin(INTEGRATIONS.rotation);
+  return { x: x * c + z * s, z: -x * s + z * c };
+}
+
+// Supabase, in the integrations' own axes (+x away from the plaza, up the screen once rotated)
+export const SUPABASE_NODE = { x: 14, z: 0 };
+export const SCHEMA_CENTER = { x: SUPABASE_NODE.x - 0.4, z: SUPABASE_NODE.z - 13 };
+
+// Camera target and zoom that fit ground points on screen at the default camera angle. Screen across is
+// (cos a, -sin a) on the ground, screen depth (sin a, cos a), foreshortened by the elevation. The usable
+// area leaves room for the panels floating over the map.
+const VISIBLE = { across: 40, down: 24 };
+export function fitView(points) {
+  const a = CAMERA.azimuth, c = Math.cos(a), s = Math.sin(a);
+  const across = points.map((p) => p.x * c - p.z * s);
+  const depth = points.map((p) => p.x * s + p.z * c);
+  const mid = (list) => (Math.min(...list) + Math.max(...list)) / 2;
+  const span = (list) => Math.max(Math.max(...list) - Math.min(...list), 1);
+  const r = mid(across), d = mid(depth);
+  const zoom = clamp(Math.min(VISIBLE.across / span(across), VISIBLE.down / (span(depth) * Math.sin(CAMERA.elevation))), 0.4, 1.2);
+  return { x: r * c + d * s, z: -r * s + d * c, zoom };
+}

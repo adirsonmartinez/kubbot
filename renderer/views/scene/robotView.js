@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { buildRobot } from './builders/robotBuilder.js';
 import { strings } from '../../i18n/es.js';
+import { CAMERA } from '../../viewmodels/cameraViewModel.js';
 
 const SPOT = { x: 1.1, z: 1.1 }; // front corner of the plaza, so the bubble clears the project's label
 const BASE_Y = 0.6;              // hovering just above the plaza
@@ -11,7 +12,7 @@ const POP_SPEED = 2.4;
 export function createRobotView({ sceneView, labels, mapViewModel }) {
   const robot = buildRobot();
   robot.root.position.set(SPOT.x, BASE_Y, SPOT.z);
-  robot.root.rotation.y = Math.PI / 4; // faces the camera
+  robot.root.rotation.y = CAMERA.azimuth; // faces the camera
   robot.root.visible = false;
   sceneView.layers.map.add(robot.root);
 

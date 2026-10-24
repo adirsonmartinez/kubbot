@@ -177,6 +177,9 @@ body::after {
 .map-label.file { padding: 4px 8px 5px; }
 .map-label.file strong { font-size: 11px; }
 .map-label.more { padding: 3px 8px; }
+/* Name of the integrations band: plain text on the dark ground, not a card */
+.map-label.band { padding: 0; background: none; border: 0; box-shadow: none; }
+.map-label.band span { font: 600 10px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
 .map-label.more span { font: 600 11px var(--mono); }
 .map-label strong.yellow::before { background: var(--warn); }
 .map-label strong.red::before { background: var(--danger); }

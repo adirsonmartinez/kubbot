@@ -2,7 +2,7 @@
 // with foreign-key lines to `users` and a trunk line to the Supabase node.
 import * as THREE from 'three';
 import { box, groundLink, materials as M, warningSign } from '../materials.js';
-import { SCHEMA_CENTER, SUPABASE_NODE as SB } from '../../../viewmodels/layout.js';
+import { SUPABASE_NODE as SB } from '../../../viewmodels/layout.js';
 import { strings } from '../../../i18n/es.js';
 
 const PX = 128; // texture pixels per map unit
@@ -69,7 +69,8 @@ function drawCard(ctx, table, exposed) {
   ctx.strokeRect(4, 4, W - 8, H - 8);
 }
 
-export function buildSchema(renderer, tables, trunkStart) {
+// center and trunkStart in world coordinates (the cards themselves stay aligned with the ground grid)
+export function buildSchema(renderer, tables, trunkStart, center) {
   const root = new THREE.Group();
   root.visible = false;
   const links = new THREE.Group();
@@ -79,7 +80,7 @@ export function buildSchema(renderer, tables, trunkStart) {
     const depth = HEADER + table.columns.length * ROW + 0.15;
     const g = new THREE.Group();
     const [ox, oz] = CARD_SLOTS[i % CARD_SLOTS.length];
-    g.position.set(SCHEMA_CENTER.x + ox, 0, SCHEMA_CENTER.z + oz);
+    g.position.set(center.x + ox, 0, center.z + oz);
     g.userData.pick = { type: 'table', name: table.name };
     const base = box(g, M.slabEdge, CARD_WIDTH + 0.25, 0.15, depth + 0.25, 0, 0, 0);
     box(g, M.white, CARD_WIDTH, 0.45, depth, 0, 0.15, 0);

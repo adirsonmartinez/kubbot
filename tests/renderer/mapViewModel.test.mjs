@@ -5,6 +5,9 @@ import { MapViewModel } from '../../renderer/viewmodels/mapViewModel.js';
 import { SecurityModel } from '../../renderer/models/securityModel.js';
 import { Observable } from '../../renderer/core/observable.js';
 import { createEventBus, EVENTS } from '../../renderer/core/eventBus.js';
+import { screenOf } from '../../renderer/viewmodels/layout.js';
+
+const at = (item) => screenOf(item.x, item.z); // { u: right, v: down } on screen
 
 const file = (path) => ({ type: 'file', path, size: 100 });
 const dir = (path, children) => ({ type: 'dir', path, children });
@@ -67,7 +70,7 @@ test('every root file is on the plaza, riskiest first; past the limit the rest i
   assert.equal(many.state().plaza.more, 6);
 });
 
-test('opening a folder lays out its direct subfolders and files beside it', () => {
+test('opening a folder unfolds its direct subfolders and files below it', () => {
   const { vm, state } = setup();
   vm.enterFolder('src');
   assert.equal(state().path, 'src');
@@ -77,19 +80,28 @@ test('opening a folder lays out its direct subfolders and files beside it', () =
   assert.deepEqual(opened.folders.map((f) => f.path), ['src/lib']);
   assert.equal(opened.folders[0].level, 'red'); // the key two levels down
   assert.deepEqual(opened.files.map((f) => f.path), ['src/login.js', 'src/index.js']); // riskiest first
-  // Beside the folder, not on top of it
+  // Below the folder (down on screen), centered under it
   const [src] = state().buildings;
-  [...opened.folders, ...opened.files].forEach((f) => assert.ok(Math.max(Math.abs(f.x - src.x), Math.abs(f.z - src.z)) > 2.3));
+  const items = [...opened.folders, ...opened.files];
+  items.forEach((f) => assert.ok(at(f).v > at(src).v + 2));
+  const mean = items.reduce((sum, f) => sum + at(f).u, 0) / items.length;
+  assert.ok(Math.abs(mean - at(src).u) < 0.01);
   assert.equal(src.open, true);
 });
 
-test('opening a subfolder goes one level down, beside the same top-level folder', () => {
+test('opening a subfolder unfolds one more level, below the previous one', () => {
   const { vm, state } = setup();
   vm.enterFolder('src/lib');
   assert.equal(state().path, 'src/lib');
   assert.deepEqual(state().opened.folders.map((f) => f.path), ['src/lib/keys']);
   assert.deepEqual(state().opened.files.map((f) => f.path), ['src/lib/util.js']);
   assert.equal(state().opened.top, 'src');
+  // The path stays unfolded: src's contents, then lib's, each lower
+  assert.deepEqual(state().branches.map((b) => b.path), ['src', 'src/lib']);
+  const [first, second] = state().branches;
+  const lib = first.folders.find((f) => f.path === 'src/lib');
+  assert.equal(lib.open, true);
+  [...second.folders, ...second.files].forEach((f) => assert.ok(at(f).v > at(lib).v + 2));
   assert.deepEqual(state().crumbs.map((c) => [c.name, c.path]), [['demo', ''], ['src', 'src'], ['lib', 'src/lib']]);
   assert.equal(state().buildings.find((b) => b.path === 'src').open, true);
 });
@@ -175,6 +187,49 @@ test('hover describes folders, subfolders and files on the map', () => {
   assert.equal(vm.describePick({ type: 'folder', path: 'src/lib' }).level, 'red');
   assert.equal(vm.describePick({ type: 'file', path: 'src/login.js' }).level, 'yellow');
   assert.equal(vm.describePick({ type: 'file', path: 'README.md' }).level, 'green');
+});
+
+test('the project is a tree: top-level folders hang in a row below the plaza, left to right', () => {
+  const { state } = setup();
+  const { buildings, plaza } = state();
+  buildings.forEach((b) => assert.ok(at(b).v > plaza.size / 2));
+  const us = buildings.map((b) => at(b).u);
+  assert.deepEqual(us, [...us].sort((a, b) => a - b));
+  assert.ok(state().links.length > 0);
+});
+
+test('a folder in an upper row unfolds right below it: the rows under it move down to make room', () => {
+  const dirs = 'abcdefghij'.split('').map((n) => dir(n, [file(`${n}/one.js`), dir(`${n}/sub`, [file(`${n}/sub/x.js`)])]));
+  const { vm, state } = setup(dirs);
+  const rowOf = () => Object.fromEntries(state().buildings.map((b) => [b.path, at(b).v]));
+  const before = rowOf();
+  assert.ok(before.i > before.a); // i and j are on the second row
+  vm.enterFolder('a');
+  const after = rowOf();
+  const items = [...state().opened.folders, ...state().opened.files];
+  items.forEach((f) => {
+    assert.ok(at(f).v > after.a); // below a…
+    assert.ok(at(f).v < after.i - 2); // …and above the next row, which moved down
+  });
+  assert.ok(after.i > before.i);
+  assert.equal(after.b, before.b); // the open folder's own row stays put
+});
+
+test('opening another top-level folder folds the previous branch: one path at a time', () => {
+  const { vm, state } = setup();
+  vm.enterFolder('src/lib');
+  vm.enterFolder('docs');
+  assert.deepEqual(state().branches.map((b) => b.path), ['docs']);
+  assert.deepEqual(state().buildings.filter((b) => b.open).map((b) => b.path), ['docs']);
+});
+
+test('the integrations band runs across the top, above the plaza and as wide as the tree', () => {
+  const { state } = setup();
+  const { band, buildings } = state();
+  const c = screenOf(band.x, band.z);
+  assert.ok(c.v + band.depth / 2 < -state().plaza.size / 2);
+  const widest = Math.max(...buildings.map((b) => Math.abs(at(b).u)));
+  assert.ok(band.width / 2 > widest);
 });
 
 // A new project: the workspace creates an empty folder and opens it
