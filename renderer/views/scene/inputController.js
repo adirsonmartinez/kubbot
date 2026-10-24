@@ -8,7 +8,7 @@ const TILT_SPEED = 0.005;
 const KEY_PAN = 2.5;
 
 // picker(): the active view's { targets: Object3D[], handle(pick) }, or null when nothing is clickable
-export function createInputController({ sceneView, cameraViewModel: camera, picker, onEscape, onToggleView, onHover = () => {}, onCrack = () => {} }) {
+export function createInputController({ sceneView, cameraViewModel: camera, picker, onEscape, onToggleView, onHover = () => {} }) {
   const canvas = sceneView.canvas;
   let grabPoint = null;
   let rotatingFrom = null; // { x, y }
@@ -65,9 +65,7 @@ export function createInputController({ sceneView, cameraViewModel: camera, pick
     endDrag(e);
     if (!wasClick) return;
     const pick = pickAt(e.clientX, e.clientY);
-    // A crack (or its "!" sign) opens its menu: see what it is, repair it, or audit it in the chat
-    if (pick?.type === 'crack') onCrack(pick, e.clientX, e.clientY);
-    else if (pick) picker()?.handle(pick);
+    if (pick) picker()?.handle(pick);
   });
   canvas.addEventListener('pointercancel', endDrag);
   canvas.addEventListener('pointerleave', () => onHover(null));

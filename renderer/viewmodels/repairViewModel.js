@@ -1,4 +1,4 @@
-// Remi, the repairer: walks to a cracked building and, while he works on the map, the user's own agent
+// Remi, the repairer: walks to the risky file's folder and, while he works on the map, the user's own agent
 // (when one is connected) reads the file and repairs it through Platanus' tools. Every write is
 // approved by the person in a dialog and backed up. Without an agent, Remi leaves a plan from the
 // Platanus guide. Each job is a task in the repair history, and the chat explains what happened.

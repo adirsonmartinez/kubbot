@@ -444,8 +444,6 @@ body.mode-tech .side-name { font-family: var(--mono); }
   color: #1b1a2e; background: color-mix(in srgb, var(--c) 55%, #fff);
 }
 .map-label .cracks { margin-top: 3px; color: #d81f35 !important; font-weight: 700; }
-.map-label.cracked { border-color: #ff3b4e; box-shadow: 3px 3px 0 #ff3b4e; animation: label-shake 3.2s ease-in-out infinite; }
-@keyframes label-shake { 0%, 92%, 100% { translate: 0 0; } 94% { translate: -2px 0; } 96% { translate: 2px 0; } 98% { translate: -1px 0; } }
 
 /* ---------- Hover card on the map ---------- */
 .hover-card {
@@ -614,7 +612,7 @@ body.stage-project #hover-card { visibility: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   .sidebar-body.enter > *, #chat .msg, .project-card, .remi-card, .remi-plan li, .hover-card,
-  .map-label.cracked, .remi-strip li.now, #chat .msg.tool::before { animation: none !important; }
+  .remi-strip li.now, #chat .msg.tool::before { animation: none !important; }
 }
 
 /* Panels on the map start below the stage tabs; thin dark scrollbars everywhere */
@@ -874,35 +872,6 @@ body.stage-graph #cracks-card, body.stage-project #cracks-card, body.stage-git #
   color: var(--muted); font: 11.5px var(--font); cursor: pointer; transition: border-color .15s, color .15s, transform .15s;
 }
 .chat-suggest button:hover { border-color: var(--line-strong); color: var(--ink); transform: translateY(-1px); }
-
-/* ---------- Crack menu (click on a crack or its "!" sign): what it is / repair / audit ---------- */
-#stage .crack-menu {
-  position: absolute; left: 0; top: 0; z-index: 9; width: 290px; padding: 10px;
-  border-radius: 14px; background: rgba(17, 19, 25, .97); border: 1px solid var(--line-strong); color: var(--ink);
-  box-shadow: 0 22px 50px rgba(0, 0, 0, .45); animation: pop-in .16s ease;
-}
-#stage .crack-menu[hidden] { display: none; }
-.crack-menu-head { display: flex; align-items: center; gap: 8px; }
-.crack-menu-head strong { flex: 1; font-size: 13px; }
-.crack-menu-head .risk-icon { font: 800 12px var(--font); }
-.crack-menu-close { width: 24px; height: 24px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 16px; cursor: pointer; }
-.crack-menu-close:hover { background: var(--panel-2); color: var(--ink); }
-.crack-menu-files { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 2px; max-height: 120px; overflow-y: auto; }
-.crack-menu-file { display: flex; align-items: center; gap: 7px; padding: 5px 7px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font: 11.5px var(--font); text-align: left; cursor: pointer; }
-.crack-menu-file.active, .crack-menu-file:hover { background: var(--panel-2); color: var(--ink); }
-.crack-menu-file-one { margin: 8px 0 2px; color: var(--muted); font-size: 11.5px; }
-.crack-menu-what { margin: 8px 0 0; padding: 9px 10px; border-radius: 10px; background: rgba(255, 90, 106, .08); animation: rise .2s ease both; }
-.crack-menu-what strong { font-size: 11.5px; color: var(--danger); }
-.crack-menu-what p { margin: 4px 0 0; color: var(--ink); font-size: 12px; line-height: 1.5; }
-.crack-menu-what p.small { color: var(--muted); font-size: 10.5px; }
-.crack-menu-actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin-top: 10px; }
-.crack-menu-btn {
-  padding: 8px 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
-  color: var(--ink); font: 600 11.5px var(--font); cursor: pointer; transition: transform .15s, background .15s, border-color .15s;
-}
-.crack-menu-btn:hover { transform: translateY(-1px); border-color: var(--line-strong); background: var(--panel-2); }
-.crack-menu-btn.repair { background: #f5c542; color: #1b1a2e; border-color: #f5c542; }
-.crack-menu-btn.audit { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
 
 /* ---------- Live run card (an answer of the user's agent) ---------- */
 #chat .msg.bot.run {

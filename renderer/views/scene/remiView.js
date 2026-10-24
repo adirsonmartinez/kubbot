@@ -1,4 +1,4 @@
-// Remi on the map, in 3D: walks from the main building to the cracked one, looks at it, thinks
+// Remi on the map, in 3D: walks into the risky file's folder, looks at it, thinks
 // (hand on chin), hammers with sparks and celebrates. A bubble above him says what he is doing.
 import * as THREE from 'three';
 import { box, materials as M } from './materials.js';

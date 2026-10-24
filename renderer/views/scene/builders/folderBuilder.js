@@ -5,7 +5,6 @@ import { box, glowPad, materials as M } from '../materials.js';
 import { FALLBACK_BODIES, FOLDER_STYLES, LEVEL_STYLE } from '../../theme.js';
 import { hashString } from '../../../core/format.js';
 import { folderHeight } from '../../../viewmodels/layout.js';
-import { addCracks } from './crackBuilder.js';
 
 const BODY_WIDTH = 3.2;
 const BASE = 0.45;
@@ -41,7 +40,6 @@ export function buildFolderBuilding({ name, files, level }) {
   const glow = LEVEL_STYLE[level].glow;
   if (glow) glowPad(g, glow, 4.4, 4.4, B + 0.01);
 
-  addCracks(g, { cx: 0, cz: 0, halfW: W / 2, halfD: W / 2, bottom: B, top: B + h }, level, seed);
 
   return { group: g, top: B + h + 0.22 };
 }

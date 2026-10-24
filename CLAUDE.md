@@ -32,7 +32,7 @@ renderer/
     shell (sidebar, stage tabs, explorer guide/tree, risks), graph (threat graph), chat,
     repair (Remi's job: walk, agent repair, outcome, queue)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
-                  builders/ (block, plaza, folder, git, schema, supabase, crack, remi, remiModelLoader)
+                  builders/ (block, plaza, folder, git, schema, supabase, remi, remiModelLoader)
   views/ui/       HTML: shell, chat, agentPicker, agentConnect, graph, devTree, hoverCard, hud,
                   repairPanel, remiJump, panels (breadcrumb, schema, git), controls, labels
   views/remiSprite.js  Remi's pixel art (card and jump)

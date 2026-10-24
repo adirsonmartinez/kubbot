@@ -48,10 +48,6 @@ export const materials = {
   get warnSolid()  { return material('warnSolid', PALETTE.warn, { emissive: PALETTE.warn, emissiveIntensity: 0.3, roughness: 0.45, metalness: 0 }); },
   get dangerSolid(){ return material('dangerSolid', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 0.4, roughness: 0.45, metalness: 0 }); },
   get dangerLit()  { return material('dangerLit', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 1.0, roughness: 0.3, metalness: 0 }); },
-  // Cracks (the glow pulses: mapView animates its emissiveIntensity). Dark red-grey, never black
-  get crack()      { return material('crack', 0x4a3238, { roughness: 0.9, metalness: 0 }); },
-  get crackGlow()  { return material('crackGlow', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 1, roughness: 0.4, metalness: 0 }); },
-  get rubble()     { return material('rubble', 0x6b737c, { roughness: 0.95, metalness: 0 }); },
   // Remi (same palette as his pixel-art sprite)
   get remiHelmet()       { return material('remiHelmet', 0xf5c542, { roughness: 0.45, metalness: 0 }); },
   get remiHelmetDark()   { return material('remiHelmetDark', 0xc99a2e, { roughness: 0.5, metalness: 0 }); },

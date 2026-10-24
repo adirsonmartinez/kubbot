@@ -18,7 +18,7 @@ export function createHoverCardView({ card, stage, mapViewModel, modeModel }) {
 
   function content(d) {
     const tech = modeModel.tech;
-    const title = d.kind === 'folder' || d.kind === 'crack' ? (tech || !d.friendly ? `${d.name}${d.path ? '/' : ''}` : d.friendly) : d.name;
+    const title = d.kind === 'folder' ? (tech || !d.friendly ? `${d.name}${d.path ? '/' : ''}` : d.friendly) : d.name;
     const parts = [];
     const head = el('div', 'hc-head');
     const dot = el('span', `level-dot ${d.level}`);
@@ -41,11 +41,11 @@ export function createHoverCardView({ card, stage, mapViewModel, modeModel }) {
       const reason = tech ? strings.security.techReasons[d.reasonKey] ?? d.reason : d.reason;
       parts.push(el('p', 'hc-text', `${strings.security.levels[d.level]} · ${reason}`));
     } else {
-      const stats = [H.files(d.files ?? 0), d.red ? H.cracks(d.red) : H.noCracks];
+      const stats = [H.files(d.files ?? 0), d.red ? H.atRisk(d.red) : H.noRisks];
       if (d.yellow) stats.push(H.toReview(d.yellow));
       parts.push(el('p', `hc-text${d.red ? ' danger' : ''}`, stats.join(' · ')));
     }
-    parts.push(el('p', 'hc-hint', { folder: H.clickFolder, floor: H.clickFloor, file: H.clickFile, crack: H.clickCrack }[d.kind]));
+    parts.push(el('p', 'hc-hint', { folder: H.clickFolder, file: H.clickFile }[d.kind]));
     return parts;
   }
 
