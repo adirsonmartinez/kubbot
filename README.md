@@ -27,6 +27,7 @@ Si abres `renderer/index.html` en el navegador, verás un proyecto de demo (sin 
 
 En la app (guía completa en [`docs/INTERFAZ.md`](docs/INTERFAZ.md)):
 - **El mapa ocupa toda la ventana** y todo lo demás flota encima: la barra de íconos (arriba), el panel lateral (izquierda) y el chat (derecha). Se pliegan, se arrastran por su encabezado y vuelven a su lugar con doble clic.
+- **Chat interactivo**: el agente responde con tarjetas (riesgo, está bien, idea, tu siguiente paso), los nombres de archivo llevan al mapa y al final propone próximos pasos como botones. **Vibe / Dev** cambia cómo te habla (se configura en [`agent/`](agent/README.md)) y además se adapta a cómo escribes. Mientras trabaja, un orbe dice qué hace y una luz recorre la caja de texto.
 - **Barra de íconos**: paneles (Explorador, Riesgos, Reparaciones, Conecta tu agente) y vistas (Mapa, Git, Proyecto, Grafo). Al pasar el mouse dice qué es cada uno; se ordena arrastrando los íconos.
 - **Chat**: el pin 📌 lo fija como columna a la derecha (el mapa le deja espacio y arriba va la tarjeta de seguridad); su borde izquierdo cambia el ancho. Minimizado, queda un botón flotante con su menú.
 - **Tarjeta de seguridad**: puntaje y totales. Se mueve, se minimiza y se ancla sobre el chat fijado; sus números de riesgo abren la lista de Riesgos.
@@ -84,8 +85,10 @@ renderer/
   views/scene/       three.js (mapa, edificio, grietas, Remi 3D, Supabase, mouse y teclado)
   views/ui/          HTML (shell, chat, selector de agente, grafo, mapa del proyecto, tarjeta de Remi)
   services/          puente con Electron (disco, agentes, MCP)
-  styles/            main.css (mapa) + shell.css (IDE de vidrio)
+  styles/            main.css (mapa) + shell.css (IDE de vidrio) + chat.css (tarjetas, orbes, borde de luz)
+  vendor/            efectos de libraries.dev ya preparados (orbes, borde de luz); `npm run vendor`
   i18n/es.js         todos los textos en español
+agent/               cómo habla el agente del chat: voice.json + skills modo-vibe y modo-dev
 ```
 
 ## Equipo

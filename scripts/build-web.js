@@ -1,6 +1,6 @@
 // Builds the static web demo into dist/ (deployed to Vercel).
 // The renderer already runs in a plain browser with a demo project; this only copies it and
-// vendors three.js so the site does not depend on node_modules.
+// vendors three.js so the site does not depend on node_modules (renderer/vendor/ is already in the copy).
 
 const fs = require('node:fs');
 const path = require('node:path');

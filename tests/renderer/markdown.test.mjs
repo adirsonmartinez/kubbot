@@ -33,3 +33,30 @@ test('HTML from the agent or the project is escaped, never executed', () => {
 test('unclosed markers while streaming stay as text', () => {
   assert.equal(markdownToHtml('Revisé **team'), '<p>Revisé **team</p>');
 });
+
+test('callouts ("> [!riesgo] Título") become cards with their icon slot', () => {
+  const html = markdownToHtml('> [!riesgo] Tu clave está a la vista\n> Cualquiera puede **leerla**.\n\nFin.');
+  assert.ok(html.startsWith('<div class="callout callout-danger">'));
+  assert.ok(html.includes('data-icon="danger"'));
+  assert.ok(html.includes('<strong>Tu clave está a la vista</strong>'));
+  assert.ok(html.includes('<p>Cualquiera puede <strong>leerla</strong>.</p>'));
+  assert.ok(html.endsWith('<p>Fin.</p>'));
+});
+
+test('a callout without title uses its kind; unknown kinds stay a plain quote', () => {
+  assert.ok(markdownToHtml('> [!ok]\n> Todo en verde').includes('callout-ok'));
+  assert.ok(markdownToHtml('> [!idea] Prueba esto').includes('callout-idea'));
+  assert.equal(markdownToHtml('> solo una cita'), '<blockquote><p>solo una cita</p></blockquote>');
+});
+
+test('file names in inline code become links to the map', () => {
+  const html = markdownToHtml('Mira `src/db.js` y `vercel.json`, no `npm test`.');
+  assert.ok(html.includes('<code class="file-ref" data-path="src/db.js" role="button" tabindex="0">src/db.js</code>'));
+  assert.ok(html.includes('data-path="vercel.json"'));
+  assert.ok(html.includes('<code>npm test</code>'));
+});
+
+test('a file link cannot carry HTML or quotes', () => {
+  const html = markdownToHtml('`a"onmouseover=x.js`');
+  assert.ok(!html.includes('data-path'));
+});

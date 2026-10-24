@@ -33,10 +33,37 @@ seguridad y la ruta solo cuenta la carpeta actual.
 - **Comparar respuestas:** la misma pregunta a dos agentes a la vez (selector del chat o el panel).
 - **Botón "+":** nueva conversación, reparar lo más grave, historial, grafo, mapa del proyecto, conectar
   tu agente o tu editor (MCP), Vibe/Dev.
+- **Cómo te habla (Vibe / Dev):** el interruptor del chat (✨ / `</>`, junto al selector) o el de arriba
+  a la derecha. **Vibe**: palabras simples, comparaciones de la vida diaria, sin código. **Dev**: rutas,
+  causa técnica y fragmentos cortos. El agente además **se adapta a cómo escribes**: si escribes corto
+  responde corto, si usas términos técnicos los nombra, si dices "no entiendo" lo explica más simple.
+  Todo eso se configura en `agent/` (ver abajo), no en el código.
+- **Respuestas interactivas:** el agente arma su respuesta con **tarjetas** (⚠ riesgo, ✓ está bien,
+  💡 idea, ☑ tu siguiente paso, ⓘ nota). Los **nombres de archivo son enlaces**: un clic lo muestra en el
+  mapa con su tarjeta. Al final propone **próximos pasos** como botones: preguntas, "Reparar x",
+  "Auditar x", "Ver x en el mapa".
+- **Mapa → chat como tarjetas:** abrir una carpeta muestra su semáforo como barra (rojo/amarillo/verde)
+  con "Ver los riesgos", "Reparar lo más grave" y "Explícame esta carpeta"; tocar un archivo muestra su
+  nivel, el motivo y "¿Qué es este archivo?", "Reparar con Remi", "Auditar en el chat".
+- **Mientras trabaja** (efectos de [libraries.dev](https://libraries.dev)): si tarda más de 2 s, un
+  **orbe** en el avatar y en cada paso dice qué hace (buscar, leer, escribir, coordinar ayudantes…); si
+  tarda más de 3 s, una **luz recorre el borde** de la caja de texto. Con "reducir movimiento" del
+  sistema, se quedan quietos.
 - **Conecta tu agente:** tarjetas por agente (sesión, versión, uso, último error, Usar / Entrar / Probar),
   el servidor MCP local con sus herramientas y su actividad en vivo, y los textos para Claude Code,
   Cursor, Codex y Gemini. La dirección del servidor lleva una llave privada: en pantalla sale tapada y
   "Copiar" la incluye.
+
+## La voz del agente (`agent/`)
+
+| Archivo | Para qué |
+|---|---|
+| `agent/voice.json` | Reglas base, el formato de respuesta (tarjetas, enlaces, bloque de sugerencias), largo máximo por modo y las pistas para adaptarse a cómo escribe la persona. |
+| `agent/skills/modo-vibe/SKILL.md` | Cómo hablar a quien no programa (con ejemplo). |
+| `agent/skills/modo-dev/SKILL.md` | Cómo hablar a quien programa. |
+| `electron/agentVoice.js` | Arma el prompt en cada respuesta (no hace falta reiniciar para probar cambios). Probado en `agentVoice.test.js`. |
+
+Las palabras de la persona nunca se copian al prompt: solo se usan para elegir pistas del JSON.
 
 ## Reparaciones (Remi)
 
@@ -56,7 +83,12 @@ falló. Desde ahí se marca como verificado, se deshace un cambio o se reintenta
 | `views/ui/draggable.js` | Arrastrar el panel lateral y el chat por su encabezado. |
 | `views/ui/floater.js` | Tarjetas flotantes del mapa: barrita para mover, minimizar y anclar (la tarjeta de seguridad). |
 | `views/ui/chatDockView.js` | Pin del chat (columna a la derecha + zona de información arriba) y su ancho. |
-| `views/ui/chatView.js`, `runCardView.js`, `markdown.js` | Mensajes, tarjetas de respuesta en vivo, Markdown seguro (escapa todo antes). |
+| `views/ui/chatView.js`, `runCardView.js`, `markdown.js` | Mensajes, tarjetas de respuesta en vivo, Markdown seguro (escapa todo antes) con tarjetas y enlaces a archivos, interruptor Vibe/Dev. |
+| `views/ui/chatCardsView.js` | Tarjetas de carpeta y archivo en el chat, botones de acción. |
+| `icons/iconNames.js`, `views/icons.js` | Íconos [Hugeicons](https://hugeicons.com) (gratis, MIT): se nombran en `iconNames.js` y `npm run icons` copia solo esos. `views/ui/icons.js` los da como elementos para el chat. |
+| `views/ui/thinkingOrb.js` | Orbes de libraries.dev con el motor del paquete (sin React). |
+| `vendor/border-beam.js` | Generado por `scripts/vendor-ui.js` (border-beam + React en un archivo). No se sube a git. |
+| `models/answerFormat.js` | Lee el bloque de sugerencias de la respuesta (preguntas, reparar, auditar, ver). |
 | `views/ui/agentPickerView.js`, `effortSlider.js`, `chatMenuView.js` | Selector de agente/modelo/esfuerzo/comparar, barra de esfuerzo, menú "+" y del botón flotante. |
 | `views/ui/agentConnectView.js` | Panel "Conecta tu agente". |
 | `views/ui/devTreeView.js` | Explorador en modo Dev (búsqueda, filtros, teclado). |
@@ -68,7 +100,8 @@ falló. Desde ahí se marca como verificado, se deshace un cambio o se reintenta
 | `electron/agentEvents.js` | Traduce la salida de cada CLI (Claude/Grok/Codex) a eventos del chat. Probado aparte. |
 
 Estilos: `styles/main.css` (mapa y escena), `shell.css` (la interfaz de vidrio, al final están las
-capas flotantes, pin y barra de íconos), `sidebar.css` (animaciones del panel), `devtree.css`, `agents.css`.
+capas flotantes, pin y barra de íconos), `sidebar.css` (animaciones del panel), `devtree.css`, `agents.css`,
+`chat.css` (tarjetas, chips, orbes, borde de luz, interruptor Vibe/Dev).
 
 ## Lo que se recuerda (en esta computadora)
 

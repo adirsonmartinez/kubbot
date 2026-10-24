@@ -173,3 +173,20 @@ test('MCP activity comes from the audit log, newest first', async () => {
   push({ at: '2026-10-24T01:02:00Z', action: 'mcp:platanus_write_file', path: 'b.js', ok: false, detail: 'La persona no aprobó el cambio.' });
   assert.deepEqual(m.store.state.activity.map((a) => [a.tool, a.path, a.ok]), [['write_file', 'b.js', false], ['read_file', 'a.js', true]]);
 });
+
+test('the chat voice (mode + recent messages) travels with the run; without it nothing is added', async () => {
+  const svc = fakeService();
+  const m = new AgentConnectionModel(svc);
+  await m.refresh();
+  m.select('claude');
+  const a = m.ask('hola', '', { voice: { mode: 'dev', recent: ['hola'] } });
+  await tick();
+  svc.finish('1', 'ok');
+  await a;
+  const b = m.ask('x', 'sys', { session: 'repair' });
+  await tick();
+  svc.finish('2', 'ok');
+  await b;
+  assert.deepEqual(svc.runs[0].req.voice, { mode: 'dev', recent: ['hola'] });
+  assert.equal('voice' in svc.runs[1].req, false);
+});

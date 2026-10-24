@@ -34,14 +34,16 @@ export class AgentModel {
   // With a connected agent (the user's own subscription) the real model answers and works through
   // the Platanus MCP tools; otherwise the scripted demo answers. Same reply shape either way.
   // agent: ask another agent than the selected one (compare answers)
-  async reply(text, { onTool, onText, onThinking, onEvent, agent } = {}) {
-    if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, ...(agent ? { agent } : {}) });
+  // recent: the person's last messages (the agent adapts to how they write; see agent/voice.json)
+  async reply(text, { onTool, onText, onThinking, onEvent, agent, recent = [] } = {}) {
+    if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, recent, ...(agent ? { agent } : {}) });
     return (await this.#fileCommand(text)) ?? this.#scripted(text);
   }
 
-  async #live(text, callbacks) {
-    const prompt = AGENT.livePrompt + (this.#mode?.tech ? AGENT.techSuffix : '');
-    const { text: answer, error } = await this.#connection.ask(text, prompt, callbacks);
+  // The prompt is built by the main process from agent/voice.json and the Vibe or Dev skill
+  async #live(text, { recent, ...callbacks }) {
+    const voice = { mode: this.#mode?.tech ? 'dev' : 'vibe', recent: [...recent, text] };
+    const { text: answer, error } = await this.#connection.ask(text, '', { ...callbacks, voice });
     if (answer) return { text: answer };
     return { html: AGENT.liveFailed(escapeHtml(error ?? '')), tone: 'alert' };
   }

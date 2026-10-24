@@ -3,8 +3,12 @@
 import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
+import { splitAnswer } from '../models/answerFormat.js';
 
 const CHAT = strings.chat;
+const CARDS = CHAT.cards;
+const RECENT_MESSAGES = 6;
+const nameOf = (path) => path.split('/').filter(Boolean).at(-1) ?? path;
 const typingDelay = (reply) => 600 + Math.min((reply.text ?? reply.html ?? '').length * 10, 1600);
 
 export class ChatViewModel {
@@ -14,8 +18,10 @@ export class ChatViewModel {
 
   #actions;
 
-  // message: { id, role: 'bot' | 'user' | 'sys' | 'tool', text?, html?, tone? }
-  // chip: a label (sent as a message) or { label, run } (runs an app action, e.g. Remi repairs a file)
+  // message: { id, role: 'bot' | 'user' | 'sys' | 'tool', text?, html?, tone?, card? }
+  // card: { kind: 'folder' | 'file', ...data, actions: [chip] } (a map event shown as an interactive card)
+  // chip: a label (sent as a message) or { label, kind, prompt?, run? }: `run` does an app action (Remi
+  //   repairs a file…), otherwise `prompt ?? label` is sent. kind picks its icon (ask, repair, audit, locate…)
   // welcome: the empty conversation shows a welcome screen with suggestions (as in Obra) instead of bubbles
   store = new Observable({ messages: [], typing: false, chips: null, minimized: false, welcome: true, projectName: '' });
 
@@ -87,16 +93,9 @@ export class ChatViewModel {
       }
     });
 
-    bus.on(EVENTS.folderOpened, (detail) =>
-      this.sayFromMap({ text: CHAT.folderOpened(detail), tone: detail.counts.red ? 'alert' : '' }));
+    bus.on(EVENTS.folderOpened, (detail) => this.sayFromMap({ card: this.#folderCard(detail), tone: detail.counts.red ? 'alert' : '' }));
 
-    bus.on(EVENTS.fileSelected, ({ path, level, reason, by }) => {
-      const source = { agent: strings.security.byAgent, remi: strings.security.byRemi }[by] ?? strings.security.byDemo;
-      const levelText = strings.security.levelWithEmoji[level] ?? level;
-      const repair = (level === 'red' || level === 'yellow') && this.#actions.repair
-        ? [{ label: strings.repair.chip, run: (source) => this.#actions.repair(path, source) }] : undefined;
-      this.sayFromMap({ text: CHAT.fileSelected({ path, levelText, reason, source }), tone: level === 'red' ? 'alert' : '', chips: repair });
-    });
+    bus.on(EVENTS.fileSelected, (file) => this.sayFromMap({ card: this.#fileCard(file), tone: file.level === 'red' ? 'alert' : '' }));
 
     bus.on(EVENTS.commitSelected, (commit) => {
       const lane = strings.git.laneNames[commit.lane] ?? commit.lane;
@@ -118,13 +117,14 @@ export class ChatViewModel {
   async send(text) {
     text = text.trim();
     if (!text || this.store.state.typing) return;
+    const recent = this.#recentUserTexts();
     this.store.set({ chips: null, welcome: false });
     this.#push({ role: 'user', text });
     if (this.#connection?.live) {
       // With "Comparar respuestas", the same question goes to a second agent at the same time
       const second = this.#connection.store.state.compareWith;
       this.store.set({ typing: true });
-      await Promise.all([this.#sendLive(text), second && this.#sendLive(text, second)].filter(Boolean));
+      await Promise.all([this.#sendLive(text, null, recent), second && this.#sendLive(text, second, recent)].filter(Boolean));
       this.store.set({ typing: false });
       this.#next(); // map messages that arrived while the answers were streaming
       return;
@@ -135,6 +135,7 @@ export class ChatViewModel {
     let streamId = null;
     let streamed = false;
     const reply = await this.#agent.reply(text, {
+      recent,
       onTool: (name) => { streamId = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); },
       onText: (delta) => {
         if (streamId === null) { streamId = this.#push({ role: 'bot', text: '' }); this.store.set({ typing: false }); }
@@ -150,7 +151,7 @@ export class ChatViewModel {
     this.store.set({ typing: false });
     if (!streamed || reply.tone === 'alert') this.#enqueue(reply);
     else {
-      this.store.set({ chips: reply.chips ?? null });
+      this.store.set({ chips: this.#suggestionChips(reply.text) ?? reply.chips ?? null });
       this.#next(); // map messages that arrived while the answer was streaming
     }
   }
@@ -159,7 +160,7 @@ export class ChatViewModel {
   // subagents and their tools), the answer as it streams, and time/turns/tokens at the end.
   // run: { agent, model, effort, startedAt, endedAt, status: 'running'|'done'|'error', steps, result }
   // step: { id, kind: 'tool'|'subagent', name?, target?, description?, agentKind?, parent, status, startedAt, endedAt, output? }
-  async #sendLive(text, otherAgent = null) {
+  async #sendLive(text, otherAgent = null, recent = []) {
     const state = this.#connection.store.state;
     const agentId = otherAgent ?? state.selected;
     const label = state.agents?.find((a) => a.id === agentId)?.label ?? (otherAgent ? agentId : this.#connection.agentLabel);
@@ -196,6 +197,7 @@ export class ChatViewModel {
       }
     };
     const reply = await this.#agent.reply(text, {
+      recent,
       onEvent,
       onText: (delta) => this.#append(id, delta),
       ...(otherAgent ? { agent: otherAgent } : {}),
@@ -209,7 +211,57 @@ export class ChatViewModel {
     }));
     if (failed) this.#update(id, (m) => ({ ...m, run: { ...m.run, error: reply.html ?? '' } }));
     else if (!this.store.state.messages.find((m) => m.id === id)?.text && reply.text) this.#update(id, (m) => ({ ...m, text: reply.text }));
-    if (reply.chips) this.store.set({ chips: reply.chips });
+    const answer = this.store.state.messages.find((m) => m.id === id)?.text ?? '';
+    const chips = failed ? null : this.#suggestionChips(answer);
+    if (chips ?? reply.chips) this.store.set({ chips: chips ?? reply.chips });
+  }
+
+  // The person's last messages, oldest first (the agent adapts to how they write)
+  #recentUserTexts() {
+    return this.store.state.messages.filter((m) => m.role === 'user' && m.text).slice(-RECENT_MESSAGES).map((m) => m.text);
+  }
+
+  // The answer's ```sugerencias block -> chips (only actions the app can do here)
+  #suggestionChips(text) {
+    const a = this.#actions;
+    const chips = splitAnswer(text).suggestions.map((s) => {
+      const name = s.path ? nameOf(s.path) : '';
+      switch (s.kind) {
+        case 'repair': return a.repair && { kind: 'repair', label: CHAT.suggest.repair(name), run: (from) => a.repair(s.path, from) };
+        case 'audit': return { kind: 'audit', label: CHAT.suggest.audit(name), prompt: CHAT.auditPrompt(s.path, '') };
+        case 'locate': return a.locate && { kind: 'locate', label: CHAT.suggest.locate(name), run: () => a.locate(s.path) };
+        default: return { kind: 'ask', label: s.text };
+      }
+    }).filter(Boolean);
+    return chips.length ? chips : null;
+  }
+
+  #folderCard({ name, files, folders, counts }) {
+    const a = this.#actions;
+    const risky = counts.red + counts.yellow > 0;
+    return {
+      kind: 'folder', name, files, folders, counts,
+      hint: !files ? CARDS.folderEmpty : counts.red ? CARDS.folderHintRisk : CARDS.folderHint,
+      actions: [
+        risky && a.showRisks && { kind: 'risks', label: CARDS.seeRisks, run: () => a.showRisks() },
+        risky && a.repairWorst && { kind: 'repair', label: strings.repair.chipWorst, run: (from) => a.repairWorst(from) },
+        files > 0 && { kind: 'ask', label: CARDS.explainFolder, prompt: CARDS.explainFolderPrompt(name) },
+      ].filter(Boolean),
+    };
+  }
+
+  #fileCard({ path, level, reason, by }) {
+    const a = this.#actions;
+    const risky = level === 'red' || level === 'yellow';
+    return {
+      kind: 'file', path, name: nameOf(path), level, reason,
+      source: { agent: strings.security.byAgent, remi: strings.security.byRemi }[by] ?? strings.security.byDemo,
+      actions: [
+        { kind: 'ask', label: CARDS.whatIsIt, prompt: CARDS.whatIsItPrompt(path) },
+        risky && a.repair && { kind: 'repair', label: strings.repair.chip, run: (from) => a.repair(path, from) },
+        risky && { kind: 'audit', label: CARDS.audit, prompt: CHAT.auditPrompt(path, reason) },
+      ].filter(Boolean),
+    };
   }
 
   #update(id, fn) {
@@ -220,6 +272,7 @@ export class ChatViewModel {
   // `source`: the clicked button (Remi jumps from there to the map)
   choose(chip, source = null) {
     if (typeof chip === 'string') return this.send(chip);
+    if (!chip.run) return this.send(chip.prompt ?? chip.label);
     chip.run(source); // first, while the button is still on screen
     this.store.set({ chips: null, welcome: false });
     this.#push({ role: 'user', text: chip.label });
@@ -228,7 +281,7 @@ export class ChatViewModel {
   suggestions() {
     const a = this.#actions;
     return [
-      a.repairWorst && { label: strings.repair.chipWorst, run: a.repairWorst },
+      a.repairWorst && { kind: 'repair', label: strings.repair.chipWorst, run: a.repairWorst },
       ...CHAT.chips.suggestions.slice(2),
     ].filter(Boolean);
   }
@@ -268,7 +321,7 @@ export class ChatViewModel {
     if (!reply) return;
     this.store.set({ typing: true });
     setTimeout(() => {
-      this.#push({ role: 'bot', text: reply.text, html: reply.html, tone: reply.tone });
+      this.#push({ role: 'bot', text: reply.text, html: reply.html, tone: reply.tone, card: reply.card });
       this.store.set({ typing: false, chips: reply.chips ?? this.store.state.chips });
       reply.then?.();
       this.#next();

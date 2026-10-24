@@ -77,7 +77,7 @@ const gitViewModel = new GitViewModel({ gitModel, camera: cameraViewModel, bus }
 const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitViewModel });
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
 const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
-const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus });
+const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus, voiceMode: () => (modeModel.tech ? 'dev' : 'vibe') });
 const serversViewModel = new ServersViewModel({ serversModel });
 // The server list only refreshes while its side view is on screen
 shellViewModel.store.subscribe(({ side, sidebarOpen }) => serversViewModel.setVisible(sidebarOpen && side === 'servers'), { immediate: true });
@@ -105,6 +105,11 @@ const actions = {
     if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
     chatViewModel.send(strings.chat.auditPrompt(path, reason));
   },
+  // A file or folder named by the agent (links and "Ver … en el mapa" chips)
+  locate(path) {
+    shellViewModel.setStage('map');
+    if (!mapViewModel.show(path)) chatViewModel.sayFromMap({ text: strings.chat.notInProject(path) });
+  },
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
@@ -115,7 +120,7 @@ shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 
 
 // --- Views ---
 applyStrings();
-applyIcons();
+applyIcons(); // Hugeicons into the static <i data-icon> slots, before the views look for them
 const sceneView = createSceneView(cameraViewModel, stage); // the map lives in the IDE stage
 const labels = createLabelLayer(document.getElementById('map-labels'), sceneView);
 const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
@@ -148,7 +153,7 @@ createInputController({
 });
 createControlsView({ cameraViewModel });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
-createChatView({ chatViewModel, connection });
+createChatView({ chatViewModel, connection, modeModel, onLocate: (path) => actions.locate(path) });
 createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks: () => actions.showRisks() });
 createShellView({ shellViewModel, modeModel, repairViewModel, repairHistory, serversViewModel, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });

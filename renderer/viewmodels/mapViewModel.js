@@ -75,6 +75,17 @@ export class MapViewModel {
     if (path !== '') this.enterFolder(parentOf(path));
   }
 
+  // Shows a project file or folder on the map (links in the chat, "ver: ruta"). A file also opens its
+  // card in the chat. Returns false when the path is not in the project.
+  show(path) {
+    const node = findNode(this.#project.store.state.tree, path);
+    if (!node) return false;
+    const isDir = node.type === 'dir' || path === '';
+    this.enterFolder(isDir ? path : parentOf(path));
+    if (!isDir) this.selectFile(path);
+    return true;
+  }
+
   selectFile(path) {
     const file = this.store.state.plaza?.files.find((f) => f.path === path);
     if (!file) return;
