@@ -281,7 +281,7 @@ async function startMcp() {
 ipcMain.handle('mcp:info', () => ({ ok: true, data: mcp }));
 
 // --- Agents with the user's own subscription ---
-ipcMain.handle('agents:detect', () => ({ ok: true, data: agents.detect() }));
+ipcMain.handle('agents:detect', async () => ({ ok: true, data: await agents.detect() }));
 ipcMain.handle('agents:login', (_e, id) => ({ ok: agents.login(String(id)) }));
 ipcMain.handle('agents:run', (_e, req) => {
   if (!mcp.running) return { ok: false, error: t.mcp.windowClosed };

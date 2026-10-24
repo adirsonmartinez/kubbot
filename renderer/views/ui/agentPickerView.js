@@ -68,7 +68,7 @@ export function createAgentPickerView({ container, connection, onMore }) {
     const agent = state.agents.find((a) => a.id === state.selected);
     renderPill(state, agent);
     // Changing only the effort updates the slider in place (rebuilding would drop the thumb mid-drag)
-    const key = JSON.stringify([state.selected, state.model, state.agents.map((a) => [a.id, a.loggedIn])]);
+    const key = JSON.stringify([state.selected, state.model, state.compareWith, state.agents.map((a) => [a.id, a.loggedIn])]);
     if (key === menuKey && slider) return slider.set(state.effort);
     menuKey = key;
 
@@ -94,6 +94,19 @@ export function createAgentPickerView({ container, connection, onMore }) {
       }
       slider = createEffortSlider({ efforts: catalog.efforts, value: state.effort, onChange: (e) => connection.setEffort(e) });
       parts.push(slider.el);
+      // Compare: the same question also goes to a second agent
+      const others = state.agents.filter((a) => a.id !== state.selected && a.loggedIn !== false);
+      if (others.length) {
+        parts.push(el('p', 'picker-label', strings.hub.compare));
+        const seg = el('div', 'segmented');
+        for (const [id, label] of [[null, strings.hub.compareNone], ...others.map((a) => [a.id, a.label.split(' (')[0]])]) {
+          const b = el('button', state.compareWith === id ? 'active' : '', label);
+          b.type = 'button';
+          b.addEventListener('click', () => connection.setCompare(id));
+          seg.appendChild(b);
+        }
+        parts.push(seg);
+      }
     } else slider = null;
     const more = el('button', 'picker-more', strings.chat.pickerMore);
     more.type = 'button';

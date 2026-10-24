@@ -2,6 +2,7 @@
 // updates its bubble in place), "thinking…", chips, and the composer (Enter sends, Shift+Enter breaks).
 import { strings } from '../../i18n/es.js';
 import { markdownToHtml } from './markdown.js';
+import { renderRunCard, tickRunTimers } from './runCardView.js';
 
 const ICON_MINIMIZE = '<path d="M6 12h12"/>';
 const ICON_EXPAND = '<path d="M6 12h12M12 6v12"/>';
@@ -66,12 +67,16 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
 
   function messageElement(m) {
     const el = document.createElement('div');
-    el.className = ['msg', m.role, m.tone].filter(Boolean).join(' ');
-    fill(el, m);
+    el.className = ['msg', m.role, m.tone, m.run && 'run'].filter(Boolean).join(' ');
+    paint(el, m);
     return el;
   }
 
+  const paint = (el, m) => (m.run ? renderRunCard(el, m) : fill(el, m));
+
   function render(state, previous) {
+    // Follow the conversation only if the person is already at the bottom (not while they read above)
+    const atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 80;
     body.classList.toggle('welcome', state.welcome);
     if (state.welcome) renderHero(state);
     // A new conversation empties the list: drop the bubbles that are no longer there
@@ -83,18 +88,19 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
       const seen = rendered.get(m.id);
       if (!seen) {
         const el = messageElement(m);
-        rendered.set(m.id, { el, text: m.text, thinking: m.thinking });
+        rendered.set(m.id, { el, msg: m });
         body.appendChild(el);
-      } else if ((seen.text !== m.text || seen.thinking !== m.thinking) && !m.html) {
-        seen.text = m.text;
-        seen.thinking = m.thinking;
-        fill(seen.el, m);
+      } else if (seen.msg !== m && !m.html) { // messages are immutable: a new object means it changed
+        seen.msg = m;
+        paint(seen.el, m);
       }
     });
 
     typing.remove();
     chips.remove();
-    if (state.typing) body.appendChild(typing);
+    // A live run card already says "Trabajando…": no extra dots under it
+    const runWorking = state.messages.at(-1)?.run?.status === 'running';
+    if (state.typing && !runWorking) body.appendChild(typing);
     if (state.chips?.length) {
       if (state.chips !== previous?.chips) {
         chips.replaceChildren(...state.chips.map((chip) => {
@@ -108,7 +114,7 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
       }
       body.appendChild(chips);
     }
-    body.scrollTop = body.scrollHeight;
+    if (atBottom || state.messages.length !== previous?.messages.length) body.scrollTop = body.scrollHeight;
 
     sendButton.disabled = state.typing;
     root.classList.toggle('min', state.minimized);
@@ -137,6 +143,7 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
     }
   });
   toggle.addEventListener('click', () => vm.toggleMinimized());
+  setInterval(() => tickRunTimers(body), 1000);
 
   // Suggestions to start writing: a click fills the box (the person can edit before sending)
   const suggest = $('chat-suggest');

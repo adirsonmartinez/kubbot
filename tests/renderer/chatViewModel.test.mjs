@@ -38,3 +38,38 @@ test('a repair streams into one bubble and tool use starts a new one', () => {
   const repairs = vm.store.state.messages.filter((m) => m.tone === 'repair').map((m) => m.text);
   assert.deepEqual(repairs, ['Qué encontré', 'Listo']);
 });
+
+test('a live answer is one run: steps for tools and subagents, then the result', async () => {
+  const bus = createEventBus();
+  const agentModel = {
+    reply: async (_t, { onEvent, onText }) => {
+      onEvent({ type: 'thinking', delta: 'Miro el mapa', parent: null });
+      onEvent({ type: 'tool', id: 't1', name: 'list_risks', target: '', parent: null });
+      onEvent({ type: 'tool_done', id: 't1', error: false });
+      onEvent({ type: 'subagent', id: 's1', description: 'Revisar la base de datos', kind: 'Explore', parent: null });
+      onEvent({ type: 'tool', id: 't2', name: 'read_file', target: 'db.sql', parent: 's1' });
+      onEvent({ type: 'text', delta: 'Nada grave', parent: 's1' });
+      onEvent({ type: 'tool_done', id: 't2', error: true });
+      onEvent({ type: 'tool_done', id: 's1', error: false });
+      onText('Todo **bien**');
+      onEvent({ type: 'result', durationMs: 4200, turns: 3, inputTokens: 100, outputTokens: 50 });
+      return { text: 'Todo **bien**' };
+    },
+  };
+  const connection = { live: true, agentLabel: 'Claude', store: { state: { selected: 'claude', model: 'opus', effort: 'high' } } };
+  const vm = new ChatViewModel({ agentModel, bus, connection });
+  await vm.send('audita');
+  const run = vm.store.state.messages.find((m) => m.run);
+  assert.equal(run.text, 'Todo **bien**');
+  assert.equal(run.thinking, 'Miro el mapa');
+  assert.equal(run.run.status, 'done');
+  assert.equal(run.run.model, 'opus');
+  assert.deepEqual(run.run.steps.map((s) => [s.kind, s.name ?? s.description, s.status, s.parent]), [
+    ['tool', 'list_risks', 'done', null],
+    ['subagent', 'Revisar la base de datos', 'done', null],
+    ['tool', 'read_file', 'error', 's1'],
+  ]);
+  assert.equal(run.run.steps[1].output, 'Nada grave');
+  assert.deepEqual(run.run.result, { durationMs: 4200, turns: 3, inputTokens: 100, outputTokens: 50 });
+  assert.equal(vm.store.state.messages.filter((m) => m.role === 'tool').length, 0, 'no loose tool lines');
+});

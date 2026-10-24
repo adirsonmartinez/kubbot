@@ -33,14 +33,15 @@ export class AgentModel {
 
   // With a connected agent (the user's own subscription) the real model answers and works through
   // the Platanus MCP tools; otherwise the scripted demo answers. Same reply shape either way.
-  async reply(text, { onTool, onText, onThinking } = {}) {
-    if (this.#connection?.live) return this.#live(text, onTool, onText, onThinking);
+  // agent: ask another agent than the selected one (compare answers)
+  async reply(text, { onTool, onText, onThinking, onEvent, agent } = {}) {
+    if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, ...(agent ? { agent } : {}) });
     return (await this.#fileCommand(text)) ?? this.#scripted(text);
   }
 
-  async #live(text, onTool, onText, onThinking) {
+  async #live(text, callbacks) {
     const prompt = AGENT.livePrompt + (this.#mode?.tech ? AGENT.techSuffix : '');
-    const { text: answer, error } = await this.#connection.ask(text, prompt, { onTool, onText, onThinking });
+    const { text: answer, error } = await this.#connection.ask(text, prompt, callbacks);
     if (answer) return { text: answer };
     return { html: AGENT.liveFailed(escapeHtml(error ?? '')), tone: 'alert' };
   }

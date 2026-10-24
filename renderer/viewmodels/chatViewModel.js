@@ -19,8 +19,11 @@ export class ChatViewModel {
   // welcome: the empty conversation shows a welcome screen with suggestions (as in Obra) instead of bubbles
   store = new Observable({ messages: [], typing: false, chips: null, minimized: false, welcome: true, projectName: '' });
 
-  constructor({ agentModel, bus, actions = {} }) {
+  #connection;
+
+  constructor({ agentModel, bus, actions = {}, connection = null }) {
     this.#agent = agentModel;
+    this.#connection = connection;
     this.#actions = actions;
 
     bus.on(EVENTS.projectOpened, ({ name }) => {
@@ -102,7 +105,16 @@ export class ChatViewModel {
     if (!text || this.store.state.typing) return;
     this.store.set({ chips: null, welcome: false });
     this.#push({ role: 'user', text });
-    // A real agent can take a while: show "typing…" and a short note for each tool it uses
+    if (this.#connection?.live) {
+      // With "Comparar respuestas", the same question goes to a second agent at the same time
+      const second = this.#connection.store.state.compareWith;
+      this.store.set({ typing: true });
+      await Promise.all([this.#sendLive(text), second && this.#sendLive(text, second)].filter(Boolean));
+      this.store.set({ typing: false });
+      this.#next(); // map messages that arrived while the answers were streaming
+      return;
+    }
+    // Scripted demo (or no agent): show "typing…" and the reply
     // A connected agent streams its answer into a bubble that grows; a tool use starts a new one.
     this.store.set({ typing: true });
     let streamId = null;
@@ -126,6 +138,67 @@ export class ChatViewModel {
       this.store.set({ chips: reply.chips ?? null });
       this.#next(); // map messages that arrived while the answer was streaming
     }
+  }
+
+  // The user's own agent answers as one "run": a live card with its steps (reasoning, Platanus tools,
+  // subagents and their tools), the answer as it streams, and time/turns/tokens at the end.
+  // run: { agent, model, effort, startedAt, endedAt, status: 'running'|'done'|'error', steps, result }
+  // step: { id, kind: 'tool'|'subagent', name?, target?, description?, agentKind?, parent, status, startedAt, endedAt, output? }
+  async #sendLive(text, otherAgent = null) {
+    const state = this.#connection.store.state;
+    const agentId = otherAgent ?? state.selected;
+    const label = state.agents?.find((a) => a.id === agentId)?.label ?? (otherAgent ? agentId : this.#connection.agentLabel);
+    const model = otherAgent ? '' : state.model;
+    const effort = otherAgent ? null : state.effort;
+    const id = this.#push({
+      role: 'bot', text: '', thinking: '',
+      run: { agent: label, agentId, model, effort: effort ?? state.effort, compare: Boolean(state.compareWith), startedAt: Date.now(), endedAt: null, status: 'running', steps: [], result: null },
+    });
+    const run = (fn) => this.#update(id, (m) => ({ ...m, run: fn(m.run) }));
+    const step = (stepId, fn) => run((r) => ({ ...r, steps: r.steps.map((x) => (x.id === stepId ? fn(x) : x)) }));
+    const onEvent = (e) => {
+      switch (e.type) {
+        case 'thinking':
+          if (e.parent) step(e.parent, (x) => ({ ...x, thinking: (x.thinking ?? '') + e.delta }));
+          else this.#update(id, (m) => ({ ...m, thinking: m.thinking + e.delta }));
+          break;
+        case 'text': // a subagent's text belongs to its step; the main text arrives through onText
+          if (e.parent) step(e.parent, (x) => ({ ...x, output: (x.output ?? '') + e.delta }));
+          break;
+        case 'tool':
+          run((r) => ({ ...r, steps: [...r.steps, { id: e.id, kind: 'tool', name: e.name, target: e.target ?? '', parent: e.parent ?? null, status: 'running', startedAt: Date.now(), endedAt: null }] }));
+          break;
+        case 'subagent':
+          run((r) => ({ ...r, steps: [...r.steps, { id: e.id, kind: 'subagent', description: e.description, agentKind: e.kind ?? '', parent: e.parent ?? null, status: 'running', startedAt: Date.now(), endedAt: null, output: '' }] }));
+          break;
+        case 'tool_done':
+          step(e.id, (x) => ({ ...x, status: e.error ? 'error' : 'done', endedAt: Date.now() }));
+          break;
+        case 'result':
+          run((r) => ({ ...r, result: { durationMs: e.durationMs, turns: e.turns, inputTokens: e.inputTokens, outputTokens: e.outputTokens } }));
+          break;
+        default:
+      }
+    };
+    const reply = await this.#agent.reply(text, {
+      onEvent,
+      onText: (delta) => this.#append(id, delta),
+      ...(otherAgent ? { agent: otherAgent } : {}),
+    });
+    const failed = reply.tone === 'alert';
+    run((r) => ({
+      ...r,
+      status: failed ? 'error' : 'done',
+      endedAt: Date.now(),
+      steps: r.steps.map((x) => (x.status === 'running' ? { ...x, status: failed ? 'error' : 'done', endedAt: Date.now() } : x)),
+    }));
+    if (failed) this.#update(id, (m) => ({ ...m, run: { ...m.run, error: reply.html ?? '' } }));
+    else if (!this.store.state.messages.find((m) => m.id === id)?.text && reply.text) this.#update(id, (m) => ({ ...m, text: reply.text }));
+    if (reply.chips) this.store.set({ chips: reply.chips });
+  }
+
+  #update(id, fn) {
+    this.store.set({ messages: this.store.state.messages.map((m) => (m.id === id ? fn(m) : m)) });
   }
 
   // A chip with an action runs it; a plain chip is sent as a message

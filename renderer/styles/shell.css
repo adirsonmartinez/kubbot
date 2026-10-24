@@ -901,3 +901,53 @@ body.stage-graph #cracks-card, body.stage-project #cracks-card { display: none; 
 .crack-menu-btn:hover { transform: translateY(-1px); border-color: var(--line-strong); background: var(--panel-2); }
 .crack-menu-btn.repair { background: #f5c542; color: #1b1a2e; border-color: #f5c542; }
 .crack-menu-btn.audit { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+
+/* ---------- Live run card (an answer of the user's agent) ---------- */
+#chat .msg.bot.run {
+  align-self: stretch; max-width: 100%; padding: 10px 12px; border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .035), rgba(255, 255, 255, .015));
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.run-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.run-avatar {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; flex: none;
+  background: var(--accent); color: #0b0a1f; font: 800 12px var(--font);
+}
+.run-avatar.claude { background: #d97757; color: #fff; }
+.run-avatar.grok { background: #e7e7ea; color: #111; }
+.run-avatar.codex { background: #10a37f; color: #fff; }
+.run-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.run-who strong { font-size: 12.5px; }
+.run-model { color: var(--faint); font-size: 10.5px; }
+.run-state { padding: 2px 8px; border-radius: 999px; font: 600 10px var(--font); }
+.run-state.running { background: rgba(139, 131, 255, .16); color: var(--accent); }
+.run-state.running::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: currentColor; animation: pulse 1.1s ease-in-out infinite; }
+.run-state.done { background: rgba(61, 220, 151, .13); color: var(--ok); }
+.run-state.error { background: rgba(255, 90, 106, .14); color: var(--danger); }
+.run-time { color: var(--faint); font: 10.5px var(--mono); min-width: 38px; text-align: right; }
+.run-steps { margin: 0 0 8px; border-radius: 10px; background: rgba(0, 0, 0, .2); padding: 6px 8px; }
+.run-steps > summary { cursor: pointer; color: var(--muted); font-size: 11px; list-style: none; }
+.run-steps > summary::before { content: "▸ "; color: var(--faint); }
+.run-steps[open] > summary::before { content: "▾ "; }
+.run-steps ol, .run-steps-nested { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.run-steps-nested { margin: 4px 0 2px 9px; padding-left: 10px; border-left: 1px dashed var(--line-strong); }
+.run-step { animation: rise .2s ease both; }
+.run-step-line { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 11.5px; color: var(--ink); }
+.run-step-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.run-step-target { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #c9c4ff; font: 10.5px var(--mono); background: none; }
+.run-step-time { margin-left: auto; color: var(--faint); font: 10px var(--mono); }
+.run-step-badge { flex: none; padding: 1px 6px; border-radius: 6px; background: rgba(199, 146, 234, .16); color: #c792ea; font: 600 10px var(--font); }
+.run-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.run-dot.running { border: 2px solid var(--accent); border-right-color: transparent; animation: spin .8s linear infinite; }
+.run-dot.done { background: var(--ok); }
+.run-dot.error { background: var(--danger); }
+@keyframes spin { to { transform: rotate(360deg); } }
+.run-step-output { margin: 4px 0 0 18px; }
+.run-step-output summary { cursor: pointer; color: var(--faint); font-size: 10.5px; }
+.run-step-output .md { color: var(--muted); font-size: 11.5px; }
+#chat .msg.run .md.streaming > :last-child::after { content: "▍"; color: var(--accent); animation: pulse 1s steps(2) infinite; margin-left: 2px; }
+.run-foot { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--faint); font: 10.5px var(--mono); }
+@media (prefers-reduced-motion: reduce) { .run-dot.running, .run-state.running::before, .run-step { animation: none; } }
+.run-error { margin: 0 0 6px; padding: 8px 10px; border-radius: 9px; background: rgba(255, 90, 106, .08); box-shadow: inset 0 0 0 1px rgba(255, 90, 106, .3); font-size: 12px; }
+.run-error strong { color: var(--danger); }
+.run-compare { padding: 2px 7px; border-radius: 999px; background: rgba(245, 197, 66, .14); color: #f5c542; font: 600 9.5px var(--font); }
