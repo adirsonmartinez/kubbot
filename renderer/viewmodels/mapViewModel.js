@@ -6,9 +6,11 @@ import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
 import { allFiles, baseName, countDirs, countFiles, findNode } from '../models/fileTree.js';
 import { LEVEL_RANK, worstLevel } from '../models/securityModel.js';
-import { folderSlots, levelZoom, plazaGrid } from './layout.js';
+import { fileTags, folderGuide } from '../models/folderTags.js';
+import { folderHeight, folderSlots, levelZoom, plazaGrid } from './layout.js';
 
 const emptyCounts = () => ({ green: 0, yellow: 0, red: 0, grey: 0 });
+const parentOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 
 export class MapViewModel {
   #project;
@@ -59,15 +61,14 @@ export class MapViewModel {
 
   goUp() {
     const { path } = this.store.state;
-    if (path === '') return;
-    this.enterFolder(path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
+    if (path !== '') this.enterFolder(parentOf(path));
   }
 
   selectFile(path) {
     const file = this.store.state.plaza?.files.find((f) => f.path === path);
     if (!file) return;
-    const { level, reason, by } = file;
-    this.#bus.emit(EVENTS.fileSelected, { path, level, reason, by });
+    const { level, reason, reasonKey, by } = file;
+    this.#bus.emit(EVENTS.fileSelected, { path, level, reason, reasonKey, by });
   }
 
   toggleSchema() {
@@ -80,17 +81,49 @@ export class MapViewModel {
     else this.goUp();
   }
 
-  // { counts, level } for every file under `nodes`
+  // What the hover card shows for a pick (null = nothing to show)
+  //   { kind: 'folder' | 'file', path, name, friendly?, tags, level, files?, red?, yellow?, size?, reason?, reasonKey? }
+  describePick(pick) {
+    const { buildings, plaza } = this.store.state;
+    if (pick.type === 'folder') {
+      const b = buildings.find((x) => x.path === pick.path);
+      return b ? { kind: 'folder', ...b } : null;
+    }
+    if (pick.type === 'file') {
+      const file = plaza?.files.find((f) => f.path === pick.path);
+      return file ? { kind: 'file', ...file, tags: fileTags(file.path) } : null;
+    }
+    return null;
+  }
+
+  // Where Remi goes to repair a file: the map moves to the file's folder and he walks to its plaza
+  locateFile(path) {
+    const folder = parentOf(path);
+    if (folder !== this.store.state.path) this.enterFolder(folder);
+    const plaza = this.store.state.plaza;
+    return { folder, x: 0, z: 0, height: 1, radius: (plaza?.size ?? 5) / 2 };
+  }
+
+  // { counts, level, red, yellow } for every file under `nodes`
   #levelsOf(nodes) {
     const counts = emptyCounts();
     allFiles(nodes).forEach((f) => { counts[this.#security.scoreOf(f.path).level]++; });
-    return { counts, level: worstLevel(Object.keys(counts).filter((l) => counts[l] > 0)) };
+    return { counts, level: worstLevel(Object.keys(counts).filter((l) => counts[l] > 0)), red: counts.red, yellow: counts.yellow };
+  }
+
+  // Tags and friendly name of a folder (shown in Vibe mode)
+  #guideOf(path, nodes) {
+    const guide = folderGuide(path, allFiles(nodes));
+    return { tags: guide.tags, friendly: strings.describeFolder(guide, baseName(path)).name };
   }
 
   #describeFile(file) {
     const score = this.#security.scoreOf(file.path);
     const reason = score.reason || strings.security.reasons[score.reasonKey] || '';
-    return { path: file.path, name: baseName(file.path), size: file.size ?? 0, level: score.level, reason, by: score.by };
+    return {
+      path: file.path, name: baseName(file.path), size: file.size ?? 0,
+      level: score.level, reason, reasonKey: score.reasonKey, by: score.by,
+    };
   }
 
   #recompute({ path = this.store.state.path, announce = false } = {}) {
@@ -107,7 +140,7 @@ export class MapViewModel {
     // The folder may have disappeared after a disk change: fall back to its closest existing parent
     let node = findNode(tree, path);
     while (!node && path) {
-      path = path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+      path = parentOf(path);
       node = findNode(tree, path);
     }
 
@@ -144,8 +177,7 @@ export class MapViewModel {
       root: {
         total,
         dirs: countDirs(tree),
-        counts: project.counts,
-        level: project.level,
+        ...project,
         // Share of evaluated files that are safe (100 when there is nothing to evaluate)
         securityScore: total ? Math.round((project.counts.green / total) * 100) : 100,
       },
@@ -157,8 +189,7 @@ export class MapViewModel {
         size: grid.size,
         total: countFiles(children),
         folders: dirs.length,
-        counts: here.counts,
-        level: here.level,
+        ...here,
       },
       buildings: dirs.map((dir, i) => ({
         path: dir.path,
@@ -166,7 +197,9 @@ export class MapViewModel {
         x: slots[i].x,
         z: slots[i].z,
         files: countFiles(dir.children ?? []),
+        height: folderHeight(countFiles(dir.children ?? [])),
         ...this.#levelsOf(dir.children ?? []),
+        ...this.#guideOf(dir.path, dir.children ?? []),
         order: i,
       })),
       version: this.store.state.version + 1,

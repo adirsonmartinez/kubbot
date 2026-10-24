@@ -16,21 +16,49 @@ Visual IDE for Platanus Hack 26 (AI Security track): the project is an isometric
 
 ```
 renderer/
-  main.js         composition root: creates Models -> ViewModels -> Views and wires them
-  core/           Observable (reactive state), event bus, formatting helpers
-  i18n/es.js      every user-facing string
-  services/       workspaceService: window.platanus, or a demo project in a plain browser
+  main.js         composition root: creates Models -> ViewModels -> Views, wires them, defines app `actions`
+  core/           Observable (reactive state), event bus (EVENTS), formatting helpers
+  i18n/es.js      every user-facing string (also tag labels, folder names, repair texts)
+  services/       bridges to Electron (no logic): workspaceService (disk), agentService (agents + MCP),
+                  mcpBridge (answers the MCP tools that need the window)
   models/         data and rules; no DOM, no three.js, no UI state
+    projectModel, fileTree, securityModel (traffic light), supabaseModel, demoProject
+    agentModel (chat brain: scripted demo or the user's agent), agentConnectionModel (which agent,
+    model, effort; one run at a time; 'chat' and 'repair' sessions)
+    folderTags (tag and folder KEYS by name; labels live in es.js), modeModel (Vibe / Dev),
+    repairHistoryModel (task list of repairs, per project, in localStorage)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
-  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, inputController, builders/
-  views/ui/       HTML: chat, panels, controls, labels
-  styles/main.css
+    camera, map (one folder level at a time), supabase, git (branches), app (which 3D view),
+    shell (sidebar, stage tabs, explorer guide/tree, risks), graph (threat graph), chat,
+    repair (Remi's job: walk, agent repair, outcome, queue)
+  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
+                  builders/ (block, plaza, folder, git, schema, supabase, crack, remi, remiModelLoader)
+  views/ui/       HTML: shell, chat, agentPicker, agentConnect, graph, devTree, hoverCard, hud,
+                  repairPanel, remiJump, panels (breadcrumb, schema, git), controls, labels
+  views/remiSprite.js  Remi's pixel art (card and jump)
+  assets/remi/    optional 3D model for Remi (see its README for source and license)
+  styles/         main.css (scene overlays, dark tokens), shell.css (glass IDE), sidebar.css (motion), devtree.css
+electron/
+  main.js         window, IPC, confirmations, recent projects, MCP handlers (read/write with approval + backup, undo)
+  workspace.js    every disk operation, caged in the open folder
+  git.js          read-only git history (execFile, no shell)
+  mcpServer.js    local MCP server (127.0.0.1, rejects browser Origin), tool list, secret blocklist
+  agents.js       the user's CLIs (Claude Code, Grok, Codex) with minimal context and only Platanus' tools
+  strings.js      main-process texts
+tests/renderer/   node:test unit tests for models and view models (renderer/package.json marks ESM for Node)
 ```
 
-- **Models** expose an `Observable` `store` and methods. Example: `securityModel.scoreOf(path)` -> `{ level, reason | reasonKey, by }`.
-- **ViewModels** subscribe to models, expose their own `store` and actions (`mapViewModel.enterFolder(path)`, `gitViewModel.focusLane(name)`). They talk to each other through the event bus (`core/eventBus.js`, names in `EVENTS`).
+- **Models** expose an `Observable` `store` and methods. Example: `securityModel.scoreOf(path)` -> `{ level, reason | reasonKey, by: 'demo' | 'agent' | 'remi' }`.
+- **ViewModels** subscribe to models, expose their own `store` and actions (`mapViewModel.enterFolder(path)`, `gitViewModel.focusLane(name)`, `repairViewModel.start(path)`). They talk to each other through the event bus (`core/eventBus.js`, names in `EVENTS`).
 - **Views** subscribe to ViewModels and draw; user input only calls ViewModel actions. Clickable 3D objects carry `userData.pick = { type, ...ids }` and `MapViewModel.handlePick()` routes them.
 - Change state only through `store.set(patch)`. Bump `version` when a view has to rebuild.
+- **Tests first** for model/view-model behavior: add a case in `tests/renderer/` (fakes for services, `mock.timers` for delays), then change the code. `npm test` runs everything.
+
+## Agents and repairs (security rules)
+
+- The agent only acts through the local MCP tools. `platanus_write_file` always opens a confirmation dialog and backs up the previous version to `~/.platanus/backups/` (undo from the repair history). Secrets (`.env*`, keys, `.git/`, `.ssh/`, `.npmrc`…) are refused on the normalized and the real path.
+- Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`. Do not loosen these flags.
+- Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
 
 ## Visual style ("digital twin", dark)
 
@@ -46,7 +74,7 @@ The map shows one folder at a time: a plaza in the middle with the folder's own 
 
 ## Views
 
-`AppViewModel` switches between `map` (project city) and `git` (branches as railway lanes). Each view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks and Esc are routed to the active view in `main.js`.
+The stage tabs (`ShellViewModel.stage`: map, git, project, graph) drive `AppViewModel`, which picks the 3D view: `git` shows the branches as lanes, every other tab uses the map. Each 3D view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks, hover and Esc are routed to the active view in `main.js`; G toggles Map/Git.
 
 Git is read only: `electron/git.js` runs fixed `git` commands with `execFile` (no shell) and returns commits, branches, tags and HEAD. `GitViewModel` assigns each commit to a lane (first-parent chains in git flow priority; deleted branches recovered from merge subjects) and flags commits that added red files (`.env`, keys) as risky.
 

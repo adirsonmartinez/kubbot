@@ -8,6 +8,11 @@ export const EVENTS = Object.freeze({
   tableSelected: 'table:selected',     // { name, columns, rlsEnabled }
   supabaseVulnerable: 'supabase:vulnerable',
   commitSelected: 'commit:selected',   // { sha, short, subject, author, date, files, risk, lane, laneLive }
+  repairStarted: 'repair:started',     // { path, agent }
+  repairText: 'repair:text',           // { path, delta } the agent's explanation, streaming
+  repairTool: 'repair:tool',           // { path, name }
+  repairChanged: 'repair:changed',     // { path, change } the agent wrote a file (approved)
+  repairFinished: 'repair:finished',   // { entry } history entry with its final status
 });
 
 export function createEventBus() {

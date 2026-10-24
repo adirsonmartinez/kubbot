@@ -14,16 +14,23 @@ const SUN_OFFSET = new THREE.Vector3(-14, 30, 18); // from the top left: shadows
 const RIM_OFFSET = new THREE.Vector3(20, 18, -26);  // cool light from behind to outline the volumes
 const BLOOM = { strength: 0.45, radius: 0.4, threshold: 0.85 };
 
-export function createSceneView(cameraViewModel) {
+// `container` is where the canvas lives (the IDE stage). Defaults to the whole window, as before.
+export function createSceneView(cameraViewModel, container = document.body) {
+  const fullWindow = container === document.body;
+  const size = () =>
+    fullWindow
+      ? { width: window.innerWidth, height: window.innerHeight }
+      : { width: Math.max(1, container.clientWidth), height: Math.max(1, container.clientHeight) };
+
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(size().width, size().height);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  document.body.appendChild(renderer.domElement);
+  container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(PALETTE.background);
@@ -69,20 +76,22 @@ export function createSceneView(cameraViewModel) {
   scene.add(grid);
 
   function resize() {
-    const aspect = window.innerWidth / window.innerHeight;
+    const { width, height } = size();
+    const aspect = width / height;
     const h = CAMERA.viewHeight;
     Object.assign(camera, { left: (-h * aspect) / 2, right: (h * aspect) / 2, top: h / 2, bottom: -h / 2 });
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    composer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(width, height);
+    composer.setSize(width, height);
   }
 
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), BLOOM.strength, BLOOM.radius, BLOOM.threshold));
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(size().width, size().height), BLOOM.strength, BLOOM.radius, BLOOM.threshold));
   composer.addPass(new OutputPass());
   resize();
-  window.addEventListener('resize', resize);
+  if (fullWindow) window.addEventListener('resize', resize);
+  else new ResizeObserver(resize).observe(container); // panels can be resized without the window changing
 
   // Applies the view model to the three.js camera. Ground, grid and sun follow it (snapped to cells).
   function syncCamera() {
@@ -110,8 +119,10 @@ export function createSceneView(cameraViewModel) {
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   const projected = new THREE.Vector3();
 
+  // Pointer coordinates are relative to the viewport; the canvas may not start at (0, 0).
   function setRay(clientX, clientY) {
-    ndc.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+    const r = renderer.domElement.getBoundingClientRect();
+    ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
     raycaster.setFromCamera(ndc, camera);
   }
 
@@ -132,10 +143,11 @@ export function createSceneView(cameraViewModel) {
     return null;
   }
 
-  // World point -> CSS pixels
+  // World point -> CSS pixels relative to the container (labels are positioned inside it)
   function toScreen({ x, y, z }) {
     projected.set(x, y, z).project(camera);
-    return { x: (projected.x * 0.5 + 0.5) * window.innerWidth, y: (-projected.y * 0.5 + 0.5) * window.innerHeight };
+    const { width, height } = size();
+    return { x: (projected.x * 0.5 + 0.5) * width, y: (-projected.y * 0.5 + 0.5) * height };
   }
 
   // --- Render loop ---

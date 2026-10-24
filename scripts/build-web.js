@@ -9,24 +9,28 @@ const root = path.join(__dirname, '..');
 const renderer = path.join(root, 'renderer');
 const dist = path.join(root, 'dist');
 const threeSource = path.join(root, 'node_modules', 'three', 'build', 'three.module.js');
+const addonsSource = path.join(root, 'node_modules', 'three', 'examples', 'jsm');
 
 const IMPORT_MAP = [
   ['"three": "../node_modules/three/build/three.module.js"', '"three": "./vendor/three.module.js"'],
   ['"three/addons/": "../node_modules/three/examples/jsm/"', '"three/addons/": "./vendor/addons/"'],
 ];
-// three.js addons used by the renderer (copied whole folders: they import each other)
+// three.js addons the app imports: whole folders when their files import each other, single files otherwise
 const ADDON_FOLDERS = ['postprocessing', 'shaders'];
+const ADDON_FILES = ['loaders/GLTFLoader.js', 'utils/BufferGeometryUtils.js'];
 
 fs.rmSync(dist, { recursive: true, force: true });
 fs.cpSync(renderer, dist, { recursive: true });
+fs.rmSync(path.join(dist, 'package.json'), { force: true }); // only for Node's test runner
 
 fs.mkdirSync(path.join(dist, 'vendor'), { recursive: true });
 fs.copyFileSync(threeSource, path.join(dist, 'vendor', 'three.module.js'));
-ADDON_FOLDERS.forEach((folder) => fs.cpSync(
-  path.join(root, 'node_modules', 'three', 'examples', 'jsm', folder),
-  path.join(dist, 'vendor', 'addons', folder),
-  { recursive: true }
-));
+ADDON_FOLDERS.forEach((folder) => fs.cpSync(path.join(addonsSource, folder), path.join(dist, 'vendor', 'addons', folder), { recursive: true }));
+ADDON_FILES.forEach((file) => {
+  const target = path.join(dist, 'vendor', 'addons', file);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.copyFileSync(path.join(addonsSource, file), target);
+});
 fs.copyFileSync(path.join(root, 'project-logo.png'), path.join(dist, 'favicon.png'));
 
 const indexPath = path.join(dist, 'index.html');
