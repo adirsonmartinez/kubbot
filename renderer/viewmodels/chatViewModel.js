@@ -3,6 +3,7 @@
 import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
+import { escapeHtml } from '../core/format.js';
 
 const CHAT = strings.chat;
 const typingDelay = (reply) => 600 + Math.min((reply.text ?? reply.html ?? '').length * 10, 1600);
@@ -133,19 +134,25 @@ export class ChatViewModel {
     this.store.set({ typing: true });
     let streamId = null;
     let streamed = false;
-    const reply = await this.#agent.reply(text, {
-      onTool: (name) => { streamId = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); },
-      onText: (delta) => {
-        if (streamId === null) { streamId = this.#push({ role: 'bot', text: '' }); this.store.set({ typing: false }); }
-        streamed = true;
-        this.#append(streamId, delta);
-      },
-      // The agent's reasoning goes in the same bubble, folded above the answer
-      onThinking: (delta) => {
-        if (streamId === null) { streamId = this.#push({ role: 'bot', text: '', thinking: '' }); this.store.set({ typing: false }); }
-        this.#appendThinking(streamId, delta);
-      },
-    });
+    let reply;
+    try {
+      reply = await this.#agent.reply(text, {
+        onTool: (name) => { streamId = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); },
+        onText: (delta) => {
+          if (streamId === null) { streamId = this.#push({ role: 'bot', text: '' }); this.store.set({ typing: false }); }
+          streamed = true;
+          this.#append(streamId, delta);
+        },
+        // The agent's reasoning goes in the same bubble, folded above the answer
+        onThinking: (delta) => {
+          if (streamId === null) { streamId = this.#push({ role: 'bot', text: '', thinking: '' }); this.store.set({ typing: false }); }
+          this.#appendThinking(streamId, delta);
+        },
+      });
+    } catch (error) {
+      // Never leave the chat stuck on "typing…" if the agent throws
+      reply = { html: strings.agent.git.failed(escapeHtml(String(error?.message ?? error))), tone: 'alert' };
+    }
     this.store.set({ typing: false });
     if (!streamed || reply.tone === 'alert') this.#enqueue(reply);
     else {
