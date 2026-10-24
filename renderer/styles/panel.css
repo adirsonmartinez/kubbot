@@ -103,3 +103,47 @@
 }
 #sidebar .repairs-clear:hover { background: var(--lg-chip-hover); color: var(--lg-text); }
 #sidebar .repairs-clear:focus-visible { outline: 2px solid rgba(255, 255, 255, .5); outline-offset: 1px; }
+
+/* ---------- Risk and server cards: the chat's cards (lighter glass inside the glass) ----------
+   Neutral card with the rim; the traffic light lives in the badge and the level text only. */
+#sidebar .risk-card {
+  gap: 4px; margin-bottom: 8px; padding: 12px 12px 12px 14px; border: 0; border-radius: 18px;
+  background: var(--lg-card); box-shadow: var(--lg-rim), 0 6px 24px rgba(0, 0, 0, .18);
+  transition: background .2s var(--lg-ease), transform .2s var(--lg-ease);
+}
+#sidebar .risk-card.red, #sidebar .risk-card.yellow { background: var(--lg-card); }
+#sidebar .risk-card:hover, #sidebar .risk-card.red:hover, #sidebar .risk-card.yellow:hover { background: rgba(255, 255, 255, .07); transform: none; }
+#sidebar .risk-card:active { transform: scale(.985); }
+#sidebar .risk-card:focus-visible { outline: 2px solid rgba(255, 255, 255, .5); outline-offset: 2px; }
+#sidebar .risk-head { gap: 8px; min-height: 28px; }
+#sidebar .risk-icon { width: 26px; height: 26px; border-radius: 9px; box-shadow: var(--lg-rim); }
+#sidebar .risk-icon svg { width: 14px; height: 14px; }
+#sidebar .risk-icon.red { background: rgba(255, 90, 106, .16); }
+#sidebar .risk-icon.yellow { background: rgba(255, 194, 74, .14); }
+#sidebar .risk-level { font: 600 12px var(--lg-font); }
+#sidebar .risk-path { margin-top: 2px; font: 500 12.5px/1.35 var(--lg-mono); color: var(--lg-text); }
+#sidebar .risk-reason { color: var(--lg-text-2); font-size: 12.5px; line-height: 1.5; }
+
+/* "Reparar": the chat's glass chip with a wrench; shimmers while Remi works */
+#sidebar .risk-head .pill.repair {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border: 0; border-radius: 999px;
+  background: var(--lg-chip); box-shadow: var(--lg-rim); color: var(--lg-text); font: 500 12px var(--lg-font);
+}
+#sidebar .risk-head .pill.repair::before { content: none; }
+#sidebar .risk-head .pill.repair svg { width: 14px; height: 14px; color: var(--lg-icon-muted); }
+#sidebar .risk-head .pill.repair:hover { background: var(--lg-chip-hover); }
+#sidebar .risk-head .pill.repair:hover svg { color: var(--lg-icon); }
+#sidebar .risk-head .pill.repair.active { background-color: var(--lg-chip-hover); color: var(--lg-text); }
+
+/* Servers: same card; the actions are round icon buttons, chips are glass */
+#sidebar .server-card.paused, #sidebar .server-card.stopped { background: rgba(255, 255, 255, .025); }
+#sidebar .server-card.stopped { border: 0; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08); }
+#sidebar .server-process { color: var(--lg-muted); font-weight: 400; }
+#sidebar .server-address { font: 11px var(--lg-mono); color: var(--lg-faint); }
+#sidebar .server-chip, #sidebar .server-demo { padding: 2px 8px; border: 0; background: var(--lg-chip); box-shadow: var(--lg-rim); color: var(--lg-muted); font: 500 10.5px var(--lg-font); }
+#sidebar .server-chip.managed { color: var(--lg-text); }
+#sidebar .icon-btn { width: 28px; height: 28px; border: 0; border-radius: 50%; color: var(--lg-icon-muted); }
+#sidebar .icon-btn svg { width: 15px; height: 15px; }
+#sidebar .icon-btn:hover:not(:disabled) { background: var(--lg-chip-hover); color: var(--lg-icon); }
+#sidebar .icon-btn.active { background: var(--lg-chip-hover); border: 0; box-shadow: var(--lg-rim); color: var(--lg-text); }
+#sidebar .server-output { border-radius: var(--lg-r-block); background: var(--lg-stage); font-family: var(--lg-mono); }

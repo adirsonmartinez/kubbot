@@ -209,7 +209,9 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
 
   function repairButton(file) {
     const queued = repairViewModel.isQueued(file.path);
-    const b = el('button', `pill repair${queued ? ' active' : ''}`, queued ? strings.repair.repairing : strings.repair.repair);
+    const b = el('button', `pill repair${queued ? ' active' : ''}`);
+    b.innerHTML = icon('wrench'); // static icon
+    b.append(el('span', '', queued ? strings.repair.repairing : strings.repair.repair));
     b.type = 'button';
     b.disabled = queued;
     b.addEventListener('click', (e) => {
