@@ -6,13 +6,14 @@ import * as THREE from 'three';
 import { groundLink, materials as M } from './materials.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { buildBlock } from './builders/blockBuilder.js';
+import { buildFolderIcon } from './builders/folderIconBuilder.js';
 import { buildPlaza } from './builders/plazaBuilder.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
 import { TAG_COLOR } from '../../models/folderTags.js';
 
-// 'blocks': plain cubes (temporary, while the building design is defined); 'detailed': full buildings
-const BUILDING_STYLE = 'blocks';
+// 'folders': isometric folders; 'blocks': plain cubes; 'detailed': full buildings
+const BUILDING_STYLE = 'folders';
 const FOLDER_BLOCK_SIZE = 3;
 
 const RISE_SPEED = 2.2;
@@ -87,9 +88,11 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     // Subfolders around it
     state.buildings.forEach((b) => {
       groundLink(group, M.road, 0, 0, b.x, b.z, 0.35, 0.05).castShadow = false;
-      const building = BUILDING_STYLE === 'blocks'
-        ? buildBlock({ size: FOLDER_BLOCK_SIZE, height: b.height, level: b.level })
-        : buildFolderBuilding(b);
+      const building = BUILDING_STYLE === 'folders'
+        ? buildFolderIcon({ size: FOLDER_BLOCK_SIZE, files: b.files, level: b.level })
+        : BUILDING_STYLE === 'blocks'
+          ? buildBlock({ size: FOLDER_BLOCK_SIZE, height: b.height, level: b.level })
+          : buildFolderBuilding(b);
       building.group.position.set(b.x, 0, b.z);
       building.group.userData.pick = { type: 'folder', path: b.path };
       group.add(building.group);

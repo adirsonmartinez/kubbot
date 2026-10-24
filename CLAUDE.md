@@ -38,7 +38,7 @@ renderer/
     shell (sidebar, stage tabs, explorer guide/tree, risks), graph (threat graph), chat,
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
-                  builders/ (block, plaza, folder, git, schema, supabase, remi, remiModelLoader)
+                  builders/ (block, folderIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader)
   views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown with answer cards and
                   file links, chatCards: folder / file cards), icons (DOM helper over views/icons.js), thinkingOrb
                   (libraries.dev orbs over the package engine), agentPicker
@@ -103,7 +103,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 ## Map navigation
 
-The map shows one folder at a time: a plaza in the middle with the folder's own files (cubes with their traffic light, riskiest at the front) and its subfolders as blocks around it. Clicking a block enters that folder; the breadcrumb (in the status bar at the bottom) or Esc go back up; the folder's traffic-light counts stay at the top left of the map. `MapViewModel.path` is the folder on screen (`''` = root). The Supabase node only appears at the root. Folders are plain blocks for now (`BUILDING_STYLE` in `mapView.js`).
+The map shows one folder at a time: a plaza in the middle with the folder's own files (cubes with their traffic light, riskiest at the front) and its subfolders as blocks around it. Clicking a block enters that folder; the breadcrumb (in the status bar at the bottom) or Esc go back up; the folder's traffic-light counts stay at the top left of the map. `MapViewModel.path` is the folder on screen (`''` = root). The Supabase node only appears at the root. Folders are isometric folders (`builders/folderIconBuilder.js`; `BUILDING_STYLE` in `mapView.js` switches back to plain blocks).
 
 ## Views
 
