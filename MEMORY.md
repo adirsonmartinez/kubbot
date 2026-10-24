@@ -10,8 +10,9 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
 ## Ramas
 | Rama | Estado |
 |---|---|
-| `feature/chat-natural` | Subida. PR #1 hacia `develop` abierto: chat nuevo (vidrio líquido, orbes, permisos, claves, logos). |
-| `feature/recorrido` | Subida, PR hacia `develop` (incluye los commits del PR #1: fusionar #1 primero). Contiene: recorrido, robot arrastrable y constructor, logos reales, contexto del lugar, preguntas de solo lectura, video, MEMORY y skill. |
+| `develop` | Tiene todo: chat natural, recorrido, robot, video, editor de archivos y la UI nueva. `feature/chat-natural` y `feature/recorrido` ya están fusionadas (2026-10-24). |
+
+- Adirson trabaja directo en `develop` (sin ramas `feature/*`) y sube a su mirror: `git push personal develop`. `origin` (repo de la organización) le responde 403: alguien con permisos tiene que subir `develop` allí.
 
 `vercel.json` está modificado por una reparación aprobada: **no se sube** hasta que el usuario decida.
 
@@ -39,9 +40,14 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - mientras el agente trabaja, el globo muestra una cápsula con el orbe a 20 px.
 - **Logos reales de los agentes**: `renderer/icons/brands.js`, generado con `npm run icons` desde `@lobehub/icons-static-svg` (MIT). La clase es `svg.icon.agent-logo`, no `brand`, porque esa choca con la barra de título. En el encabezado del chat, el logo va en un marco de vidrio líquido con el color del agente (`--agent-tint`).
 - **Video del producto**: `video/` (Remotion) y `scripts/demo/` (grabación por CDP + proyecto de ejemplo «Feria Online»).
+- **Editor de archivos** (`docs/features/file-editor/README.md`): clic en un archivo del mapa → ventana flotante con pestañas, CodeMirror con colores de sintaxis, guardar con ⌘S (secretos: se abren marcados, guardarlos pide confirmación; respaldo y control de `mtime`).
+- **UI nueva en toda la app** (el idioma del chat: vidrio, Inter/Roboto Mono, neutra, sin morado):
+  - un CSS por pieza, todos sobre los tokens `--lg-*` de `chat-glass.css`: `start.css` (inicio), `controls.css`, `dock.css`, `labels.css`, `hud.css`, `panel.css`, `editor.css`, `titlebar.css`;
+  - `panel.css`, `editor.css` y `titlebar.css` redefinen dentro los tokens del shell (`--ink`, `--panel`, `--accent`…) con los del chat;
+  - fijos: chat abajo a la derecha, panel lateral, tarjeta de seguridad (compacta, arriba a la izquierda; reemplazó al semáforo) y selector Mapa/Git. Solo el editor se arrastra. Se quitó `floater.js`.
 
 ## Cómo comprobar
-- `npm test` (409 pruebas al 2026-10-24, con develop fusionado) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
+- `npm test` (418 pruebas al 2026-10-24, con develop fusionado) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
 - **App real:** `npx electron . --remote-debugging-port=9223 --open=<proyecto>` y scripts CDP (`scripts/demo/cdp.mjs`).
 - **Banderas:**
   - `PLATANUS_SIM=1`: agente «Simulador», escenarios en `scripts/sim/scenarios.js`;
@@ -72,6 +78,7 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - Commit y PR de `feature/recorrido` cuando el usuario lo pida.
 
 ## Aprendizajes (actualiza aquí; lo técnico detallado va en la skill)
+- Las etiquetas del mapa se mueven en cada cuadro: sin `backdrop-filter` (sería lento); fondo oscuro translúcido con el borde del chat (`labels.css`).
 - **Siempre dejar la app en modo normal** con el proyecto del usuario al terminar una prueba. Si queda en modo grabación (`PLATANUS_DEMO`), el cursor es falso y los clics se sienten desfasados (le pasó al usuario el 2026-10-24).
 - En modo demo, `__platanus.screenOf({x,y,z})` da la posición en pantalla de un punto 3D: sirve para pruebas con el ratón real. Tras recargar, esperar a que la cámara termine de volar.
 - El texto del Simulador es fijo: en el escenario `feria` dice «Lo marqué en amarillo» aunque el modo solo lectura lo rechace. Un agente real ve el rechazo; no es un fallo de la app.
