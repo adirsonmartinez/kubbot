@@ -136,7 +136,7 @@ export class MapViewModel {
     const folder = path.includes('/') ? topFolderOf(path) : '';
     if (folder) this.enterFolder(folder);
     const icon = this.store.state.opened?.files.find((f) => f.path === path);
-    if (icon) return { folder, x: icon.x, z: icon.z, height: 1, radius: 1.6 }; // just off the tile
+    if (icon) return { folder, x: icon.x, z: icon.z, height: 1, radius: this.store.state.opened.size / 2 }; // just off the tray
     const plaza = this.store.state.plaza;
     return { folder, x: 0, z: 0, height: 1, radius: (plaza?.size ?? 5) / 2 };
   }

@@ -20,22 +20,20 @@ export function plazaGrid(fileCount) {
 // Folder on the map: its icon footprint and the platform it stands on
 export const FOLDER = { size: 3, platform: 4.6 };
 
-// Problem files of an open folder: flat file tiles in a grid in front of the folder (toward the default
-// camera, +z), or to its side (+x) when that would put them on the road of a folder behind the plaza.
-// Slots are in world units, filled front rows first.
-export const FILE_TILE_PITCH = { x: 3.2, z: 3.6 };
-
+// Problem files of an open folder: a small square grid next to the folder, on its far side from the
+// plaza (so it never covers the roads). Slots are in world units, filled front rows first.
 export function sideGrid(count, folder) {
+  const { pitch, margin } = PLAZA;
   const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
   const rows = Math.max(1, Math.ceil(count / cols));
-  const halfX = (cols * FILE_TILE_PITCH.x) / 2, halfZ = (rows * FILE_TILE_PITCH.z) / 2;
-  const behind = folder.z < 0 && Math.abs(folder.x) < Math.abs(folder.z) / 2;
-  const gap = FOLDER.platform / 2 + 1;
-  const x = behind ? folder.x + gap + halfX : folder.x;
-  const z = behind ? folder.z : folder.z + gap + halfZ;
-  const x0 = x - ((cols - 1) * FILE_TILE_PITCH.x) / 2, z0 = z + ((rows - 1) * FILE_TILE_PITCH.z) / 2;
-  const slots = Array.from({ length: count }, (_, i) => ({ x: x0 + (i % cols) * FILE_TILE_PITCH.x, z: z0 - Math.floor(i / cols) * FILE_TILE_PITCH.z }));
-  return { x, z, size: Math.max(halfX, halfZ) * 2, slots };
+  const size = cols * pitch + margin * 1.4;
+  const length = Math.hypot(folder.x, folder.z);
+  const [dx, dz] = length ? [folder.x / length, folder.z / length] : [1, 0];
+  const t = (FOLDER.platform / 2 + size / 2 + 0.6) / Math.max(Math.abs(dx), Math.abs(dz));
+  const x = folder.x + dx * t, z = folder.z + dz * t;
+  const x0 = x - ((cols - 1) * pitch) / 2, z0 = z + ((rows - 1) * pitch) / 2;
+  const slots = Array.from({ length: count }, (_, i) => ({ x: x0 + (i % cols) * pitch, z: z0 - Math.floor(i / cols) * pitch }));
+  return { x, z, size, slots };
 }
 
 export const folderHeight = (files) => Math.min(1.2 + Math.log2(1 + files) * 1.4, 9);

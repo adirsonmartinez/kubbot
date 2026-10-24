@@ -103,7 +103,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 ## Map navigation
 
-The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. Clicking a folder opens it: its problem files, at any depth, appear lying flat in front of it (file tiles, linked by a road); the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
+The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
 
 ## Views
 

@@ -1,6 +1,6 @@
 // Draws the security map from MapViewModel: the project's plaza in the middle (root files with a
 // problem), the top-level folders that hold a problem around it, linked by plain roads, and the
-// problem files of the open folder lying flat beside it. Anything that appears for the first time
+// problem files of the open folder on a tray beside it. Anything that appears for the first time
 // rises from the ground; fixed files and folders simply disappear on the next redraw.
 // Labels follow the mode: friendly names in Vibe, folder names and counts in Dev.
 import * as THREE from 'three';
@@ -8,12 +8,11 @@ import { groundLink, materials as M } from './materials.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { buildBlock } from './builders/blockBuilder.js';
 import { buildFolderIcon } from './builders/folderIconBuilder.js';
-import { buildFileTiles, buildPlaza } from './builders/plazaBuilder.js';
+import { buildFileTray, buildPlaza } from './builders/plazaBuilder.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
 import { TAG_COLOR } from '../../models/folderTags.js';
 import { FOLDER } from '../../viewmodels/layout.js';
-import { FILE_TILE } from './builders/fileIconBuilder.js';
 
 // 'folders': isometric folders; 'blocks': plain cubes; 'detailed': full buildings
 const BUILDING_STYLE = 'folders';
@@ -58,26 +57,22 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     group = null;
   }
 
-  // Things shown for the first time rise from the ground (flat ones grow), one after the other
-  function rise(key, object, delay, animate, flat = false) {
+  // Things shown for the first time rise from the ground, one after the other
+  function rise(key, object, delay, animate) {
     const isNew = !seen.has(key);
     seen.add(key);
     if (!animate || !isNew) return;
-    if (flat) object.scale.setScalar(0.001);
-    else object.scale.y = 0.001;
-    risers.push({ group: object, k: -delay, flat });
+    object.scale.y = 0.001;
+    risers.push({ group: object, k: -delay });
   }
 
-  function addFiles(built, files, animate, flat = false) {
+  function addFiles(built, files, animate) {
     built.icons.forEach(({ mesh, index }) => {
       const f = files[index];
-      rise(`file:${f.path}`, mesh, index * ICON_RISE_STAGGER, animate, flat);
-      const x = mesh.position.x + built.group.position.x, z = mesh.position.z + built.group.position.z;
+      rise(`file:${f.path}`, mesh, index * ICON_RISE_STAGGER, animate);
       ownLabels.push(labels.add({
         html: fileLabel(f),
-        // Flat files: below their nearest corner, so the label never covers them
-        anchor: flat ? { x: x + FILE_TILE.width / 2, y: 0, z: z + FILE_TILE.depth / 2 } : { x, y: built.top + 1.2, z },
-        align: flat ? 'below' : 'top',
+        anchor: { x: mesh.position.x + built.group.position.x, y: built.top + 1.2, z: mesh.position.z + built.group.position.z },
         className: 'file',
       }));
     });
@@ -126,14 +121,14 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
       rise(`folder:${b.path}`, building.group, b.order * 0.06, animate);
     });
 
-    // The open folder's problem files, lying flat beside it, linked by a road
+    // The open folder's problem files, on a tray beside it
     const { opened } = state;
     if (opened) {
       const folder = state.buildings.find((b) => b.path === opened.path);
       groundLink(group, M.road, folder.x, folder.z, opened.x, opened.z, 0.35, 0.05).castShadow = false;
-      const tiles = buildFileTiles(opened);
-      group.add(tiles.group);
-      addFiles(tiles, opened.files, animate, true);
+      const tray = buildFileTray(opened);
+      group.add(tray.group);
+      addFiles(tray, opened.files, animate);
     }
   }
 
@@ -152,9 +147,7 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
       const r = risers[i];
       r.k = Math.min(r.k + dt * RISE_SPEED, 1);
       const k = Math.max(r.k, 0);
-      const s = Math.max(1 - (1 - k) ** 3, 0.001);
-      if (r.flat) r.group.scale.setScalar(s);
-      else r.group.scale.y = s;
+      r.group.scale.y = Math.max(1 - (1 - k) ** 3, 0.001);
       if (r.k >= 1) risers.splice(i, 1);
     }
   });
