@@ -20,24 +20,26 @@ renderer/
   core/           Observable (reactive state), event bus (EVENTS), formatting helpers
   i18n/es.js      every user-facing string (also tag labels, folder names, repair texts)
   services/       bridges to Electron (no logic): workspaceService (disk), agentService (agents + MCP),
-                  mcpBridge (answers the MCP tools that need the window)
+                  mcpBridge (answers the MCP tools that need the window), serverService (listening servers)
   models/         data and rules; no DOM, no three.js, no UI state
     projectModel, fileTree, securityModel (traffic light), supabaseModel, demoProject
     agentModel (chat brain: scripted demo or the user's agent), agentConnectionModel (which agent,
     model, effort; one run at a time; 'chat' and 'repair' sessions)
     folderTags (tag and folder KEYS by name; labels live in es.js), modeModel (Vibe / Dev),
-    repairHistoryModel (task list of repairs, per project, in localStorage)
+    repairHistoryModel (task list of repairs, per project, in localStorage),
+    serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
     camera, map (one folder level at a time), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), graph (threat graph), chat,
-    repair (Remi's job: walk, agent repair, outcome, queue)
+    repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
                   builders/ (block, plaza, folder, git, schema, supabase, remi, remiModelLoader)
   views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown), agentPicker
                   (+ effortSlider), chatMenu, agentConnect, graph, devTree, hoverCard, hud,
                   repairPanel, remiJump, panels (breadcrumb, schema, git), controls, labels
                   floating layout: iconBar (reorderable icons), draggable (side panel / chat by
-                  header), floater (map cards: move, minimize, dock), chatDock (pinned chat column)
+                  header), floater (map cards: move, minimize, dock), chatDock (pinned chat column),
+                  floatingMenu (⋯ menus: one layer above the app, anchored to its button, flips up, keyboard)
   views/icons.js  icon('name') / <i data-icon> from icons/hugeicons.js (generated, see Visual style)
   views/remiSprite.js  Remi's pixel art (card and jump)
   assets/remi/    optional 3D model for Remi (see its README for source and license)
@@ -47,6 +49,14 @@ electron/
   main.js         window, IPC, confirmations, recent projects, MCP handlers (read/write with approval + backup, undo)
   workspace.js    every disk operation, caged in the open folder
   git.js          read-only git history (execFile, no shell)
+  servers.js      list of listening TCP servers (lsof on macOS, netstat + tasklist on Windows; execFile, absolute
+                  paths, no shell); open http://localhost:<port> in the default, an installed (by id) or a picked
+                  browser; stop a server (pid found from the port, native confirmation, re-checked, never Platanus
+                  or system pids); pause / resume (SIGSTOP/SIGCONT, Windows NtSuspendProcess; all resumed on quit);
+                  reactivate a server it stopped inside the app (asks first; login shell runs `exec "$@"` with the
+                  words as arguments; no Terminal window; output kept in main; "starting" until the port listens;
+                  a crash goes back to "Detenidos"; all stopped on quit; macOS only). The page never sends a pid,
+                  a URL, a command or a program path.
   mcpServer.js    local MCP server (127.0.0.1, rejects browser Origin), tool list, secret blocklist
   agents.js       the user's CLIs (Claude Code, Grok, Codex) with minimal context and only Platanus' tools
   agentEvents.js  CLI output -> chat events (text, reasoning, tools, subagents, result); tested
@@ -54,6 +64,8 @@ electron/
 tests/renderer/   node:test unit tests for models and view models (renderer/package.json marks ESM for Node)
 tests/secrets.test.mjs  fails if any tracked file contains a credential
 docs/INTERFAZ.md  the interface: layout, chat and agents, repairs, where each piece lives, what is stored
+spec/             feature specs (TEMPLATE.md, 001-running-servers.md)
+docs/             one README per feature (docs/features/<name>/README.md, in Spanish) and an index (docs/README.md)
 ```
 
 - **Models** expose an `Observable` `store` and methods. Example: `securityModel.scoreOf(path)` -> `{ level, reason | reasonKey, by: 'demo' | 'agent' | 'remi' }`.

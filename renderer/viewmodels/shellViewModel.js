@@ -8,7 +8,7 @@ import { fileTags, folderGuide } from '../models/folderTags.js';
 
 export const STAGES = ['map', 'git', 'graph', 'project'];
 
-export const SIDE_VIEWS = ['explorer', 'risks', 'repairs', 'agent'];
+export const SIDE_VIEWS = ['explorer', 'risks', 'repairs', 'servers', 'agent'];
 
 export class ShellViewModel {
   #projectModel;
