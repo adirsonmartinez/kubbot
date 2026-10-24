@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld('platanus', {
   mkdir: (rel) => ipcRenderer.invoke('fs:mkdir', rel),
   write: (rel, content) => ipcRenderer.invoke('fs:write', rel, content),
   remove: (rel) => ipcRenderer.invoke('fs:delete', rel),
+  // Editor: { content, mtime, secret }; a save is refused if the file changed since that mtime
+  openFile: (rel) => ipcRenderer.invoke('editor:open', rel),
+  saveFile: (rel, content, mtime) => ipcRenderer.invoke('editor:save', rel, content, mtime),
 
   gitHistory: () => ipcRenderer.invoke('git:history'),
   gitCommit: (message) => ipcRenderer.invoke('git:commit', message),

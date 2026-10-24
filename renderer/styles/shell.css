@@ -1190,3 +1190,85 @@ body.chat-resizing #workspace { transition: none; }
 #sidebar.card { left: 82px; }
 body:not(.sidebar-closed) { --shift-l: 191px; }
 body.no-project #side-dock { display: none; }
+
+/* ---------- Floating editor: files clicked on the map, one tab each (editorView.js) ---------- */
+#stage .editor {
+  position: absolute; z-index: 26; top: 64px; right: 14px;
+  width: min(600px, calc(100% - 28px)); height: min(66%, 600px); min-width: 320px; min-height: 200px;
+  max-width: calc(100% - 8px); max-height: calc(100% - 8px); resize: both; overflow: hidden;
+  display: flex; flex-direction: column; box-sizing: border-box;
+  background: var(--glass-strong); border: 1px solid var(--line-strong); border-radius: var(--radius);
+  -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .45); color: var(--text);
+}
+#stage .editor[hidden] { display: none; }
+/* Beside the chat when it is open (like the floating cards) */
+body:not(.chat-closed):not(.chat-min) #stage .editor:not(.moved) { right: 402px; }
+.editor.is-secret { border-color: rgba(255, 90, 106, .35); }
+.editor-head {
+  display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 6px 0 12px; flex: none;
+  border-bottom: 1px solid var(--line); cursor: grab; user-select: none; touch-action: none;
+}
+.editor.dragging .editor-head { cursor: grabbing; }
+.editor-head strong { flex: 1; font: 600 12px var(--sans); }
+.editor-head strong::before {
+  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; vertical-align: middle;
+  border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent);
+}
+.editor-icon-btn, .editor-tab-close {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--muted); cursor: pointer;
+}
+.editor-icon-btn svg { width: 14px; height: 14px; }
+.editor-icon-btn:hover, .editor-tab-close:hover { background: rgba(255, 255, 255, .07); color: var(--text); }
+
+.editor-tabs { display: flex; flex: none; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--line); background: rgba(0, 0, 0, .14); }
+.editor-tabs::-webkit-scrollbar { display: none; }
+.editor-tab {
+  position: relative; display: flex; align-items: center; gap: 7px; flex: none; max-width: 200px; height: 32px;
+  padding: 0 4px 0 11px; border-right: 1px solid var(--line); color: var(--muted); font: 500 12px var(--sans); cursor: pointer; user-select: none;
+}
+.editor-tab:hover { color: var(--text); background: rgba(255, 255, 255, .03); }
+.editor-tab.active { color: var(--text); background: rgba(255, 255, 255, .05); }
+.editor-tab.active::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--accent); }
+.editor-tab-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.editor-tab-close { width: 20px; height: 20px; opacity: 0; }
+.editor-tab-close svg { width: 12px; height: 12px; }
+.editor-tab.active .editor-tab-close, .editor-tab:hover .editor-tab-close { opacity: 1; }
+/* Unsaved: a dot where the close button goes (the button shows on hover) */
+.editor-tab.dirty .editor-tab-close { opacity: 1; }
+.editor-tab.dirty:not(:hover) .editor-tab-close svg { display: none; }
+.editor-tab.dirty:not(:hover) .editor-tab-close::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--text); }
+
+.editor-bar { display: flex; align-items: center; gap: 8px; flex: none; height: 30px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--line); font-size: 11px; }
+.editor-path { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--muted); font-size: 11px; }
+.editor-secret { padding: 2px 7px; border-radius: 999px; background: var(--danger-soft); color: var(--danger); font: 600 10px var(--sans); cursor: help; }
+.editor-secret[hidden] { display: none; }
+.editor-status { color: var(--faint); font: 500 11px var(--sans); white-space: nowrap; }
+.editor-status.dirty { color: var(--text); }
+.editor-status.error { color: var(--danger); }
+.editor-save {
+  height: 22px; padding: 0 10px; border: 0; border-radius: 6px; background: var(--accent); color: #fff;
+  font: 600 11px var(--sans); cursor: pointer;
+}
+.editor-save:disabled { background: rgba(255, 255, 255, .06); color: var(--faint); cursor: default; }
+.editor-save[hidden] { display: none; }
+
+.editor-notice { display: flex; align-items: center; gap: 10px; flex: none; padding: 7px 12px; background: rgba(255, 194, 74, .1); border-bottom: 1px solid rgba(255, 194, 74, .25); color: var(--warn); font-size: 12px; }
+.editor-notice[hidden] { display: none; }
+.editor-notice span { flex: 1; }
+.editor-notice-btn { border: 1px solid rgba(255, 194, 74, .4); border-radius: 6px; background: transparent; color: var(--warn); font: 600 11px var(--sans); padding: 3px 9px; cursor: pointer; }
+
+.editor-body { position: relative; display: flex; flex: 1; min-height: 0; }
+.editor-gutter, .editor-text { margin: 0; padding: 10px 0; font: 12px/1.6 var(--mono); tab-size: 2; }
+.editor-gutter {
+  flex: none; min-width: 34px; padding-left: 10px; padding-right: 10px; overflow: hidden; text-align: right;
+  color: var(--faint); background: rgba(0, 0, 0, .12); border-right: 1px solid var(--line); user-select: none;
+}
+.editor-text {
+  flex: 1; min-width: 0; padding-left: 12px; padding-right: 12px; border: 0; outline: none; resize: none;
+  background: transparent; color: var(--text); caret-color: var(--accent); white-space: pre; overflow: auto;
+}
+.editor-text::selection { background: rgba(139, 131, 255, .3); }
+.editor-gutter[hidden], .editor-text[hidden], .editor-message[hidden] { display: none; }
+.editor-message { flex: 1; display: grid; place-items: center; padding: 20px; color: var(--muted); font-size: 12px; text-align: center; }

@@ -142,4 +142,18 @@ module.exports = {
     confirmUndoDetail: 'Se vuelve a poner la versión que tenía antes.',
     confirmUndoCreated: 'Tu agente creó este archivo: deshacerlo lo borra.',
   },
+  editor: {
+    confirmSecret: (path) => `¿Guardar los cambios en "${path}"?`,
+    confirmSecretDetail: 'Este archivo guarda secretos (claves, contraseñas). Se respalda la versión anterior.',
+    saveButton: 'Guardar',
+    errors: {
+      notFound: 'El archivo ya no existe.',
+      notFile: 'No es un archivo.',
+      tooLarge: 'El archivo es demasiado grande para abrirlo aquí (máximo 2 MB).',
+      binary: 'Es un archivo binario (imagen, fuente…): no se puede editar como texto.',
+      changedOnDisk: 'El archivo cambió en el disco mientras lo editabas.',
+      cancelled: 'Cancelado.',
+      failed: 'No se pudo guardar el archivo.',
+    },
+  },
 };

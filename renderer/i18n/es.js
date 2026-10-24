@@ -67,6 +67,32 @@ export const strings = {
     hud: 'Seguridad del proyecto',
   },
 
+  // Floating editor: files clicked on the map open as tabs
+  editor: {
+    title: 'Editor',
+    close: 'Cerrar el editor',
+    closeTab: 'Cerrar pestaña',
+    save: 'Guardar',
+    saveHint: 'Guardar (⌘S)',
+    saving: 'Guardando…',
+    saved: 'Guardado',
+    unsaved: 'Sin guardar',
+    loading: 'Abriendo…',
+    secret: 'Secreto',
+    secretHint: 'Este archivo guarda secretos: tu agente no puede leerlo. Guardarlo pide confirmación.',
+    confirmClose: (name) => `"${name}" tiene cambios sin guardar. ¿Cerrar y perderlos?`,
+    stale: 'El archivo cambió en el disco mientras lo editabas.',
+    reload: 'Recargar del disco',
+    errors: {
+      notFound: 'El archivo ya no existe.',
+      notFile: 'No es un archivo.',
+      tooLarge: 'Es demasiado grande para abrirlo aquí (máximo 2 MB).',
+      binary: 'Es un archivo binario (imagen, fuente…): no se puede editar como texto.',
+      'desktop-only': 'Disponible en la app de escritorio.',
+      failed: 'No se pudo abrir el archivo.',
+    },
+  },
+
   panels: {
     // Breadcrumb counts: files of the open folder (or the project) by traffic light
     levelCount: (level, n) => ({

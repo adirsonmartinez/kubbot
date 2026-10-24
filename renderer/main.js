@@ -30,6 +30,7 @@ import { AppViewModel } from './viewmodels/appViewModel.js';
 import { ShellViewModel } from './viewmodels/shellViewModel.js';
 import { RepairViewModel } from './viewmodels/repairViewModel.js';
 import { HandControlViewModel } from './viewmodels/handControlViewModel.js';
+import { EditorViewModel } from './viewmodels/editorViewModel.js';
 
 import { createSceneView } from './views/scene/sceneView.js';
 import { createMapView } from './views/scene/mapView.js';
@@ -54,6 +55,7 @@ import { makeDraggable } from './views/ui/draggable.js';
 import { createChatDockView } from './views/ui/chatDockView.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
+import { createEditorView } from './views/ui/editorView.js';
 import { remiJump } from './views/ui/remiJump.js';
 import { applyStrings } from './views/ui/domStrings.js';
 import { applyIcons } from './views/icons.js';
@@ -87,6 +89,7 @@ const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitVi
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
 const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus, voiceMode: () => (modeModel.tech ? 'dev' : 'vibe') });
 const serversViewModel = new ServersViewModel({ serversModel });
+const editorViewModel = new EditorViewModel({ workspace, bus }); // files clicked on the map open as tabs
 const handTracking = createHandTrackingService();
 const handControlViewModel = new HandControlViewModel({ tracking: handTracking, camera: cameraViewModel });
 // The server list only refreshes while its side view is on screen
@@ -141,6 +144,7 @@ appViewModel.store.subscribe(({ view }) => {
   sceneView.setActiveLayer(view);
   labels.setActiveLayer(view);
 }, { immediate: true });
+createEditorView({ stage, editorViewModel });
 const hoverCard = createHoverCardView({ card: document.getElementById('hover-card'), stage, mapViewModel, modeModel });
 
 // Clicks, hover and Esc go to the view on screen
