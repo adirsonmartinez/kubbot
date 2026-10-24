@@ -1,0 +1,49 @@
+/* Side panel (explorer, risks, repairs, servers, agent) in the chat's clear glass (tokens from chat-glass.css).
+   Everything inside is drawn with the shell's tokens, so the panel redefines them with the chat's values:
+   white and greys, translucent cards and chips, Inter + Roboto Mono, and a neutral "accent" (white), so
+   selections and primary buttons look like the chat's lit chips and white pills. Traffic-light colors stay. */
+
+#sidebar.card {
+  --ink: var(--lg-text);
+  --text: var(--lg-text);
+  --muted: var(--lg-muted);
+  --faint: var(--lg-faint);
+  --panel: var(--lg-card);
+  --panel-2: var(--lg-chip);
+  --line: var(--lg-line);
+  --line-strong: rgba(255, 255, 255, .12);
+  --accent: rgba(255, 255, 255, .92);
+  --accent-soft: var(--lg-chip);
+  --glass-pop: rgba(24, 24, 24, .9);
+  --font: var(--lg-font);
+  --sans: var(--lg-font);
+  --mono: var(--lg-mono);
+
+  border: 0; border-radius: var(--lg-r-panel); overflow: hidden;
+  background: rgba(18, 18, 18, .52); /* a little denser than the chat: long lists of text over the map */
+  -webkit-backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);
+  backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);
+  box-shadow: var(--lg-rim-strong), var(--lg-shadow);
+  color: var(--lg-text); font: 13px/1.45 var(--lg-font); font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+/* The glass edge: the chat's gradient rim */
+#sidebar.card::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(150deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, .07) 28%, rgba(255, 255, 255, .02) 55%, rgba(255, 255, 255, .1));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+#sidebar.dragging { box-shadow: var(--lg-rim-strong), 0 30px 70px rgba(0, 0, 0, .55); }
+
+/* Header: like the chat's */
+#sidebar .card-head { height: 48px; padding: 0 16px; border-bottom: 1px solid var(--lg-line); }
+#sidebar .card-head #sidebar-title { font: 600 14px/1.2 var(--lg-font); letter-spacing: -.01em; color: var(--lg-text); }
+
+/* Primary buttons on the white "accent": dark text, like the chat's white pill */
+#sidebar :is(button, a).primary, #sidebar .btn-primary { color: #121212; }
+
+/* Hand-written purples inside the panel, made neutral */
+#sidebar .task-status.fixed { background: var(--lg-chip-hover); color: var(--lg-text); }
+#sidebar .hub-agent.hub-agent-demo .hub-avatar { background: var(--lg-chip-hover); color: var(--lg-text); }
+#sidebar .hub-agent.hub-agent-selected { border-color: rgba(255, 255, 255, .35); background: var(--lg-card); box-shadow: var(--lg-rim); }
