@@ -14,6 +14,7 @@ const el = (tag, className, text) => {
 
 export function createCracksCardView({ container, shellViewModel, repairHistory, onRepair, onSeeAll }) {
   let collapsed = false;
+  let lastPct = 0; // the bar animates from its previous width, not from zero on every redraw
   let unsubVm, unsubHist;
 
   function render(state) {
@@ -40,25 +41,26 @@ export function createCracksCardView({ container, shellViewModel, repairHistory,
     // — Header (always shown) —
     const header = el('div', 'cracks-card__header');
     header.appendChild(el('strong', 'cracks-card__title', n > 0 ? C.title(n) : C.allGood));
-    header.appendChild(el('span', 'cracks-card__progress', n > 0 ? `${verified}/${total}` : '—'));
+    header.appendChild(el('span', 'cracks-card__progress', n > 0 ? C.progress(verified, total) : ''));
     container.appendChild(header);
 
     // — Progress bar (start at 0 so the CSS transition animates in) —
     const barWrap = el('div', 'cracks-card__bar-wrap');
     const bar = el('div', 'cracks-card__bar');
-    bar.style.width = '0%';
+    bar.style.width = `${lastPct}%`;
     barWrap.appendChild(bar);
     container.appendChild(barWrap);
 
     // — Crack cards (up to 2, red first) —
-    const show = collapsed ? 0 : cracks.slice(0, 2);
+    const show = collapsed ? [] : cracks.slice(0, 2);
     show.forEach((r, i) => {
       const card = el('div', `crack-card ${r.level}`);
       card.style.animationDelay = `${i * 60}ms`;
 
       const head = el('div', 'crack-card__head');
       head.appendChild(el('span', `crack-dot ${r.level}`));
-      head.appendChild(el('span', 'crack-card__name', r.name));
+      head.appendChild(el('span', 'crack-card__name', r.path)); // full path: two files can share a name
+      card.title = r.path;
       head.appendChild(el('span', `crack-card__severity ${r.level}`, C.severity[r.level] ?? r.level));
       card.appendChild(head);
 
@@ -74,28 +76,30 @@ export function createCracksCardView({ container, shellViewModel, repairHistory,
 
     // — "see all" pill —
     const rest = n - show.length;
-    if (rest > 0) {
+    if (rest > 0 && !collapsed) {
       const pill = el('button', 'cracks-card__see-all', C.seeAll(rest));
       pill.type = 'button';
       pill.addEventListener('click', () => onSeeAll());
       container.appendChild(pill);
     }
 
-    // — Collapse toggle —
-    const toggleBtn = el('button', 'cracks-card__collapse', C.collapse);
-    toggleBtn.type = 'button';
-    toggleBtn.addEventListener('click', () => {
-      collapsed = true;
-      render(shellViewModel.store.state);
-    });
-    container.appendChild(toggleBtn);
+    // — Collapse / expand toggle (only when there is a list to fold) —
+    if (n > 0) {
+      const toggleBtn = el('button', 'cracks-card__collapse', collapsed ? C.expand : C.collapse);
+      toggleBtn.type = 'button';
+      toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+      toggleBtn.addEventListener('click', () => {
+        collapsed = !collapsed;
+        render(shellViewModel.store.state);
+      });
+      container.appendChild(toggleBtn);
+    }
 
     // — Staggered entrance via the .enter class —
     requestAnimationFrame(() => {
       bar.style.width = `${pct}%`;  // triggers width transition
     });
-    container.classList.add('enter');
-    setTimeout(() => container.classList.remove('enter'), 500);
+    lastPct = pct;
   }
 
   // --- subscriptions ---

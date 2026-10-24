@@ -126,6 +126,7 @@ export const strings = {
     repair: 'Reparar',
     seeAll: (n) => `Ver todo (${n} más)`,
     collapse: 'Ocultar',
+    expand: 'Mostrar grietas',
   },
 
   devTree: {
