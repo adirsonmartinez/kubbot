@@ -123,12 +123,7 @@ body::after {
 .map-label em { font-style: normal; font-size: 11px; font-weight: 600; }
 .map-label em.risk { color: var(--danger); }
 .map-label em.review { color: var(--warn); }
-.map-label.root { z-index: 2; padding: 8px 12px; border-color: rgba(139, 131, 255, 0.3); }
-.map-label.root strong { font: 600 14px var(--sans); }
-/* Open folder and its problem files: the dot takes the file's level */
-.map-label.open { border-color: rgba(139, 131, 255, 0.45); }
-.map-label.file { padding: 3px 7px 4px; }
-.map-label.file strong { font-size: 10px; }
+.map-label.root { z-index: 2; }
 .map-label.more { padding: 3px 8px; }
 /* Name of the integrations band: plain text on the dark ground, not a card */
 .map-label.band { padding: 0; background: none; border: 0; box-shadow: none; }
