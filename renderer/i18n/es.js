@@ -118,6 +118,16 @@ export const strings = {
     return { name: tag ? `${tag} · ${folder}` : folder, summary: tag ? `Archivos de ${tag.toLowerCase()}.` : 'Archivos del proyecto.' };
   },
 
+  cracksCard: {
+    title: (n) => (n === 1 ? '1 grieta abierta' : `${n} grietas abiertas`),
+    allGood: 'Sin grietas abiertas',
+    progress: (done, total) => `${done}/${total}`,
+    severity: { red: 'Grave', yellow: 'A revisar' },
+    repair: 'Reparar',
+    seeAll: (n) => `Ver todo (${n} más)`,
+    collapse: 'Ocultar',
+  },
+
   devTree: {
     search: 'Buscar archivo o carpeta…',
     expandAll: 'Expandir todo',
@@ -326,6 +336,22 @@ export const strings = {
     online: 'En línea',
     placeholder: 'Pregúntale al agente… (Enter envía, Shift+Enter salta línea)',
     thinking: 'Pensando…',
+    welcomeTitle: (project) => `¿Qué hacemos con ${project}?`,
+    welcomeNoProject: '¿Qué hacemos hoy?',
+    welcomeBody: 'Cuéntame tu idea o pídeme que revise el edificio. Te explico cada problema con palabras simples.',
+    prompts: ['Revisa mi proyecto y dime qué está en riesgo', 'Explícame el mapa con palabras simples', '¿Qué archivo debería arreglar primero?'],
+    more: 'Más opciones',
+    menu: {
+      open: 'Abrir el chat',
+      connect: 'Conecta tu agente',
+      editor: 'Conectar tu editor (MCP)',
+      repairWorst: 'Reparar la grieta más grave',
+      history: 'Historial de reparaciones',
+      graph: 'Ver el grafo de amenazas',
+      project: 'Ver el mapa del proyecto',
+      mode: (tech) => (tech ? 'Hablar en modo Vibe' : 'Hablar en modo Dev'),
+      newChat: 'Nueva conversación',
+    },
     connectors: 'Conexiones: conecta tu IA o tu editor',
     pickerTitle: 'Quién responde',
     pickerMore: 'Conectar desde tu editor…',

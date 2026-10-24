@@ -11,26 +11,22 @@ export class ChatViewModel {
   #agent;
   #queue = [];
   #nextId = 1;
-  #greeted = false;
 
   #actions;
 
   // message: { id, role: 'bot' | 'user' | 'sys' | 'tool', text?, html?, tone? }
   // chip: a label (sent as a message) or { label, run } (runs an app action, e.g. Remi repairs a file)
-  store = new Observable({ messages: [], typing: false, chips: null, minimized: false });
+  // welcome: the empty conversation shows a welcome screen with suggestions (as in Obra) instead of bubbles
+  store = new Observable({ messages: [], typing: false, chips: null, minimized: false, welcome: true, projectName: '' });
 
   constructor({ agentModel, bus, actions = {} }) {
     this.#agent = agentModel;
     this.#actions = actions;
 
     bus.on(EVENTS.projectOpened, ({ name }) => {
-      this.store.set({ chips: null });
+      this.store.set({ chips: null, projectName: name });
       this.#push({ role: 'sys', text: CHAT.projectOpened(name) });
-      if (!this.#greeted) {
-        this.#greeted = true;
-        this.#push({ role: 'bot', text: CHAT.projectReady });
-      }
-      this.store.set({ chips: this.#suggestions() });
+      this.store.set({ chips: this.suggestions() });
     });
 
     // Repairs: the agent's explanation streams into its own bubble, then a summary closes the task
@@ -87,14 +83,20 @@ export class ChatViewModel {
       this.sayFromMap({ text: CHAT.fileSelected({ path, levelText, reason, source }), tone: level === 'red' ? 'alert' : '', chips: repair });
     });
 
-    this.#push({ role: 'bot', text: CHAT.greeting });
     this.store.set({ chips: [CHAT.chips.openFolder] });
+  }
+
+  // Back to the welcome screen with a fresh conversation
+  newChat() {
+    if (this.store.state.typing) return;
+    this.#queue = [];
+    this.store.set({ messages: [], welcome: true, chips: this.store.state.projectName ? this.suggestions() : [CHAT.chips.openFolder], minimized: false });
   }
 
   async send(text) {
     text = text.trim();
     if (!text || this.store.state.typing) return;
-    this.store.set({ chips: null });
+    this.store.set({ chips: null, welcome: false });
     this.#push({ role: 'user', text });
     // A real agent can take a while: show "typing…" and a short note for each tool it uses
     // A connected agent streams its answer into a bubble that grows; a tool use starts a new one.
@@ -122,11 +124,11 @@ export class ChatViewModel {
   choose(chip, source = null) {
     if (typeof chip === 'string') return this.send(chip);
     chip.run(source); // first, while the button is still on screen
-    this.store.set({ chips: null });
+    this.store.set({ chips: null, welcome: false });
     this.#push({ role: 'user', text: chip.label });
   }
 
-  #suggestions() {
+  suggestions() {
     const a = this.#actions;
     return [
       a.repairWorst && { label: strings.repair.chipWorst, run: a.repairWorst },
@@ -138,7 +140,7 @@ export class ChatViewModel {
 
   // Map messages open the chat if it was minimized
   sayFromMap(reply) {
-    this.store.set({ chips: null, minimized: false });
+    this.store.set({ chips: null, minimized: false, welcome: false });
     this.#enqueue(reply);
   }
 

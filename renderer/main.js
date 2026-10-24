@@ -37,6 +37,7 @@ import { createShellView } from './views/ui/shellView.js';
 import { createGraphView } from './views/ui/graphView.js';
 import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { createAgentPickerView } from './views/ui/agentPickerView.js';
+import { attachMenu, chatMenuItems } from './views/ui/chatMenuView.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { createRemiView } from './views/scene/remiView.js';
@@ -80,6 +81,8 @@ const actions = {
   },
   showRisks: () => shellViewModel.store.state.side === 'risks' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('risks'),
   showGraph: () => shellViewModel.setStage('graph'),
+  showProject: () => shellViewModel.setStage('project'),
+  showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
 const chatViewModel = new ChatViewModel({ agentModel, bus, actions });
@@ -107,12 +110,16 @@ createPanelsView({ mapViewModel, towerViewModel, supabaseViewModel });
 createChatView({ chatViewModel, connection });
 createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
-createAgentPickerView({
-  container: document.getElementById('agent-picker'),
-  connectorsButton: document.getElementById('chat-connectors'),
-  connection,
-  onMore: () => shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('agent'),
-});
+createAgentPickerView({ container: document.getElementById('agent-picker'), connection, onMore: actions.showConnect });
+
+// Chat options: the "+" in the composer, and the floating button when the chat is minimized or closed
+const $id = (id) => document.getElementById(id);
+const openChat = () => {
+  if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+  if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+};
+attachMenu($id('chat-more'), $id('chat-more-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel }));
+attachMenu($id('chat-launcher-button'), $id('chat-launcher-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, openChat }));
 createGraphView({ graphViewModel, shellViewModel, mapViewModel });
 createAgentConnectView({ container: document.getElementById('agent-connect'), connection });
 connectMcpBridge({ agentService, securityModel, shellViewModel });

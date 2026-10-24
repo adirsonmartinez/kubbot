@@ -12,7 +12,7 @@ const el = (tag, className, text) => {
   return node;
 };
 
-export function createAgentPickerView({ container, connectorsButton, connection, onMore }) {
+export function createAgentPickerView({ container, connection, onMore }) {
   const pill = el('button', 'picker-pill');
   pill.type = 'button';
   pill.setAttribute('aria-haspopup', 'menu');
@@ -30,9 +30,6 @@ export function createAgentPickerView({ container, connectorsButton, connection,
   document.addEventListener('click', close);
   document.addEventListener('keydown', (e) => e.key === 'Escape' && close());
 
-  connectorsButton.title = strings.chat.connectors;
-  connectorsButton.setAttribute('aria-label', strings.chat.connectors);
-  connectorsButton.addEventListener('click', () => onMore());
 
   function option(label, detail, active, disabled, run) {
     const b = el('button', `picker-option${active ? ' active' : ''}`);
@@ -45,7 +42,12 @@ export function createAgentPickerView({ container, connectorsButton, connection,
 
   function render(state) {
     const agent = state.agents.find((a) => a.id === state.selected);
-    pill.textContent = agent ? `${agent.label.split(' ')[0]} · ${C.efforts[state.effort]}` : strings.chat.demo;
+    // As in Obra: "● El de tu plan  Rápido ⌄"
+    pill.replaceChildren();
+    if (agent) pill.append(el('i', 'picker-live'), el('span', 'picker-model', state.model || C.planDefault), el('span', 'picker-effort', C.efforts[state.effort]));
+    else pill.append(el('span', 'picker-model', strings.chat.demo));
+    pill.appendChild(el('span', 'picker-chevron', '⌄'));
+    pill.title = agent ? agent.label : C.scripted;
     pill.classList.toggle('live', Boolean(agent));
 
     const parts = [el('p', 'picker-label', strings.chat.pickerTitle)];

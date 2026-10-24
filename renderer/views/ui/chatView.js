@@ -19,6 +19,36 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
   const chips = document.createElement('div');
   chips.className = 'chips';
 
+  // Welcome screen (empty conversation), as in Obra: title, one sentence and suggestions
+  const hero = document.createElement('div');
+  hero.className = 'chat-hero';
+  body.prepend(hero);
+  let heroKey = '';
+  function renderHero(state) {
+    const key = `${state.projectName}|${(state.chips ?? []).map((c) => (typeof c === 'string' ? c : c.label)).join('|')}`;
+    if (key === heroKey) return;
+    heroKey = key;
+    const mark = document.createElement('span');
+    mark.className = 'chat-hero-mark';
+    mark.textContent = 'P';
+    const title = document.createElement('h2');
+    title.textContent = state.projectName ? strings.chat.welcomeTitle(state.projectName) : strings.chat.welcomeNoProject;
+    const text = document.createElement('p');
+    text.textContent = strings.chat.welcomeBody;
+    const list = document.createElement('div');
+    list.className = 'chat-hero-list';
+    const options = [...(state.chips ?? []), ...(state.projectName ? strings.chat.prompts : [])];
+    for (const option of options) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = typeof option === 'string' ? option : option.label;
+      if (typeof option !== 'string') b.classList.add('action');
+      b.addEventListener('click', () => vm.choose(option, b));
+      list.appendChild(b);
+    }
+    hero.replaceChildren(mark, title, text, list);
+  }
+
   function messageElement({ role, text, html, tone }) {
     const el = document.createElement('div');
     el.className = ['msg', role, tone].filter(Boolean).join(' ');
@@ -28,6 +58,13 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
   }
 
   function render(state, previous) {
+    body.classList.toggle('welcome', state.welcome);
+    if (state.welcome) renderHero(state);
+    // A new conversation empties the list: drop the bubbles that are no longer there
+    if (previous && state.messages.length < previous.messages.length) {
+      const keep = new Set(state.messages.map((m) => m.id));
+      for (const [id, { el }] of rendered) if (!keep.has(id)) { el.remove(); rendered.delete(id); }
+    }
     state.messages.forEach((m) => {
       const seen = rendered.get(m.id);
       if (!seen) {

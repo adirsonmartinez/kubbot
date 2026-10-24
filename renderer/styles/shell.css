@@ -690,3 +690,61 @@ body.chat-min #chat.card.min {
 }
 #workspace { transition: grid-template-columns .28s cubic-bezier(.2, .8, .2, 1); }
 @media (prefers-reduced-motion: reduce) { #workspace { transition: none; } }
+
+/* ---------- Unified chat (as in Obra): welcome screen, "+" menu, plan/effort picker ---------- */
+.chat-hero { display: none; }
+#chat .chat-body.welcome .chat-hero { display: flex; }
+#chat .chat-body.welcome > .msg, #chat .chat-body.welcome > .chips { display: none; }
+.chat-hero {
+  flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  min-height: 100%; text-align: center; animation: rise .3s ease both;
+}
+.chat-hero-mark {
+  display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+  background: var(--accent); color: #0b0a1f; font: 800 18px var(--font); box-shadow: 0 10px 30px rgba(139, 131, 255, .35);
+}
+.chat-hero h2 { margin: 6px 0 0; font-size: 17px; font-weight: 650; letter-spacing: -0.01em; color: var(--ink); text-wrap: balance; }
+.chat-hero p { margin: 0; max-width: 30ch; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.chat-hero-list { display: flex; flex-direction: column; gap: 2px; width: 100%; max-width: 300px; margin-top: 12px; }
+.chat-hero-list button {
+  padding: 7px 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted);
+  font: 12.5px var(--font); text-align: left; cursor: pointer; transition: background .15s, color .15s, transform .15s;
+}
+.chat-hero-list button:hover { background: var(--panel-2); color: var(--ink); transform: translateX(2px); }
+.chat-hero-list button.action { color: #f5c542; }
+.chat-more-wrap { position: relative; }
+.chat-menu {
+  position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 70; min-width: 230px; padding: 5px;
+  border-radius: 13px; display: flex; flex-direction: column; animation: pop-in .14s ease;
+}
+.chat-menu[hidden] { display: none; }
+.chat-menu-item {
+  padding: 7px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--ink);
+  font: 12.5px var(--font); text-align: left; cursor: pointer;
+}
+.chat-menu-item:hover, .chat-menu-item:focus-visible { background: var(--panel-2); outline: none; }
+.chat-menu-item.primary { color: var(--accent); font-weight: 600; }
+.chat-menu-sep { height: 1px; margin: 4px 6px; background: var(--line); }
+#chat .composer .composer-icon.open { background: var(--panel-2); color: var(--ink); transform: rotate(45deg); }
+#chat .composer .composer-icon { transition: transform .18s ease, background .15s, color .15s; }
+.picker-pill { display: inline-flex; align-items: center; gap: 6px; border-color: transparent; }
+.picker-pill.live::before { display: none; }
+.picker-live { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); }
+.picker-model { color: var(--ink); }
+.picker-effort { color: var(--faint); }
+.picker-chevron { color: var(--faint); font-size: 11px; transform: translateY(-2px); }
+
+/* ---------- Floating chat button (chat minimized or closed) with the options menu ---------- */
+.chat-launcher { position: fixed; right: 18px; bottom: 40px; z-index: 35; display: none; }
+body.chat-min .chat-launcher, body.chat-closed .chat-launcher { display: block; }
+body.chat-min #chat.card.min { display: none; }
+.chat-launcher-button {
+  display: grid; place-items: center; width: 48px; height: 48px; border: 0; border-radius: 16px; cursor: pointer;
+  background: var(--accent); color: #0b0a1f; box-shadow: 0 14px 34px rgba(139, 131, 255, .4);
+  animation: pop-in .2s ease; transition: transform .18s cubic-bezier(.2, .8, .2, 1);
+}
+.chat-launcher-button:hover { transform: translateY(-2px) scale(1.04); }
+.chat-launcher-button.open { transform: scale(.96); }
+.chat-launcher-button svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chat-launcher .chat-menu { left: auto; right: 0; bottom: calc(100% + 10px); }
+@media (prefers-reduced-motion: reduce) { .chat-hero, .chat-launcher-button, .chat-menu { animation: none; } }

@@ -146,9 +146,12 @@
     <form class="chat-input composer" id="chat-form">
       <textarea id="chat-text" rows="2" autocomplete="off" data-i18n-placeholder="chat.placeholder" data-i18n-aria="chat.inputLabel"></textarea>
       <div class="composer-bar">
-        <button type="button" id="chat-connectors" class="composer-icon">
-          <svg viewBox="0 0 24 24"><path d="M9 7V4M15 7V4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v4"/></svg>
-        </button>
+        <div class="chat-more-wrap">
+          <button type="button" id="chat-more" class="composer-icon" data-i18n-title="chat.more" data-i18n-aria="chat.more">
+            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <div id="chat-more-menu" class="chat-menu glass-pop"></div>
+        </div>
         <div id="agent-picker" class="agent-picker"></div>
         <button type="submit" id="chat-send" data-i18n-aria="chat.send">
           <svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
@@ -156,6 +159,14 @@
       </div>
     </form>
   </aside>
+  </div>
+
+  <!-- When the chat is minimized or closed, its options live in this floating button -->
+  <div id="chat-launcher" class="chat-launcher">
+    <div id="chat-launcher-menu" class="chat-menu glass-pop"></div>
+    <button type="button" id="chat-launcher-button" class="chat-launcher-button" data-i18n-title="chat.more" data-i18n-aria="chat.more">
+      <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/></svg>
+    </button>
   </div>
 
   <footer id="statusbar"></footer>
