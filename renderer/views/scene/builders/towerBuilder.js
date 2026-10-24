@@ -16,16 +16,16 @@ export function buildTower({ x, z, floors }) {
 
   const group = new THREE.Group();
   group.position.set(x, 0, z);
-  box(group, M.lavenderDark, W + 1.2, 0.25, D + 1.2, 0, 0, 0);
-  box(group, M.lavender, W + 0.8, 0.2, D + 0.8, 0, 0.25, 0);
+  box(group, M.slabEdge, W + 1.2, 0.25, D + 1.2, 0, 0, 0);
+  box(group, M.slab, W + 0.8, 0.2, D + 0.8, 0, 0.25, 0);
 
   const built = floors.map((floor, i) => {
     const fg = new THREE.Group();
     fg.userData.pick = { type: 'floor', index: i };
     group.add(fg);
 
-    box(fg, M.lavender, W, 0.2, D, 0, 0, 0); // slab
-    const rim = floor.worst === 'grey' ? M.lavenderDark : LEVEL_STYLE[floor.worst].material();
+    box(fg, M.slab, W, 0.2, D, 0, 0, 0); // slab
+    const rim = LEVEL_STYLE[floor.worst].glow ? LEVEL_STYLE[floor.worst].material() : M.slabEdge;
     box(fg, rim, W, 0.14, 0.16, 0, 0.2, D / 2 - 0.08);
     box(fg, rim, W, 0.14, 0.16, 0, 0.2, -D / 2 + 0.08);
     box(fg, rim, 0.16, 0.14, D, W / 2 - 0.08, 0.2, 0);
@@ -39,7 +39,7 @@ export function buildTower({ x, z, floors }) {
     floor.files.forEach((file, k) => {
       const c = k % cols, r = Math.floor(k / cols);
       const h = cube * (0.55 + Math.min(Math.log10(file.size + 1) / 6, 0.75));
-      const mesh = box(fg, LEVEL_STYLE[file.level].material(), cube, h, cube,
+      const mesh = box(fg, LEVEL_STYLE[file.level].cube(), cube, h, cube,
         -W / 2 + 0.5 + pitch / 2 + c * pitch, 0.2, D / 2 - 0.5 - pitch / 2 - r * pitch);
       mesh.userData.pick = { type: 'file', path: file.path };
     });

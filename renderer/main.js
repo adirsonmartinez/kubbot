@@ -26,6 +26,7 @@ import { createSupabaseView } from './views/scene/supabaseView.js';
 import { createInputController } from './views/scene/inputController.js';
 import { createGitView } from './views/scene/gitView.js';
 import { createViewSwitcherView } from './views/ui/viewSwitcherView.js';
+import { createHudView } from './views/ui/hudView.js';
 import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
 import { createPanelsView } from './views/ui/panelsView.js';
@@ -80,6 +81,7 @@ createControlsView({ cameraViewModel });
 createViewSwitcherView({ appViewModel, sceneView, labels });
 createPanelsView({ appViewModel, mapViewModel, towerViewModel, supabaseViewModel, gitViewModel });
 createChatView({ chatViewModel });
+createHudView({ appViewModel, mapViewModel, gitViewModel });
 
 // --- Wiring between layers ---
 projectModel.store.subscribe((state, previous) => {

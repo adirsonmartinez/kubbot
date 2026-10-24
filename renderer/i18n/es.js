@@ -22,7 +22,7 @@ export const strings = {
   },
 
   git: {
-    title: (branch) => (branch ? `🌿 Git · ${branch}` : '🌿 Git · HEAD suelto'),
+    title: (branch) => (branch ? `Git · ${branch}` : 'Git · HEAD suelto'),
     summary: ({ branches, commits, lastTag }) =>
       `${plural(branches, 'rama', 'ramas')} · ${plural(commits, 'commit', 'commits')}` + (lastTag ? ` · último tag ${lastTag}` : ''),
     risky: (n) => `⚠ ${plural(n, 'commit subió', 'commits subieron')} secretos`,
@@ -60,8 +60,18 @@ export const strings = {
       `${files(fileCount)} · ${floors(floorCount)}` + (hidden ? ` (+${hidden} sin mostrar)` : ''),
   },
 
+  hud: {
+    security: 'Seguridad',
+    files: 'Archivos',
+    risk: 'En riesgo',
+    review: 'A revisar',
+    commits: 'Commits',
+  },
+
   map: {
     files,
+    risk: (n) => `${n} en riesgo`,
+    review: (n) => `${n} a revisar`,
     rootSummary: (fileCount, folderCount) => `${files(fileCount)} · ${folders(folderCount)}`,
     emptyFolder: 'vacía',
     defaultProjectName: 'proyecto',

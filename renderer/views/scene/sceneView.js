@@ -1,11 +1,18 @@
 // three.js scene: renderer, lights, infinite grid and the orthographic camera driven by CameraViewModel.
-// Other views add their objects to `scene` and register per-frame callbacks with onFrame().
+// Other views add their objects to a layer and register per-frame callbacks with onFrame().
+// Rendering goes through a bloom pass: only bright emissive surfaces (accent, warnings) glow.
 import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { CAMERA } from '../../viewmodels/cameraViewModel.js';
+import { PALETTE } from './materials.js';
 
-const COLORS = { background: 0xf2f0ff, grid: 0xd9d4f7 };
 const GRID_SIZE = 200; // cells per side; the grid re-centers on the camera so it feels infinite
 const SUN_OFFSET = new THREE.Vector3(-14, 30, 18); // from the top left: shadows fall to the right
+const RIM_OFFSET = new THREE.Vector3(20, 18, -26);  // cool light from behind to outline the volumes
+const BLOOM = { strength: 0.85, radius: 0.55, threshold: 0.82 };
 
 export function createSceneView(cameraViewModel) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -14,12 +21,12 @@ export function createSceneView(cameraViewModel) {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.0;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(COLORS.background);
+  scene.background = new THREE.Color(PALETTE.background);
 
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
 
@@ -30,8 +37,10 @@ export function createSceneView(cameraViewModel) {
   setActiveLayer('map');
 
   // Lights
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b1f0, 1.3));
-  const sun = new THREE.DirectionalLight(0xffffff, 2.6);
+  scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x0b0d10, 0.9));
+  const rim = new THREE.DirectionalLight(0x9fb4ff, 1.1);
+  scene.add(rim, rim.target);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.3);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -26, right: 26, top: 26, bottom: -26, near: 1, far: 90 });
@@ -42,7 +51,7 @@ export function createSceneView(cameraViewModel) {
   // Ground and grid
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(400, 400).rotateX(-Math.PI / 2),
-    new THREE.MeshStandardMaterial({ color: COLORS.background, roughness: 1 })
+    new THREE.MeshStandardMaterial({ color: PALETTE.ground, roughness: 1, metalness: 0 })
   );
   ground.receiveShadow = true;
   scene.add(ground);
@@ -56,7 +65,7 @@ export function createSceneView(cameraViewModel) {
   }
   const gridGeometry = new THREE.BufferGeometry();
   gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-  const grid = new THREE.LineSegments(gridGeometry, new THREE.LineBasicMaterial({ color: COLORS.grid }));
+  const grid = new THREE.LineSegments(gridGeometry, new THREE.LineBasicMaterial({ color: PALETTE.grid }));
   scene.add(grid);
 
   function resize() {
@@ -65,7 +74,13 @@ export function createSceneView(cameraViewModel) {
     Object.assign(camera, { left: (-h * aspect) / 2, right: (h * aspect) / 2, top: h / 2, bottom: -h / 2 });
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
   }
+
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), BLOOM.strength, BLOOM.radius, BLOOM.threshold));
+  composer.addPass(new OutputPass());
   resize();
   window.addEventListener('resize', resize);
 
@@ -84,6 +99,8 @@ export function createSceneView(cameraViewModel) {
     ground.position.set(sx, 0, sz);
     sun.target.position.set(sx, 0, sz);
     sun.position.set(sx, 0, sz).add(SUN_OFFSET);
+    rim.target.position.set(sx, 0, sz);
+    rim.position.set(sx, 0, sz).add(RIM_OFFSET);
   }
   syncCamera();
 
@@ -129,7 +146,7 @@ export function createSceneView(cameraViewModel) {
     cameraViewModel.step(dt);
     syncCamera();
     for (const callback of frameCallbacks) callback(clock.elapsedTime, dt);
-    renderer.render(scene, camera);
+    composer.render();
   });
 
   return {

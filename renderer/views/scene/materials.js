@@ -1,40 +1,52 @@
-// Shared materials, geometries and primitives (same pattern as the zombieland game).
+// Shared materials, geometries and primitives. Dark "digital twin" palette: silver volumes on dark slabs,
+// one cyan accent that glows (bloom), and amber/red glows reserved for security problems.
 import * as THREE from 'three';
+
+export const PALETTE = {
+  background: 0x1c1f23,
+  ground: 0x23262b,
+  grid: 0x33373d,
+  accent: 0x19e3c8,
+  warn: 0xffb547,
+  danger: 0xff4d5e,
+};
 
 const cache = {};
 function material(name, color = 0xffffff, options = {}) {
   if (cache[name]) return cache[name];
   return (cache[name] = new THREE.MeshStandardMaterial({
     color,
-    roughness: options.roughness ?? 0.8,
-    metalness: options.metalness ?? 0,
+    roughness: options.roughness ?? 0.55,
+    metalness: options.metalness ?? 0.25,
     emissive: options.emissive ?? 0x000000,
     emissiveIntensity: options.emissiveIntensity ?? 1,
   }));
 }
 
 export const materials = {
-  get indigo()            { return material('indigo', 0x5a50ea); },
-  get indigoDark()        { return material('indigoDark', 0x3d34c4); },
-  get lavender()          { return material('lavender', 0xd6d2fb); },
-  get lavenderDark()      { return material('lavenderDark', 0xa9a2f0); },
-  get teal()              { return material('teal', 0x2fd9a8); },
-  get tealLit()           { return material('tealLit', 0x2fd9a8, { emissive: 0x2fd9a8, emissiveIntensity: 0.6, roughness: 0.3 }); },
-  get screen()            { return material('screen', 0x2e2e38, { roughness: 0.35 }); },
-  get metal()             { return material('metal', 0xb5b5c2, { roughness: 0.45, metalness: 0.6 }); },
-  get yellow()            { return material('yellow', 0xf2dc3c); },
-  get yellowLit()         { return material('yellowLit', 0xf2dc3c, { emissive: 0xf2dc3c, emissiveIntensity: 0.5 }); },
-  get road()              { return material('road', 0xc9c4ee); },
-  get white()             { return material('white', 0xffffff, { roughness: 0.5 }); },
-  // Supabase
-  get supabaseGreen()     { return material('supabaseGreen', 0x3ecf8e, { roughness: 0.5 }); },
-  get supabaseGreenDark() { return material('supabaseGreenDark', 0x249d68, { roughness: 0.6 }); },
-  get supabaseGreenLit()  { return material('supabaseGreenLit', 0x3ecf8e, { emissive: 0x3ecf8e, emissiveIntensity: 0.8, roughness: 0.3 }); },
-  get slate()             { return material('slate', 0x23252b, { roughness: 0.6 }); },
-  get slateTop()          { return material('slateTop', 0x33363e, { roughness: 0.7 }); },
-  // Alerts
-  get alert()             { return material('alert', 0xff3b4e, { roughness: 0.5 }); },
-  get alertLit()          { return material('alertLit', 0xff3b4e, { emissive: 0xff2238, emissiveIntensity: 0.9, roughness: 0.3 }); },
+  // Volumes
+  get body()       { return material('body', 0xc9ced4); },
+  get bodyLight()  { return material('bodyLight', 0xe6e9ec); },
+  get bodyDark()   { return material('bodyDark', 0x8d959e); },
+  get glass()      { return material('glass', 0x2a2f35, { roughness: 0.25, metalness: 0.4 }); },
+  get metal()      { return material('metal', 0x6b737c, { roughness: 0.4, metalness: 0.7 }); },
+  get white()      { return material('white', 0xf4f6f8, { roughness: 0.4, metalness: 0.1 }); },
+  // Ground pieces
+  get slab()       { return material('slab', 0x1e2227, { roughness: 0.8, metalness: 0.1 }); },
+  get slabEdge()   { return material('slabEdge', 0x343a41, { roughness: 0.6, metalness: 0.3 }); },
+  get road()       { return material('road', 0x30353b, { roughness: 0.9, metalness: 0 }); },
+  get roof()       { return material('roof', 0xdfe3e7, { roughness: 0.6, metalness: 0.15 }); },
+  // Lit windows: faint cyan, below the bloom threshold so they do not compete with alerts
+  get windowLit()  { return material('windowLit', 0x7fe9da, { emissive: PALETTE.accent, emissiveIntensity: 0.25, roughness: 0.3, metalness: 0 }); },
+  // Glows (emissive values above 1 feed the bloom pass)
+  get accentLit()  { return material('accentLit', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0 }); },
+  get supabaseLit(){ return material('supabaseLit', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0 }); },
+  get warnLit()    { return material('warnLit', PALETTE.warn, { emissive: PALETTE.warn, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0 }); },
+  get danger()     { return material('danger', PALETTE.danger, { roughness: 0.5, metalness: 0.1 }); },
+  // Solid status colors for small pieces (file cubes): a faint glow below the bloom threshold
+  get warnSolid()  { return material('warnSolid', PALETTE.warn, { emissive: PALETTE.warn, emissiveIntensity: 0.3, roughness: 0.45, metalness: 0 }); },
+  get dangerSolid(){ return material('dangerSolid', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 0.4, roughness: 0.45, metalness: 0 }); },
+  get dangerLit()  { return material('dangerLit', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0 }); },
 };
 
 const geometries = {
@@ -70,11 +82,56 @@ export function groundLink(parent, mat, ax, az, bx, bz, width, height) {
   return box(parent, mat, Math.hypot(dx, dz), height, width, (ax + bx) / 2, 0, (az + bz) / 2, -Math.atan2(dz, dx));
 }
 
+// Thin dark platform with a lighter beveled rim (the "tray" every building sits on)
+export function platform(parent, w, d, x = 0, z = 0) {
+  box(parent, materials.slabEdge, w, 0.22, d, x, 0, z);
+  box(parent, materials.slab, w - 0.3, 0.06, d - 0.3, x, 0.22, z);
+  return 0.28; // height of the top surface
+}
+
+// Glowing dot grid on the ground (status / selection under a building). Additive, so it blooms.
+let dotTexture = null;
+function dots() {
+  if (dotTexture) return dotTexture;
+  const size = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(size / 2, size / 2, size * 0.16, 0, Math.PI * 2); ctx.fill();
+  dotTexture = new THREE.CanvasTexture(canvas);
+  dotTexture.wrapS = dotTexture.wrapT = THREE.RepeatWrapping;
+  return dotTexture;
+}
+
+export function glowPad(parent, color, w, d, y = 0.3) {
+  const texture = dots().clone();
+  texture.needsUpdate = true;
+  texture.repeat.set(w * 2.5, d * 2.5);
+  const pad = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({
+      color: new THREE.Color(color).multiplyScalar(2.2), map: texture, transparent: true,
+      blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+    })
+  );
+  pad.position.y = y;
+  parent.add(pad);
+
+  // Bright rim around the pad
+  const rim = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(2.5), toneMapped: false });
+  const t = 0.06;
+  [[0, -d / 2, w, t], [0, d / 2, w, t], [-w / 2, 0, t, d], [w / 2, 0, t, d]].forEach(([dx, dz, sx, sz]) => {
+    box(parent, rim, sx, 0.03, sz, dx, y - 0.01, dz).castShadow = false;
+  });
+  return pad;
+}
+
 // Red diamond with a white "!" (it sticks out on both sides so it reads from any angle)
 export function warningSign(size = 1.3) {
   const group = new THREE.Group();
   const k = size / 1.3;
-  box(group, materials.alertLit, 1.3 * k, 1.3 * k, 0.3 * k, 0, -0.65 * k, 0).rotation.z = Math.PI / 4;
+  box(group, materials.dangerLit, 1.3 * k, 1.3 * k, 0.3 * k, 0, -0.65 * k, 0).rotation.z = Math.PI / 4;
   box(group, materials.white, 0.2 * k, 0.55 * k, 0.42 * k, 0, -0.2 * k, 0);
   box(group, materials.white, 0.2 * k, 0.2 * k, 0.42 * k, 0, -0.62 * k, 0);
   return group;

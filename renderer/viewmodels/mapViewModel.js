@@ -94,7 +94,13 @@ export class MapViewModel {
       return;
     }
 
-    const levelOf = (nodes) => worstLevel(allFiles(nodes).map((f) => this.#security.scoreOf(f.path).level));
+    // { green, yellow, red, grey } file counts and the worst level among them
+    const levelsOf = (nodes) => {
+      const counts = { green: 0, yellow: 0, red: 0, grey: 0 };
+      allFiles(nodes).forEach((f) => { counts[this.#security.scoreOf(f.path).level]++; });
+      return { counts, level: worstLevel(Object.keys(counts).filter((l) => counts[l] > 0)) };
+    };
+    const project = levelsOf(tree);
     const total = countFiles(tree);
     const dirs = tree
       .filter((n) => n.type === 'dir')
@@ -105,14 +111,21 @@ export class MapViewModel {
       status: 'ready',
       session,
       projectName: name ?? strings.map.defaultProjectName,
-      root: { total, dirs: countDirs(tree), height: hqHeight(total) },
+      root: {
+        total,
+        dirs: countDirs(tree),
+        height: hqHeight(total),
+        counts: project.counts,
+        // Share of evaluated files that are safe (100 when there is nothing to evaluate)
+        securityScore: total ? Math.round((project.counts.green / total) * 100) : 100,
+      },
       buildings: dirs.map((node, i) => ({
         path: node.path,
         name: baseName(node.path),
         x: slots[i].x,
         z: slots[i].z,
         files: countFiles(node.children ?? []),
-        level: levelOf(node.children ?? []),
+        ...levelsOf(node.children ?? []),
         order: i,
       })),
       version: this.store.state.version + 1,

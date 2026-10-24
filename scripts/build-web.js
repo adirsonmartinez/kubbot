@@ -10,24 +10,31 @@ const renderer = path.join(root, 'renderer');
 const dist = path.join(root, 'dist');
 const threeSource = path.join(root, 'node_modules', 'three', 'build', 'three.module.js');
 
-const IMPORT_MAP_FROM = '"three": "../node_modules/three/build/three.module.js"';
-const IMPORT_MAP_TO = '"three": "./vendor/three.module.js"';
+const IMPORT_MAP = [
+  ['"three": "../node_modules/three/build/three.module.js"', '"three": "./vendor/three.module.js"'],
+  ['"three/addons/": "../node_modules/three/examples/jsm/"', '"three/addons/": "./vendor/addons/"'],
+];
+// three.js addons used by the renderer (copied whole folders: they import each other)
+const ADDON_FOLDERS = ['postprocessing', 'shaders'];
 
 fs.rmSync(dist, { recursive: true, force: true });
 fs.cpSync(renderer, dist, { recursive: true });
 
 fs.mkdirSync(path.join(dist, 'vendor'), { recursive: true });
 fs.copyFileSync(threeSource, path.join(dist, 'vendor', 'three.module.js'));
+ADDON_FOLDERS.forEach((folder) => fs.cpSync(
+  path.join(root, 'node_modules', 'three', 'examples', 'jsm', folder),
+  path.join(dist, 'vendor', 'addons', folder),
+  { recursive: true }
+));
 fs.copyFileSync(path.join(root, 'project-logo.png'), path.join(dist, 'favicon.png'));
 
 const indexPath = path.join(dist, 'index.html');
-const html = fs.readFileSync(indexPath, 'utf8');
-if (!html.includes(IMPORT_MAP_FROM)) throw new Error('Import map for three.js not found in renderer/index.html');
-fs.writeFileSync(
-  indexPath,
-  html
-    .replace(IMPORT_MAP_FROM, IMPORT_MAP_TO)
-    .replace('<title>', '<link rel="icon" type="image/png" href="favicon.png" />\n  <title>')
-);
+let html = fs.readFileSync(indexPath, 'utf8');
+for (const [from, to] of IMPORT_MAP) {
+  if (!html.includes(from)) throw new Error(`Import map entry not found in renderer/index.html: ${from}`);
+  html = html.replace(from, to);
+}
+fs.writeFileSync(indexPath, html.replace('<title>', '<link rel="icon" type="image/png" href="favicon.png" />\n  <title>'));
 
 console.log(`Web demo built in ${path.relative(root, dist)}/`);

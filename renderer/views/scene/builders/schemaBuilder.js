@@ -81,7 +81,7 @@ export function buildSchema(renderer, tables, trunkStart) {
     const [ox, oz] = CARD_SLOTS[i % CARD_SLOTS.length];
     g.position.set(SCHEMA_CENTER.x + ox, 0, SCHEMA_CENTER.z + oz);
     g.userData.pick = { type: 'table', name: table.name };
-    const base = box(g, M.lavenderDark, CARD_WIDTH + 0.25, 0.15, depth + 0.25, 0, 0, 0);
+    const base = box(g, M.slabEdge, CARD_WIDTH + 0.25, 0.15, depth + 0.25, 0, 0, 0);
     box(g, M.white, CARD_WIDTH, 0.45, depth, 0, 0.15, 0);
 
     const canvas = document.createElement('canvas');
@@ -104,7 +104,7 @@ export function buildSchema(renderer, tables, trunkStart) {
       draw(exposed) {
         drawCard(canvas.getContext('2d'), table, exposed);
         texture.needsUpdate = true;
-        base.material = exposed ? M.alert : M.lavenderDark;
+        base.material = exposed ? M.danger : M.slabEdge;
       },
     };
   });
@@ -112,10 +112,10 @@ export function buildSchema(renderer, tables, trunkStart) {
   // Foreign keys to users: lines on the ground, under the cards
   const users = cards.find((c) => c.name === 'users').group.position;
   cards.forEach((c) => {
-    if (c.name !== 'users') groundLink(links, M.indigoDark, c.group.position.x, c.group.position.z, users.x, users.z, 0.2, 0.12);
+    if (c.name !== 'users') groundLink(links, M.bodyDark, c.group.position.x, c.group.position.z, users.x, users.z, 0.2, 0.12);
   });
   // Trunk from the Supabase node to the users table
-  groundLink(links, M.supabaseGreenDark, trunkStart.x, trunkStart.z, users.x, users.z, 0.4, 0.12);
+  groundLink(links, M.slabEdge, trunkStart.x, trunkStart.z, users.x, users.z, 0.4, 0.12);
 
   // Warning sign over the table with the problem
   const warning = warningSign(1.1);

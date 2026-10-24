@@ -32,6 +32,14 @@ renderer/
 - **Views** subscribe to ViewModels and draw; user input only calls ViewModel actions. Clickable 3D objects carry `userData.pick = { type, ...ids }` and `MapViewModel.handlePick()` routes them.
 - Change state only through `store.set(patch)`. Bump `version` when a view has to rebuild.
 
+## Visual style ("digital twin", dark)
+
+- Graphite background and ground, subtle grid. Silver, matte volumes; light roofs; dark slabs with a lighter rim.
+- **One accent: cyan `#19e3c8`** (selection, HEAD, data pulses, primary buttons). Amber `#ffb547` and red `#ff4d5e` are reserved for security problems.
+- **Only problems glow**: safe stays calm (silver, no glow). Glowing = emissive above the bloom threshold (`materials.*Lit`, `glowPad`); small pieces use the `*Solid` variants so they do not blob.
+- Colors and materials live in `views/scene/materials.js` (`PALETTE`) and `views/theme.js` (`LEVEL_STYLE`); UI tokens in `styles/main.css` (`:root`). Do not hardcode new colors elsewhere.
+- UI: dark glass panels (blur, 1px border), small cyan dot in titles, mono font for paths and numbers.
+
 ## Views
 
 `AppViewModel` switches between `map` (project city) and `git` (branches as railway lanes). Each view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks and Esc are routed to the active view in `main.js`.

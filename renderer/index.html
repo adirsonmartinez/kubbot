@@ -8,7 +8,7 @@
   <title>Platanus</title>
   <link rel="stylesheet" href="styles/main.css" />
   <script type="importmap">
-    { "imports": { "three": "../node_modules/three/build/three.module.js" } }
+    { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/" } }
   </script>
 </head>
 <body>
@@ -46,6 +46,8 @@
       <span data-i18n="views.git"></span>
     </button>
   </div>
+
+  <div id="hud" hidden></div>
 
   <div id="git-panel" hidden>
     <strong id="git-title"></strong>

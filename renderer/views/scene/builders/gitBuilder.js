@@ -2,11 +2,11 @@
 // diagonal lines. HEAD floats slightly, framed by a square of lines on the ground. Commits that leaked
 // secrets are red. Every lane has its own materials so it can be dimmed when another lane is focused.
 import * as THREE from 'three';
-import { box, groundLink, materials as M } from '../materials.js';
+import { box, groundLink, materials as M, PALETTE } from '../materials.js';
 
 export const LANE_COLORS = {
-  main: 0x5a50ea, develop: 0x2fd9a8, feature: 0xf2c94c, release: 0x9b8cff,
-  hotfix: 0xff8a3d, remote: 0xb5b5c2, other: 0xc9c4ee,
+  main: 0xf4f6f8, develop: PALETTE.accent, feature: 0x8d959e, release: 0xc9ced4,
+  hotfix: PALETTE.warn, remote: 0x4a5159, other: 0x5d6670,
 };
 export const laneColorCss = (kind) => `#${LANE_COLORS[kind].toString(16).padStart(6, '0')}`;
 
@@ -63,16 +63,15 @@ export function buildGitGraph({ lanes, commits, connectors, head }) {
     const size = commit.isMerge ? MERGE_CUBE : CUBE;
     const isHead = head?.sha === commit.sha;
     const baseY = isHead ? 0.35 : 0;
-    const mesh = box(group, commit.risk ? M.alertLit : mats.get(commit.lane).cube, size, size, size, commit.x, baseY, commit.z);
+    const mesh = box(group, commit.risk ? M.dangerSolid : mats.get(commit.lane).cube, size, size, size, commit.x, baseY, commit.z);
     mesh.userData.pick = { type: 'commit', sha: commit.sha };
     cubes.push({ mesh, index, size, baseY });
   });
 
   let headFrame = null;
   if (head) {
-    const commit = commits.find((c) => c.sha === head.sha);
     headFrame = new THREE.Group();
-    frame(headFrame, mats.get(commit.lane).line, 0, 0, FRAME);
+    frame(headFrame, M.accentLit, 0, 0, FRAME);
     headFrame.position.set(head.x, 0, head.z);
     group.add(headFrame);
   }
