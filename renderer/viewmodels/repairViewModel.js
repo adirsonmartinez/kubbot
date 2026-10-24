@@ -44,7 +44,11 @@ export class RepairViewModel {
   //        source: 'agent' | 'guide', agentLabel, outcome: 'fixed' | 'planned' | 'failed' | null, hammering }
   store = new Observable({ job: null, queue: [] });
 
-  constructor({ securityModel, mapViewModel, cameraViewModel, connection, history, agentService, bus }) {
+  // voiceMode(): 'vibe' | 'dev' — how the agent explains the repair (agent/voice.json)
+  #voiceMode;
+
+  constructor({ securityModel, mapViewModel, cameraViewModel, connection, history, agentService, bus, voiceMode = () => 'vibe' }) {
+    this.#voiceMode = voiceMode;
     this.#security = securityModel;
     this.#map = mapViewModel;
     this.#camera = cameraViewModel;
@@ -219,8 +223,9 @@ export class RepairViewModel {
       this.#abort?.abort(); // stop the CLI: a late write must not happen after the job ended
       return { text: '', error: R.timeout };
     });
-    const ask = this.#connection.ask(R.agentFixPrompt(path, reason), strings.agent.livePrompt, {
+    const ask = this.#connection.ask(R.agentFixPrompt(path, reason), '', {
       session: 'repair',
+      voice: { mode: this.#voiceMode(), recent: [] },
       signal,
       onStart: () => { if (alive()) { this.#changes = []; this.#startedAt = Date.now(); } }, // collect from the moment the CLI runs
       onText: (delta) => alive() && this.#bus.emit(EVENTS.repairText, { path, delta }),

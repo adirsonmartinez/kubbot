@@ -8,6 +8,9 @@ const { Workspace } = require('./workspace');
 const { readGitHistory } = require('./git');
 const t = require('./strings');
 const agents = require('./agents');
+const { loadVoice, composePrompt } = require('./agentVoice');
+
+const AGENT_DIR = path.join(__dirname, '..', 'agent'); // voice.json + skills (packaged with the app)
 const { startMcpServer, MAX_READ_BYTES, isBlockedRealPath } = require('./mcpServer');
 
 const workspace = new Workspace();
@@ -292,9 +295,19 @@ ipcMain.handle('agents:run', (_e, req) => {
   const runId = `${Date.now()}-${++requestSeq}`;
   const model = /^[a-zA-Z0-9.\-_]{0,40}$/.test(String(req?.model ?? '')) ? String(req.model ?? '') : '';
   const effort = ['low', 'medium', 'high', 'xhigh', 'max'].includes(req?.effort) ? req.effort : 'low';
+  // The chat sends its voice (Vibe/Dev + recent messages): the prompt comes from agent/voice.json and the
+  // mode's skill, read on every run so the team can tune them without restarting
+  let systemPrompt = String(req?.systemPrompt ?? '');
+  if (req?.voice) {
+    try {
+      systemPrompt = composePrompt(loadVoice(AGENT_DIR), { mode: req.voice.mode, recent: req.voice.recent, task: systemPrompt });
+    } catch (error) {
+      console.error('agent/voice.json:', error.message); // keep the plain prompt
+    }
+  }
   const child = agents.run(
     String(req?.agent),
-    { prompt: String(req?.prompt ?? ''), systemPrompt: String(req?.systemPrompt ?? ''), mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: req?.session === 'repair' ? 'repair' : 'chat' },
+    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: req?.session === 'repair' ? 'repair' : 'chat' },
     (event) => {
       if (event.type === 'done') agentRuns.delete(runId);
       send('agents:event', { runId, ...event });

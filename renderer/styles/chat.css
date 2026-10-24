@@ -1,0 +1,206 @@
+/* Interactive chat: Hugeicons, the agent's answer cards (callouts), file links, map cards (folder / file),
+   suggestion chips, the Vibe / Dev switch, and the libraries.dev effects (thinking orbs, border beam).
+   Loaded after shell.css; uses its tokens (--ink, --panel, --accent, --danger, --warn, --ok…). */
+
+:root {
+  --spring: cubic-bezier(.2, .9, .25, 1.12);
+  --ease-out: cubic-bezier(.16, 1, .3, 1);
+  --tint-danger: rgba(255, 90, 106, .1);
+  --tint-warn: rgba(255, 194, 74, .1);
+  --tint-ok: rgba(61, 220, 151, .1);
+  --tint-accent: rgba(139, 131, 255, .12);
+}
+
+/* ---------- Hugeicons ---------- */
+svg.hi { display: block; flex-shrink: 0; }
+[data-icon] { display: inline-flex; align-items: center; justify-content: center; }
+canvas.orb { cursor: inherit; touch-action: auto; flex-shrink: 0; }
+
+/* ---------- Header avatar: the orb takes over after 2 s of work ---------- */
+#chat .chat-avatar { position: relative; overflow: hidden; transition: background .3s var(--ease-out); }
+#chat .chat-avatar .orb {
+  position: absolute; inset: 0; margin: auto; box-sizing: content-box; padding: 4px;
+  background: #0d0c1c; border-radius: inherit;
+  animation: orb-in .35s var(--ease-out) both;
+}
+@keyframes orb-in { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: none; } }
+canvas.orb.late { animation: orb-in .35s var(--ease-out) both; }
+
+/* ---------- "Thinking…": dots first, the orb and its label if it takes more than 2 s ---------- */
+#chat .msg.typing { position: relative; display: flex; align-items: center; min-height: 20px; padding: 6px 4px; }
+#chat .msg.typing .typing-dots { display: flex; gap: 4px; animation: fade-away .25s ease 2s both; }
+#chat .msg.typing .typing-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1s infinite ease-in-out; }
+#chat .msg.typing .typing-dots i:nth-child(2) { animation-delay: .15s; }
+#chat .msg.typing .typing-dots i:nth-child(3) { animation-delay: .3s; }
+#chat .msg.typing .typing-slow {
+  position: absolute; left: 4px; display: inline-flex; align-items: center; gap: 8px;
+  color: var(--muted); font-size: 12px; animation: orb-in .35s var(--ease-out) 2s both;
+}
+@keyframes fade-away { to { opacity: 0; visibility: hidden; } }
+
+/* ---------- Messages enter with a little spring ---------- */
+#chat .msg.bot, #chat .msg.card-msg { animation: msg-in .38s var(--spring) both; }
+@keyframes msg-in { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+
+/* ---------- Answer cards ("> [!riesgo] …") ---------- */
+#chat .md .callout {
+  --c: var(--accent); --t: var(--tint-accent);
+  margin: 10px 0; padding: 10px 12px 11px; border-radius: 12px;
+  background: linear-gradient(180deg, var(--t), rgba(255, 255, 255, .015));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 26%, transparent);
+  white-space: normal;
+  animation: msg-in .4s var(--spring) both;
+}
+#chat .md .callout-danger { --c: var(--danger); --t: var(--tint-danger); }
+#chat .md .callout-ok { --c: var(--ok); --t: var(--tint-ok); }
+#chat .md .callout-idea { --c: var(--accent); --t: var(--tint-accent); }
+#chat .md .callout-step { --c: var(--accent); --t: rgba(139, 131, 255, .07); box-shadow: inset 0 0 0 1px rgba(139, 131, 255, .22), inset 3px 0 0 var(--accent); }
+#chat .md .callout-info { --c: var(--muted); --t: rgba(255, 255, 255, .03); }
+#chat .md .callout-head { display: flex; align-items: center; gap: 8px; }
+#chat .md .callout-head strong { color: var(--ink); font-size: 12.5px; font-weight: 650; letter-spacing: -.005em; }
+#chat .md .callout-icon {
+  width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0;
+  color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent);
+}
+#chat .md .callout-body { margin: 6px 0 0 32px; color: rgba(236, 236, 240, .82); font-size: 12.5px; line-height: 1.55; }
+#chat .md .callout-body > :first-child { margin-top: 0; }
+#chat .md .callout-body > :last-child { margin-bottom: 0; }
+#chat .md blockquote { margin: 8px 0; padding: 2px 0 2px 10px; border-left: 2px solid var(--line-strong); color: var(--muted); }
+
+/* ---------- File names are links to the map ---------- */
+#chat .md code.file-ref, .run-card code.file-ref {
+  cursor: pointer; color: #c9c5ff; background: rgba(139, 131, 255, .12);
+  box-shadow: inset 0 -1px 0 rgba(139, 131, 255, .45);
+  transition: background .15s ease, color .15s ease;
+}
+#chat .md code.file-ref:hover, #chat .md code.file-ref:focus-visible { background: rgba(139, 131, 255, .24); color: #fff; outline: none; }
+
+/* ---------- Suggestion chips (next steps under the answer) ---------- */
+#chat .chips { gap: 6px; padding: 2px 0 4px; }
+#chat .chips .chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px 6px 9px; border-radius: 999px; font: inherit; font-size: 12px; cursor: pointer;
+  color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  animation: chip-in .4s var(--spring) both; animation-delay: calc(var(--i, 0) * 60ms);
+  transition: background .15s ease, border-color .15s ease, transform .15s var(--spring);
+}
+#chat .chips .chip svg { color: var(--muted); transition: color .15s ease; }
+#chat .chips .chip:hover { background: var(--panel-2); border-color: var(--line-strong); transform: translateY(-1px); }
+#chat .chips .chip:hover svg { color: var(--accent); }
+#chat .chips .chip.repair { border-color: rgba(255, 194, 74, .35); }
+#chat .chips .chip.repair svg { color: var(--warn); }
+#chat .chips .chip.audit svg, #chat .chips .chip.locate svg { color: var(--accent); }
+@keyframes chip-in { from { opacity: 0; transform: translateY(6px) scale(.94); } }
+
+/* ---------- Map cards: folder and file ---------- */
+#chat .msg.card-msg {
+  max-width: 100%; width: 100%; box-sizing: border-box; padding: 12px; border-radius: 14px;
+  white-space: normal; background: linear-gradient(180deg, rgba(255, 255, 255, .045), rgba(255, 255, 255, .02));
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+#chat .msg.card-msg.alert { background: linear-gradient(180deg, rgba(255, 90, 106, .08), rgba(255, 90, 106, .02)); box-shadow: inset 0 0 0 1px rgba(255, 90, 106, .28); }
+.card-head { display: flex; align-items: center; gap: 10px; }
+.card-badge {
+  width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; flex-shrink: 0;
+  color: var(--accent); background: var(--tint-accent);
+}
+.card-badge.red { color: var(--danger); background: var(--tint-danger); }
+.card-badge.yellow { color: var(--warn); background: var(--tint-warn); }
+.card-badge.green { color: var(--ok); background: var(--tint-ok); }
+.card-title { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.card-title strong { color: var(--ink); font-size: 13.5px; font-weight: 650; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-title span, .card-path { color: var(--muted); font-size: 11.5px; }
+.card-path { font-family: var(--mono); font-size: 11px; background: none; padding: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.level-pill { padding: 3px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
+.level-pill.red { color: var(--danger); background: var(--tint-danger); }
+.level-pill.yellow { color: var(--warn); background: var(--tint-warn); }
+.level-pill.green { color: var(--ok); background: var(--tint-ok); }
+
+.level-bar { display: flex; gap: 3px; height: 7px; margin: 12px 0 8px; border-radius: 999px; overflow: hidden; }
+.level-bar i { min-width: 6px; border-radius: 999px; transform-origin: left; animation: bar-grow .7s var(--ease-out) both; animation-delay: calc(var(--i) * 90ms + 120ms); }
+.level-bar i.red { background: var(--danger); box-shadow: 0 0 10px rgba(255, 90, 106, .55); }
+.level-bar i.yellow { background: var(--warn); }
+.level-bar i.green { background: rgba(61, 220, 151, .55); }
+@keyframes bar-grow { from { transform: scaleX(0); } }
+.level-legend { display: flex; gap: 14px; margin: 0; padding: 0; list-style: none; font-size: 11.5px; color: var(--muted); }
+.level-legend li { display: flex; align-items: baseline; gap: 5px; }
+.level-legend b { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--ink); }
+.level-legend li.red b { color: var(--danger); }
+.level-legend li.yellow b { color: var(--warn); }
+.level-legend li.zero { opacity: .45; }
+.card-hint, .card-reason { margin: 10px 0 0; color: rgba(236, 236, 240, .8); font-size: 12.5px; line-height: 1.5; }
+.card-source { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--faint); font-size: 11px; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.card-action {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 9px; cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line);
+  transition: background .15s ease, border-color .15s ease, transform .15s var(--spring);
+}
+.card-action svg { color: var(--muted); }
+.card-action:hover { background: rgba(255, 255, 255, .09); border-color: var(--line-strong); transform: translateY(-1px); }
+.card-action.repair { color: #1a1406; background: var(--warn); border-color: transparent; font-weight: 600; }
+.card-action.repair svg { color: #1a1406; }
+.card-action.repair:hover { background: #ffd06e; }
+.card-action.audit svg, .card-action.risks svg { color: var(--accent); }
+
+/* ---------- Welcome options with icons ---------- */
+.chat-hero-mark { display: grid; place-items: center; }
+.chat-hero-list .hero-option { display: flex; align-items: center; gap: 9px; text-align: left; }
+.chat-hero-list .hero-option svg { color: var(--accent); opacity: .85; }
+.chat-hero-list .hero-option.repair svg { color: var(--warn); }
+
+/* ---------- Run card: tool icons, orbs while a step runs ---------- */
+.run-icon { position: relative; width: 22px; height: 22px; border-radius: 7px; display: grid; place-items: center; flex-shrink: 0; color: var(--muted); background: var(--panel-2); }
+.run-icon.done { color: var(--accent); background: var(--tint-accent); }
+.run-icon.error { color: var(--danger); background: var(--tint-danger); }
+.run-icon .orb { position: absolute; inset: 0; margin: auto; box-sizing: content-box; padding: 1px; border-radius: 7px; background: #0d0c1c; }
+.run-icon .run-check { position: absolute; right: -2px; bottom: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 2px #121318; animation: orb-in .3s var(--spring) both; }
+.run-state { display: inline-flex; align-items: center; gap: 6px; }
+.run-state .orb { width: 16px !important; height: 16px !important; }
+
+/* ---------- Vibe / Dev switch (composer bar) ---------- */
+.voice-switch {
+  position: relative; display: inline-flex; padding: 2px; border-radius: 999px; flex-shrink: 0;
+  background: rgba(255, 255, 255, .04); box-shadow: inset 0 0 0 1px var(--line);
+}
+.voice-switch::before {
+  content: ""; position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc(50% - 2px); border-radius: 999px;
+  background: var(--tint-accent); box-shadow: inset 0 0 0 1px rgba(139, 131, 255, .4);
+  transition: transform .35s var(--spring);
+}
+.voice-switch[data-mode="tech"]::before { transform: translateX(100%); }
+.voice-switch button {
+  position: relative; z-index: 1; flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  width: 28px; height: 24px; padding: 0; border: 0; border-radius: 999px; cursor: pointer; background: none;
+  font: inherit; font-size: 11px; font-weight: 600; color: var(--muted); transition: color .2s ease;
+}
+.voice-switch button[aria-checked="true"] { color: var(--ink); }
+.voice-switch button[aria-checked="true"] svg { color: var(--accent); }
+#chat .composer .voice-switch svg { width: 14px; height: 14px; stroke-width: inherit; }
+
+/* ---------- Border beam on the composer (libraries.dev) ---------- */
+#chat .beam-host, #chat .beam-host [data-beam], #chat .beam-slot { display: block; width: 100%; }
+/* Off, it draws nothing: let the "+" menu open outside the composer */
+#chat .beam-host [data-beam]:not([data-active]):not([data-fading]) { overflow: visible; }
+
+@media (prefers-reduced-motion: reduce) {
+  #chat .msg.bot, #chat .msg.card-msg, #chat .md .callout, #chat .chips .chip, .level-bar i,
+  canvas.orb.late, #chat .chat-avatar .orb, #chat .msg.typing .typing-slow { animation: none !important; }
+  #chat .msg.typing .typing-dots i { animation: none; }
+  .voice-switch::before { transition: none; }
+}
+
+/* ---------- Narrow chat: the composer bar never pushes the send button out ---------- */
+#chat .composer { container-type: inline-size; }
+.composer-bar > * { flex-shrink: 0; }
+.composer-bar .agent-picker { flex-shrink: 1; min-width: 0; }
+.composer-bar .picker-pill { max-width: 100%; overflow: hidden; }
+.composer-bar .picker-model, .composer-bar .picker-effort { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+@container (max-width: 320px) { .composer-bar .picker-effort { display: none; } }
+
+/* ---------- Run card header: the orb replaces the pulsing dot; names never wrap letter by letter ---------- */
+.run-state { white-space: nowrap; flex-shrink: 0; }
+.run-state.running::before { display: none; }
+.run-who strong, .run-who .run-model { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.run-head .run-time { flex-shrink: 0; }
+#chat .msg.card-msg .card-head { margin: 0; padding: 0; border: 0; background: none; }

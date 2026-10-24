@@ -11,8 +11,9 @@
   <link rel="stylesheet" href="styles/sidebar.css" />
   <link rel="stylesheet" href="styles/devtree.css" />
   <link rel="stylesheet" href="styles/agents.css" />
+  <link rel="stylesheet" href="styles/chat.css" />
   <script type="importmap">
-    { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/" } }
+    { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/", "@hugeicons/": "./vendor/hugeicons/", "thinking-orbs/engine": "./vendor/thinking-orbs/engine.es.js" } }
   </script>
 </head>
 <body class="shell">
@@ -25,7 +26,7 @@
     <nav id="menu" class="menubar" aria-label="Menú"></nav>
     <div id="mode-toggle" class="mode-toggle" role="group"></div>
     <button id="search" class="search" type="button">
-      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>
+      <span data-icon="search"></span>
       <span id="search-label"></span>
       <kbd id="search-shortcut"></kbd>
     </button>
@@ -43,20 +44,20 @@
   <!-- Floating bar: side panels | views | chat -->
   <!-- Floating icon bar: drag the icons to reorder them (the order is remembered) -->
   <div id="stage-tabs" class="stage-tabs icon-bar" role="toolbar">
-    <button type="button" draggable="true" data-side="explorer"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
-    <button type="button" draggable="true" data-side="risks"><svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z"/><path d="M12 10v4M12 17v.5"/></svg></button>
-    <button type="button" draggable="true" data-side="repairs"><svg viewBox="0 0 24 24"><path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"/></svg><em class="rail-badge" id="rail-repairs-badge" hidden></em></button>
-    <button type="button" draggable="true" data-side="agent"><svg viewBox="0 0 24 24"><path d="M9 7V4M15 7V4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v4"/></svg></button>
-    <button type="button" draggable="true" role="tab" data-stage="map"><svg viewBox="0 0 24 24"><path d="M4 20V9l8-5 8 5v11"/><path d="M4 20h16M9 20v-5h6v5"/></svg><span data-i18n="graph.tabMap"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" draggable="true" role="tab" data-stage="git"><svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-11 7"/></svg><span data-i18n="graph.tabGit"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" draggable="true" role="tab" data-stage="project"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span data-i18n="graph.tabProject"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" draggable="true" role="tab" data-stage="graph"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><circle cx="19" cy="12" r="2.2"/><path d="M7 11l3-3.5M7 13l3 3.5M14 7l3 3.5M14 17l3-3.5"/></svg><span data-i18n="graph.tabGraph"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" data-side="explorer"><span data-icon="explorer"></span></button>
+    <button type="button" draggable="true" data-side="risks"><span data-icon="risks"></span></button>
+    <button type="button" draggable="true" data-side="repairs"><span data-icon="repairs"></span><em class="rail-badge" id="rail-repairs-badge" hidden></em></button>
+    <button type="button" draggable="true" data-side="agent"><span data-icon="agent"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="map"><span data-icon="map"></span><span data-i18n="graph.tabMap"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="git"><span data-icon="git"></span><span data-i18n="graph.tabGit"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="project"><span data-icon="project"></span><span data-i18n="graph.tabProject"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="graph"><span data-icon="graph"></span><span data-i18n="graph.tabGraph"></span><em class="tab-badge"></em><span class="tip"></span></button>
   </div>
   <section id="project-panel" class="project-panel" hidden></section>
   <div id="hover-card" class="hover-card" hidden></div>
   <div id="remi-layer" class="remi-layer"></div>
   <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-controls="sidebar">
-    <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9.5 4.5v15"/></svg>
+    <span data-icon="sidebar"></span>
     <span class="tip"></span>
   </button>
   <section id="graph-panel" class="graph-panel" hidden>
@@ -76,23 +77,23 @@
   <div id="controls">
     <div class="group">
       <button id="zoom-in" data-i18n-title="controls.zoomIn" data-i18n-aria="controls.zoomIn">
-        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+        <span data-icon="zoomIn"></span>
       </button>
       <button id="zoom-out" data-i18n-title="controls.zoomOut" data-i18n-aria="controls.zoomOut">
-        <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+        <span data-icon="zoomOut"></span>
       </button>
     </div>
     <div class="group">
       <button id="rotate-left" data-i18n-title="controls.rotateLeft" data-i18n-aria="controls.rotateLeft">
-        <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>
+        <span data-icon="rotateLeft"></span>
       </button>
       <button id="rotate-right" data-i18n-title="controls.rotateRight" data-i18n-aria="controls.rotateRight">
-        <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/></svg>
+        <span data-icon="rotateRight"></span>
       </button>
     </div>
     <div class="group">
       <button id="reset-view" data-i18n-title="controls.reset" data-i18n-aria="controls.reset">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+        <span data-icon="reset"></span>
       </button>
     </div>
   </div>
@@ -108,7 +109,7 @@
   <div id="empty-state">
     <div class="empty-card">
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+        <span data-icon="openFolder"></span>
       </div>
       <strong data-i18n="emptyState.title"></strong>
       <p data-i18n="emptyState.body"></p>
@@ -137,17 +138,17 @@
   <aside id="chat" class="card" data-i18n-aria="chat.ariaLabel">
     <header class="chat-head">
       <div class="chat-avatar">
-        <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/></svg>
+        <span data-icon="bot"></span>
       </div>
       <div class="chat-title">
         <strong data-i18n="chat.agentName"></strong>
         <span data-i18n="chat.online"></span>
       </div>
       <button class="chat-toggle chat-pin" id="chat-pin" type="button" aria-pressed="false">
-        <svg viewBox="0 0 24 24"><path d="M15 4.5 19.5 9l-3 1.5-3.5 3.5.5 4-1.5 1.5-3.5-3.5L5 19.5M8.5 11.5 12.5 15.5M9 6l9 9"/></svg>
+        <span data-icon="pin"></span>
       </button>
       <button class="chat-toggle" id="chat-toggle" data-i18n-aria="chat.minimize" aria-expanded="true">
-        <svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>
+        <span data-icon="minimize"></span>
       </button>
     </header>
     <div class="chat-body" id="chat-body" aria-live="polite"></div>
@@ -157,13 +158,13 @@
       <div class="composer-bar">
         <div class="chat-more-wrap">
           <button type="button" id="chat-more" class="composer-icon" data-i18n-title="chat.more" data-i18n-aria="chat.more">
-            <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-icon="plus"></span>
           </button>
           <div id="chat-more-menu" class="chat-menu glass-pop"></div>
         </div>
         <div id="agent-picker" class="agent-picker"></div>
         <button type="submit" id="chat-send" data-i18n-aria="chat.send">
-          <svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>
+          <span data-icon="send"></span>
         </button>
       </div>
     </form>
@@ -174,7 +175,7 @@
   <div id="chat-launcher" class="chat-launcher">
     <div id="chat-launcher-menu" class="chat-menu glass-pop"></div>
     <button type="button" id="chat-launcher-button" class="chat-launcher-button" data-i18n-title="chat.more" data-i18n-aria="chat.more">
-      <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/></svg>
+      <span data-icon="chat"></span>
     </button>
   </div>
 

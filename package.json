@@ -7,12 +7,17 @@
   "main": "electron/main.js",
   "type": "commonjs",
   "scripts": {
+    "vendor": "node scripts/vendor-ui.js",
+    "prestart": "npm run vendor --silent",
     "start": "electron .",
+    "predev": "npm run vendor --silent",
     "dev": "electron . --dev",
     "build:web": "node scripts/build-web.js",
+    "predist:mac": "npm run vendor --silent",
     "dist:mac": "electron-builder --mac --publish never",
+    "predist:win": "npm run vendor --silent",
     "dist:win": "electron-builder --win --publish never",
-    "test": "node --test electron/mcpServer.test.js electron/agentEvents.test.js tests/renderer/*.test.mjs tests/secrets.test.mjs"
+    "test": "node --test electron/mcpServer.test.js electron/agentEvents.test.js electron/agentVoice.test.js tests/renderer/*.test.mjs tests/secrets.test.mjs"
   },
   "build": {
     "appId": "us.platan.hack26.team12.ide",
@@ -24,6 +29,7 @@
     "files": [
       "electron/**",
       "renderer/**",
+      "agent/**",
       "package.json"
     ],
     "artifactName": "Platanus-${version}-${os}-${arch}.${ext}",
@@ -56,8 +62,14 @@
     }
   },
   "devDependencies": {
+    "@hugeicons/core-free-icons": "^4.3.5",
+    "border-beam": "^1.4.1",
     "electron": "^45.0.0",
-    "electron-builder": "^26.18.0"
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.28.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "thinking-orbs": "^0.3.2"
   },
   "dependencies": {
     "three": "^0.160.0"

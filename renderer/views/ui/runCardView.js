@@ -5,6 +5,9 @@
 import { strings } from '../../i18n/es.js';
 import { modelLabel } from '../../models/agentConnectionModel.js';
 import { markdownToHtml } from './markdown.js';
+import { splitAnswer } from '../../models/answerFormat.js';
+import { icon, applyIcons, TOOL_ICONS } from './icons.js';
+import { thinkingOrb, STEP_ORB } from './thinkingOrb.js';
 
 const R = strings.chat.run;
 const C = strings.connect;
@@ -16,17 +19,45 @@ const el = (tag, className, text) => {
   return node;
 };
 
+const ORB_AFTER_MS = 2000; // libraries.dev rule: no orb for waits under 2 s
 const elapsed = (step) => (step.endedAt ? R.seconds(step.endedAt - step.startedAt) : '');
-const statusIcon = (status) => el('span', `run-dot ${status}`);
+
+// An orb that appears only once the work has lasted 2 s (it is rebuilt on every update, so the delay
+// counts from when the work started, not from now)
+export function delayedOrb(state, startedAt, size = 20) {
+  const orb = thinkingOrb(state, { size });
+  orb.classList.add('late');
+  orb.style.animationDelay = `${ORB_AFTER_MS - (Date.now() - startedAt)}ms`;
+  return orb;
+}
+
+// What the agent is doing in this message, as an orb state (header avatar and run card)
+export function orbStateOf(message) {
+  const run = message?.run;
+  const step = run?.steps.findLast((s) => s.status === 'running');
+  if (step) return STEP_ORB[step.kind === 'subagent' ? 'subagent' : step.name] ?? 'working';
+  if (message?.text) return STEP_ORB.writing;
+  return STEP_ORB.thinking;
+}
+
+// Icon of a step: its tool's icon, and while it runs (longer than 2 s) an orb on top
+function stepIcon(step) {
+  const box = el('span', `run-icon ${step.status}`);
+  const name = step.status === 'error' ? 'danger' : step.kind === 'subagent' ? 'subagent' : TOOL_ICONS[step.name] ?? 'arrow';
+  box.appendChild(icon(name, { size: 14 }));
+  if (step.status === 'running') box.appendChild(delayedOrb(STEP_ORB[step.kind === 'subagent' ? 'subagent' : step.name] ?? 'working', step.startedAt));
+  if (step.status === 'done') box.appendChild(el('span', 'run-check'));
+  return box;
+}
 
 function stepRow(step, all) {
   const li = el('li', `run-step ${step.kind} ${step.status}`);
   const line = el('div', 'run-step-line');
   if (step.kind === 'tool') {
-    line.append(statusIcon(step.status), el('span', 'run-step-name', R.tools[step.name] ?? R.tool));
+    line.append(stepIcon(step), el('span', 'run-step-name', R.tools[step.name] ?? R.tool));
     if (step.target) line.appendChild(el('code', 'run-step-target', step.target));
   } else {
-    line.append(statusIcon(step.status), el('span', 'run-step-badge', R.subagent(step.agentKind)), el('span', 'run-step-name', step.description));
+    line.append(stepIcon(step), el('span', 'run-step-badge', R.subagent(step.agentKind)), el('span', 'run-step-name', step.description));
   }
   line.appendChild(el('span', 'run-step-time', elapsed(step)));
   li.appendChild(line);
@@ -61,7 +92,10 @@ export function renderRunCard(el0, message) {
   const avatar = el('span', `run-avatar ${run.agentId ?? ''}`, (run.agent ?? '?').slice(0, 1));
   const who = el('div', 'run-who');
   who.append(el('strong', '', run.agent), el('span', 'run-model', `${modelLabel(run.agentId, run.model) ?? C.planDefault} · ${C.efforts[run.effort] ?? ''}`));
-  const state = el('span', `run-state ${run.status}`, running ? R.working : run.status === 'error' ? R.failed : R.done);
+  const state = el('span', `run-state ${run.status}`);
+  if (running) state.appendChild(delayedOrb(orbStateOf(message), run.startedAt));
+  else state.appendChild(icon(run.status === 'error' ? 'danger' : 'ok', { size: 13 }));
+  state.appendChild(el('span', '', running ? R.working : run.status === 'error' ? R.failed : R.done));
   const timer = el('span', 'run-time', R.seconds((run.endedAt ?? Date.now()) - run.startedAt));
   timer.dataset.start = String(run.startedAt);
   if (running) timer.dataset.live = '1';
@@ -98,11 +132,13 @@ export function renderRunCard(el0, message) {
   }
 
   const answer = el('div', `md${running ? ' streaming' : ''}`);
-  answer.innerHTML = text ? markdownToHtml(text) : running && !run.steps.length && !thinking ? `<p>${strings.chat.thinking}</p>` : '';
+  const body = splitAnswer(text).body; // the suggestions block becomes chips under the chat
+  answer.innerHTML = body ? markdownToHtml(body) : running && !run.steps.length && !thinking ? `<p>${strings.chat.thinking}</p>` : '';
   parts.push(answer);
 
   if (run.result) parts.push(el('footer', 'run-foot', R.foot(run.result, R.seconds)));
   el0.replaceChildren(...parts);
+  applyIcons(el0); // callout icons in the answer
   // keep nested details state
   for (const d of el0.querySelectorAll('details[data-key]')) if (opened.has(d.dataset.key)) d.open = opened.get(d.dataset.key);
 }

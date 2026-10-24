@@ -219,7 +219,7 @@ export const strings = {
       `Repara este problema de seguridad del archivo ${path}: ${reason}\n` +
       '1. Lee el archivo con platanus_read_file (si se niega porque tiene secretos, no insistas).\n' +
       '2. Si hay un arreglo pequeño y seguro editando archivos del proyecto, escribe el archivo completo corregido con platanus_write_file y explica el cambio en "reason". La persona aprobará cada cambio. Si el arreglo no se hace editando (por ejemplo, rotar claves en otro servicio), no escribas nada.\n' +
-      '3. Responde en español sencillo, sin jerga, con tres partes cortas: "Qué encontré", "Qué cambié" y "Qué te falta hacer a ti". Usa viñetas que empiecen con "- ".',
+      '3. Explica con tres tarjetas cortas: "> [!riesgo] Qué encontré", "> [!ok] Qué cambié" (o "> [!nota] Por qué no cambié nada") y "> [!paso] Qué te falta hacer a ti".',
     chat: {
       started: (path, agent) => (agent ? `🔧 Remi y ${agent} van a reparar ${path}.` : `🔧 Remi va a revisar ${path}.`),
       changed: (path, reason) => `✏️ Cambio aprobado en ${path}: ${reason}`,
@@ -376,8 +376,33 @@ export const strings = {
     agentName: 'Agente Platanus',
     online: 'En línea',
     placeholder: 'Pregúntale al agente… (Enter envía, Shift+Enter salta línea)',
+    placeholders: {
+      vibe: 'Cuéntame qué necesitas, con tus palabras…',
+      tech: 'Pregunta técnica: rutas, código, configuración… (Enter envía)',
+    },
+    // How the agent talks (agent/voice.json + agent/skills/)
+    voice: {
+      label: 'Cómo te habla el agente',
+      names: { vibe: 'Vibe', tech: 'Dev' },
+      hints: {
+        vibe: 'Vibe: palabras simples, comparaciones de la vida diaria y sin jerga.',
+        tech: 'Dev: detalle técnico, rutas y fragmentos de código cortos.',
+      },
+    },
+    // What the orb in the agent's avatar says it is doing (screen readers)
+    orbLabels: {
+      breathing: 'Pensando…',
+      composing: 'Escribiendo la respuesta…',
+      searching: 'Buscando en tu proyecto…',
+      working: 'Leyendo un archivo…',
+      solving: 'Actualizando el semáforo…',
+      connecting: 'Mostrándote el mapa…',
+      weaving: 'Coordinando ayudantes…',
+    },
     thinking: 'Pensando…',
     reasoning: 'Cómo lo pensó',
+    // Titles of the agent's cards when it gives none ("> [!riesgo]" ...)
+    callouts: { danger: 'Riesgo', ok: 'Está bien', idea: 'Idea', step: 'Tu siguiente paso', info: 'Nota' },
     pin: 'Fijar el chat: el mapa le deja su espacio',
     unpin: 'Soltar el chat: vuelve a flotar sobre el mapa',
     resize: 'Arrastra para cambiar el ancho del chat',
@@ -406,9 +431,35 @@ export const strings = {
     welcomeBody: 'Cuéntame tu idea o pídeme que revise el edificio. Te explico cada problema con palabras simples.',
     prompts: ['Revisa mi proyecto y dime qué está en riesgo', 'Explícame el mapa con palabras simples', '¿Qué archivo debería arreglar primero?'],
     // Shown above the box to start writing right away (they fill the box, the person can edit and send)
-    followUps: ['Revisa los archivos en rojo', 'Explícamelo más simple', '¿Qué hago ahora?', 'Audita este proyecto a fondo', '¿Por qué esto es un riesgo?'],
+    followUps: {
+      vibe: ['¿Mi app es segura?', 'Explícamelo más simple', '¿Qué hago ahora?', '¿Qué archivo arreglo primero?', '¿Por qué esto es un riesgo?'],
+      tech: ['Revisa los archivos en rojo', 'Audita este proyecto a fondo', '¿Qué secretos están expuestos?', 'Revisa la autenticación', 'Propón el arreglo con código'],
+    },
     followUpsTitle: 'Sugerencias para escribir',
-    auditPrompt: (path, reason) => `Audita **${path}**. El mapa lo marca así: "${reason}". Léelo y dime si el riesgo es real o una falsa alarma, por qué, y qué haría para arreglarlo. Si no es un riesgo, ponlo en verde en el semáforo.`,
+    auditPrompt: (path, reason) => `Audita \`${path}\`.${reason ? ` El mapa lo marca así: "${reason}".` : ''} Léelo y dime si el riesgo es real o una falsa alarma, por qué, y qué haría para arreglarlo. Si no es un riesgo, ponlo en verde en el semáforo.`,
+    notInProject: (path) => `No encuentro "${path}" en este proyecto.`,
+    // Next steps the agent suggests (chips under its answer)
+    suggest: {
+      repair: (name) => `Reparar ${name}`,
+      audit: (name) => `Auditar ${name}`,
+      locate: (name) => `Ver ${name} en el mapa`,
+    },
+    // Map events shown as cards in the chat
+    cards: {
+      files: (n) => (n === 1 ? '1 archivo' : `${n} archivos`),
+      folders: (n) => (n === 1 ? '1 subcarpeta' : `${n} subcarpetas`),
+      levels: { red: 'en riesgo', yellow: 'a revisar', green: 'seguros' },
+      folderHint: 'Toca un archivo en el mapa para ver su detalle, o una subcarpeta para entrar.',
+      folderHintRisk: 'Los archivos con riesgo están al frente de la plaza.',
+      folderEmpty: 'Todavía no tiene archivos.',
+      seeRisks: 'Ver los riesgos',
+      explainFolder: 'Explícame esta carpeta',
+      explainFolderPrompt: (name) => `Explícame qué hay en la carpeta \`${name.replace(/\/$/, '')}\` y para qué sirve, con palabras simples.`,
+      whatIsIt: '¿Qué es este archivo?',
+      whatIsItPrompt: (path) => `¿Qué es \`${path}\` y para qué sirve en mi proyecto? Explícamelo con palabras simples.`,
+      audit: 'Auditar en el chat',
+      source: 'Quién lo marcó',
+    },
     more: 'Más opciones',
     menu: {
       open: 'Abrir el chat',
@@ -560,16 +611,7 @@ export const strings = {
   },
 
   agent: {
-    // Instructions for the user's own agent when it answers in the chat (it reads them, users do not)
-    livePrompt:
-      'Eres el agente de seguridad de Platanus. Quien te escribe no es desarrollador: responde en español sencillo, en pocas frases, sin jerga. ' +
-      'Usa las herramientas de Platanus: platanus_get_project para ver el proyecto, platanus_list_risks para los archivos en riesgo, ' +
-      'platanus_read_file para leer un archivo, platanus_set_file_score para marcar el semáforo de un archivo (verde, amarillo o rojo, con una razón corta) ' +
-      'platanus_show_folder para mostrar una carpeta en el mapa y platanus_write_file para guardar un arreglo (solo si la persona lo pide o estás reparando; ella aprueba cada cambio). Nunca pidas ni muestres secretos. ' +
-      'Da formato a tu respuesta con Markdown para que se lea fácil: una frase de resumen, luego secciones cortas con "### Qué revisé", "### Qué encontré" y "### Qué hacer ahora", viñetas con "- ", y nombres de archivo en **negrita**. ' +
-      'Explica cada riesgo con una comparación de la vida diaria. Termina con un paso concreto que la persona pueda hacer.',
-    // Added to livePrompt in "dev" mode
-    techSuffix: ' La persona eligió el modo técnico: puedes usar rutas, nombres de archivos, comandos y fragmentos de código, siempre breves.',
+    // The chat agent's own instructions live in agent/voice.json and agent/skills/ (not shown to people)
     liveFailed: (why) => `<strong>No pude hablar con tu agente.</strong> ${why || 'Revisa en "Conecta tu agente" que la sesión esté iniciada.'}`,
     replies: [
       { keys: ['hola', 'buenas', 'hey'], text: '¡Hola! Soy el agente de seguridad del HQ. Puedo escanear el edificio, revisar accesos o explicarte una amenaza.' },

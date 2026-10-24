@@ -50,6 +50,7 @@ import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { remiJump } from './views/ui/remiJump.js';
 import { applyStrings } from './views/ui/domStrings.js';
+import { applyIcons } from './views/ui/icons.js';
 
 // --- Models ---
 const bus = createEventBus();
@@ -72,7 +73,7 @@ const gitViewModel = new GitViewModel({ gitModel, camera: cameraViewModel, bus }
 const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitViewModel });
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
 const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
-const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus });
+const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus, voiceMode: () => (modeModel.tech ? 'dev' : 'vibe') });
 
 // App actions shared by the chat, the menus and the sidebar
 const stage = document.getElementById('stage');
@@ -97,6 +98,11 @@ const actions = {
     if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
     chatViewModel.send(strings.chat.auditPrompt(path, reason));
   },
+  // A file or folder named by the agent (links and "Ver … en el mapa" chips)
+  locate(path) {
+    shellViewModel.setStage('map');
+    if (!mapViewModel.show(path)) chatViewModel.sayFromMap({ text: strings.chat.notInProject(path) });
+  },
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
@@ -107,6 +113,7 @@ shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 
 
 // --- Views ---
 applyStrings();
+applyIcons(); // Hugeicons into the static <span data-icon> slots, before the views look for them
 const sceneView = createSceneView(cameraViewModel, stage); // the map lives in the IDE stage
 const labels = createLabelLayer(document.getElementById('map-labels'), sceneView);
 const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
@@ -139,7 +146,7 @@ createInputController({
 });
 createControlsView({ cameraViewModel });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
-createChatView({ chatViewModel, connection });
+createChatView({ chatViewModel, connection, modeModel, onLocate: (path) => actions.locate(path) });
 createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks: () => actions.showRisks() });
 createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
