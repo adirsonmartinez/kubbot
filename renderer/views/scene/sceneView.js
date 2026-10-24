@@ -12,7 +12,7 @@ import { PALETTE } from './materials.js';
 const GRID_SIZE = 200; // cells per side; the grid re-centers on the camera so it feels infinite
 const SUN_OFFSET = new THREE.Vector3(-14, 30, 18); // from the top left: shadows fall to the right
 const RIM_OFFSET = new THREE.Vector3(20, 18, -26);  // cool light from behind to outline the volumes
-const BLOOM = { strength: 0.85, radius: 0.55, threshold: 0.82 };
+const BLOOM = { strength: 0.45, radius: 0.4, threshold: 0.85 };
 
 export function createSceneView(cameraViewModel) {
   const renderer = new THREE.WebGLRenderer({ antialias: true });

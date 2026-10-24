@@ -39,14 +39,14 @@ export const materials = {
   // Lit windows: faint cyan, below the bloom threshold so they do not compete with alerts
   get windowLit()  { return material('windowLit', 0x7fe9da, { emissive: PALETTE.accent, emissiveIntensity: 0.25, roughness: 0.3, metalness: 0 }); },
   // Glows (emissive values above 1 feed the bloom pass)
-  get accentLit()  { return material('accentLit', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0 }); },
-  get supabaseLit(){ return material('supabaseLit', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 1.2, roughness: 0.3, metalness: 0 }); },
-  get warnLit()    { return material('warnLit', PALETTE.warn, { emissive: PALETTE.warn, emissiveIntensity: 1.3, roughness: 0.3, metalness: 0 }); },
+  get accentLit()  { return material('accentLit', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0 }); },
+  get supabaseLit(){ return material('supabaseLit', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0 }); },
+  get warnLit()    { return material('warnLit', PALETTE.warn, { emissive: PALETTE.warn, emissiveIntensity: 1.0, roughness: 0.3, metalness: 0 }); },
   get danger()     { return material('danger', PALETTE.danger, { roughness: 0.5, metalness: 0.1 }); },
   // Solid status colors for small pieces (file cubes): a faint glow below the bloom threshold
   get warnSolid()  { return material('warnSolid', PALETTE.warn, { emissive: PALETTE.warn, emissiveIntensity: 0.3, roughness: 0.45, metalness: 0 }); },
   get dangerSolid(){ return material('dangerSolid', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 0.4, roughness: 0.45, metalness: 0 }); },
-  get dangerLit()  { return material('dangerLit', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 1.4, roughness: 0.3, metalness: 0 }); },
+  get dangerLit()  { return material('dangerLit', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 1.0, roughness: 0.3, metalness: 0 }); },
 };
 
 const geometries = {
@@ -111,7 +111,7 @@ export function glowPad(parent, color, w, d, y = 0.3) {
   const pad = new THREE.Mesh(
     new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2),
     new THREE.MeshBasicMaterial({
-      color: new THREE.Color(color).multiplyScalar(2.2), map: texture, transparent: true,
+      color: new THREE.Color(color).multiplyScalar(1.3), map: texture, transparent: true,
       blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
     })
   );
@@ -119,7 +119,7 @@ export function glowPad(parent, color, w, d, y = 0.3) {
   parent.add(pad);
 
   // Bright rim around the pad
-  const rim = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(2.5), toneMapped: false });
+  const rim = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(1.5), toneMapped: false });
   const t = 0.06;
   [[0, -d / 2, w, t], [0, d / 2, w, t], [-w / 2, 0, t, d], [w / 2, 0, t, d]].forEach(([dx, dz, sx, sz]) => {
     box(parent, rim, sx, 0.03, sz, dx, y - 0.01, dz).castShadow = false;

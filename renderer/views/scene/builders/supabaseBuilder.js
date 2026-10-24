@@ -99,7 +99,7 @@ export function buildSupabaseNode() {
   function update(t) {
     bolt.rotation.y = t * 1.2;
     bolt.position.y = B + 4.4 + Math.sin(t * 2) * 0.15;
-    M.supabaseLit.emissiveIntensity = 0.9 + 0.6 * Math.sin(t * 3) ** 2;
+    M.supabaseLit.emissiveIntensity = 0.7 + 0.35 * Math.sin(t * 3) ** 2;
     packets.forEach((p) => {
       const k = (t * 0.25 + p.phase) % 1;
       const u = p.outbound ? k : 1 - k;
@@ -115,8 +115,8 @@ export function buildSupabaseNode() {
       return;
     }
     const blink = Math.sin(t * 8) > 0 ? 1 : 0.35; // hard alarm-like blink
-    M.dangerLit.emissiveIntensity = 0.4 + 0.8 * blink;
-    glow.intensity = 6 + 10 * blink;
+    M.dangerLit.emissiveIntensity = 0.35 + 0.55 * blink;
+    glow.intensity = 3 + 5 * blink;
     warning.rotation.y = t * 2;
     warning.position.y = B + 7 + Math.sin(t * 3) * 0.25;
     waves.forEach((w) => {
