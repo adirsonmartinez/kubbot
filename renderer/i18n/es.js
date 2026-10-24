@@ -45,7 +45,21 @@ export const strings = {
     action: 'Abrir proyecto',
   },
 
+  floater: {
+    move: 'Arrastra para moverlo (doble clic: vuelve a su lugar)',
+    minimize: 'Minimizar',
+    restore: 'Mostrar',
+    risks: 'Riesgos abiertos',
+    hud: 'Seguridad del proyecto',
+  },
+
   panels: {
+    // Breadcrumb counts: files of the current level by traffic light
+    levelCount: (level, n) => ({
+      red: `${n} ${n === 1 ? 'archivo' : 'archivos'} en riesgo en este nivel`,
+      yellow: `${n} ${n === 1 ? 'archivo' : 'archivos'} por revisar en este nivel`,
+      green: `${n} ${n === 1 ? 'archivo seguro' : 'archivos seguros'} en este nivel`,
+    })[level],
     backToMap: 'Volver al mapa',
     schemaTitle: 'Supabase · esquema public',
     schemaSummary: (tables, hasError) => (hasError ? `${tables} tablas · 1 con error` : `${tables} tablas · todo en orden`),

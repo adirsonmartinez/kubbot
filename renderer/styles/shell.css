@@ -1037,3 +1037,68 @@ body.chat-closed .chat-launcher { display: block; }
 body:not(.chat-closed):not(.chat-min) #stage #hud { right: 402px; }
 #stage #hud, #stage #cracks-card, .remi-layer { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
 body.chat-closed #stage #hud, body.chat-min #stage #hud { right: 76px; }
+
+/* ---------- Icon-only floating bar, drag to reorder ---------- */
+#stage .stage-tabs.icon-bar { gap: 2px; padding: 4px; }
+.icon-bar > button {
+  position: relative; display: grid; place-items: center; width: 34px; height: 30px; padding: 0;
+  border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer;
+  transition: background .15s, color .15s, transform .15s, opacity .15s;
+}
+.icon-bar > button > span:not(.tip) { display: none; } /* names live in the hover card */
+.icon-bar > button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.icon-bar > button:hover { color: var(--ink); background: var(--panel); }
+.icon-bar > button.active { color: var(--ink); background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--line); }
+.icon-bar > button.active svg { stroke: var(--accent); }
+.icon-bar > button:active { cursor: grabbing; }
+.icon-bar .tab-badge, .icon-bar .rail-badge {
+  position: absolute; top: 1px; right: 1px; min-width: 13px; height: 13px; padding: 0 3px; border-radius: 7px;
+  font: 700 8.5px var(--font); box-shadow: 0 0 0 2px rgba(17, 19, 25, .95);
+}
+.icon-bar .tab-badge { background: var(--danger); color: #fff; }
+.icon-bar > button.dragging { opacity: .35; }
+.icon-bar > button.drop-before { box-shadow: inset 2px 0 0 var(--accent); }
+.icon-bar > button.drop-after { box-shadow: inset -2px 0 0 var(--accent); }
+.icon-bar > button.drop-before.active, .icon-bar > button.drop-after.active { background: var(--panel-2); }
+/* Bigger icons; the bar re-centers on the visible map as the panel and the chat open or fold */
+.icon-bar > button { width: 42px; height: 38px; border-radius: 10px; }
+.icon-bar > button svg { width: 20px; height: 20px; }
+#stage .stage-tabs.icon-bar { padding: 5px; gap: 3px; border-radius: 14px; top: 12px; }
+#stage .stage-tabs.icon-bar { left: calc(50% + var(--shift-l) + var(--shift-r)); transform: translateX(-50%); transition: left .28s cubic-bezier(.2, .8, .2, 1); }
+#stage .sidebar-toggle { top: 14px; width: 40px; height: 40px; }
+#sidebar.card { top: 62px; }
+
+/* ---------- Breadcrumb (where you are + counts) next to the panel toggle ---------- */
+#stage #breadcrumb { top: 14px; left: 62px; min-height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 6px 14px; }
+#stage #breadcrumb .fp-legend span { cursor: help; }
+body:not(.sidebar-closed) #stage #git-panel { left: 318px; }
+
+/* ---------- Floating windows on the map (drag by the bar, minimize to the bar) ---------- */
+#stage .floater { position: absolute; z-index: 7; display: flex; flex-direction: column; gap: 4px; }
+#stage .floater[hidden] { display: none; }
+#stage .floater > #cracks-card, #stage .floater > #hud { position: static; inset: auto; top: auto; right: auto; bottom: auto; left: auto; transform: none; }
+#stage #cracks-card-float { top: 62px; right: 14px; width: 280px; }
+#stage #hud-float { right: 14px; bottom: 14px; }
+body:not(.chat-closed):not(.chat-min) #stage .floater:not(.moved) { right: 402px; }
+body.chat-closed #stage #hud-float:not(.moved), body.chat-min #stage #hud-float:not(.moved) { right: 76px; }
+#stage .floater:not(.moved) { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
+.floater-bar {
+  display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 4px 0 6px; align-self: flex-end;
+  border-radius: 9px; background: rgba(16, 18, 24, .86); border: 1px solid var(--line-strong);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  color: var(--muted); font: 600 11px var(--font); cursor: grab; user-select: none; touch-action: none;
+  opacity: .55; transition: opacity .15s;
+}
+#stage .floater:hover .floater-bar, #stage .floater.min .floater-bar, #stage .floater.dragging .floater-bar { opacity: 1; }
+#stage .floater.dragging .floater-bar { cursor: grabbing; }
+.floater-grip svg { width: 14px; height: 14px; fill: currentColor; display: block; }
+.floater-title { display: none; }
+#stage .floater.min .floater-title { display: inline; color: var(--ink); }
+.floater-min { width: 20px; height: 20px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 700 13px var(--font); cursor: pointer; }
+.floater-min:hover { background: var(--panel-2); color: var(--ink); }
+#stage .floater.min > :not(.floater-bar) { display: none; }
+#stage .floater.dragging { opacity: .92; }
+body.stage-graph #stage #hud-float, body.stage-project #stage #hud-float { visibility: hidden; }
+/* (ids, so these win over the default positions above) */
+body:not(.chat-closed):not(.chat-min) #stage #cracks-card-float:not(.moved),
+body:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 402px; }
