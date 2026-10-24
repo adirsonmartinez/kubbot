@@ -42,9 +42,9 @@ import { createGraphView } from './views/ui/graphView.js';
 import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu, chatMenuItems } from './views/ui/chatMenuView.js';
-import { createCracksCardView } from './views/ui/cracksCardView.js';
 import { createIconBarView } from './views/ui/iconBarView.js';
 import { makeFloating } from './views/ui/floater.js';
+import { makeDraggable } from './views/ui/draggable.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { remiJump } from './views/ui/remiJump.js';
@@ -139,22 +139,19 @@ createInputController({
 createControlsView({ cameraViewModel });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
 createChatView({ chatViewModel, connection });
-createHudView({ appViewModel, mapViewModel, gitViewModel });
+createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks: () => actions.showRisks() });
 createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });
+// The side panel and the chat can be dragged by their header (double click: back in place)
+const workspaceEl = document.getElementById('workspace');
+makeDraggable({ el: document.getElementById('sidebar'), handle: document.querySelector('#sidebar .card-head'), key: 'sidebar', area: workspaceEl });
+makeDraggable({ el: document.getElementById('chat'), handle: document.querySelector('#chat .chat-head'), key: 'chat', area: workspaceEl });
 // Cards on the map can be dragged anywhere and minimized
-for (const [id, title] of [['cracks-card', strings.floater.risks], ['hud', strings.floater.hud]]) {
+for (const [id, title] of [['hud', strings.floater.hud]]) {
   makeFloating({ el: document.getElementById(id), key: id, stage, title, labels: strings.floater });
 }
-createCracksCardView({
-  container: document.getElementById('cracks-card'),
-  shellViewModel,
-  repairHistory,
-  onRepair: (path, button) => actions.repair(path, button),
-  onSeeAll: actions.showRisks,
-});
 
 // Chat options: the "+" in the composer, and the floating button when the chat is minimized or closed
 const $id = (id) => document.getElementById(id);

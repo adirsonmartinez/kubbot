@@ -752,11 +752,6 @@ body.chat-min #chat.card.min { display: none; }
 .chat-launcher .chat-menu { left: auto; right: 0; bottom: calc(100% + 10px); }
 @media (prefers-reduced-motion: reduce) { .chat-hero, .chat-launcher-button, .chat-menu { animation: none; } }
 /* Open-cracks card on the map (top-right, below nothing: the stage tabs are centered) */
-#stage #cracks-card { position: absolute; top: 14px; right: 14px; z-index: 6; width: 280px; }
-#stage #cracks-card[hidden] { display: none; }
-body.stage-graph #cracks-card, body.stage-project #cracks-card, body.stage-git #cracks-card { display: none; }
-#stage #cracks-card { top: 62px; z-index: 7; }
-#stage #cracks-card .crack-card__name { font-family: var(--mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 /* Colors come from cracks.css (dark glass, like every panel over the map) */
 
 /* ---------- Effort slider ("Cuánto piensa"): hotter and faster as it goes up, sparks at Ultracode ---------- */
@@ -1011,7 +1006,6 @@ body.chat-closed #workspace > #chat.card {
   transition: transform .22s ease, opacity .18s ease, visibility 0s linear .22s;
 }
 /* What sat on the map's right edge moves left of the chat while it is open */
-body:not(.chat-closed):not(.chat-min) #stage #cracks-card { right: 402px; }
 body:not(.chat-closed):not(.chat-min) .remi-layer { right: 402px; }
 body.chat-closed .chat-launcher { display: block; }
 
@@ -1035,7 +1029,7 @@ body.chat-closed .chat-launcher { display: block; }
   #workspace > #chat.card, body.chat-closed #workspace > #chat.card { transition: none; }
 }
 body:not(.chat-closed):not(.chat-min) #stage #hud { right: 402px; }
-#stage #hud, #stage #cracks-card, .remi-layer { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
+#stage #hud, .remi-layer { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
 body.chat-closed #stage #hud, body.chat-min #stage #hud { right: 76px; }
 
 /* ---------- Icon-only floating bar, drag to reorder ---------- */
@@ -1076,8 +1070,7 @@ body:not(.sidebar-closed) #stage #git-panel { left: 318px; }
 /* ---------- Floating windows on the map (drag by the bar, minimize to the bar) ---------- */
 #stage .floater { position: absolute; z-index: 7; display: flex; flex-direction: column; gap: 4px; }
 #stage .floater[hidden] { display: none; }
-#stage .floater > #cracks-card, #stage .floater > #hud { position: static; inset: auto; top: auto; right: auto; bottom: auto; left: auto; transform: none; }
-#stage #cracks-card-float { top: 62px; right: 14px; width: 280px; }
+#stage .floater > #hud { position: static; inset: auto; top: auto; right: auto; bottom: auto; left: auto; transform: none; }
 #stage #hud-float { right: 14px; bottom: 14px; }
 body:not(.chat-closed):not(.chat-min) #stage .floater:not(.moved) { right: 402px; }
 body.chat-closed #stage #hud-float:not(.moved), body.chat-min #stage #hud-float:not(.moved) { right: 76px; }
@@ -1100,5 +1093,15 @@ body.chat-closed #stage #hud-float:not(.moved), body.chat-min #stage #hud-float:
 #stage .floater.dragging { opacity: .92; }
 body.stage-graph #stage #hud-float, body.stage-project #stage #hud-float { visibility: hidden; }
 /* (ids, so these win over the default positions above) */
-body:not(.chat-closed):not(.chat-min) #stage #cracks-card-float:not(.moved),
 body:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 402px; }
+
+/* ---------- Side panel and chat: drag by their header ---------- */
+.drag-handle { cursor: grab; user-select: none; touch-action: none; }
+#sidebar.dragging, #chat.dragging { transition: none !important; box-shadow: 0 30px 70px rgba(0, 0, 0, .55); }
+#sidebar.dragging .drag-handle, #chat.dragging .drag-handle { cursor: grabbing; }
+/* When moved by hand, the rest of the layout stops making room for them */
+body.sidebar-moved { --shift-l: 0px; }
+body.chat-moved { --shift-r: 0px; }
+body.chat-moved:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 14px; }
+body.chat-moved:not(.chat-closed):not(.chat-min) .remi-layer { right: 14px; }
+body.chat-moved:not(.chat-closed):not(.chat-min) { --shift-r: 0px; }
