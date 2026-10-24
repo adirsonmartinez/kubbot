@@ -39,6 +39,8 @@ export const ICON_NAMES = {
   improve: 'AiEditingIcon', // "Mejorar mi mensaje"
   openExternal: 'SquareArrowUpRightIcon', // "Abrir en el navegador"
   folderOpen: 'FolderOpenIcon', // "Mostrar en la carpeta"
+  unfoldMore: 'UnfoldMoreIcon', // explorer: expand every folder
+  unfoldLess: 'UnfoldLessIcon', // explorer: collapse every folder
   // The connected agent's mark in the chat header
   route: 'Route01Icon',
   cursor: 'Cursor02Icon',

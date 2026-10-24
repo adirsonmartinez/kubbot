@@ -99,7 +99,7 @@ export class TourViewModel {
     const { tour, status, guide } = this.store.state;
     if (status !== 'playing' || !tour || index < 0 || index >= tour.steps.length) return;
     const step = tour.steps[index];
-    const places = placesFor(tour.steps, this.#map.store.state, { usesSupabase: Boolean(this.#project.store.state.usesSupabase) });
+    const places = placesFor(tour.steps, this.#map.store.state);
     const place = places.get(step.id);
     const from = guide?.to ?? { x: 1.1, z: 1.1 };
     const distance = Math.hypot(place.stand.x - from.x, place.stand.z - from.z);

@@ -17,6 +17,19 @@
   --radius: 12px;
   --blur: blur(14px) saturate(140%);
   --sans: system-ui, -apple-system, "Segoe UI", "Inter", sans-serif;
+  /* Editor syntax colors: cool tones around the accent (amber, red and green stay for security) */
+  --syntax-keyword: #a59fff;
+  --syntax-string: #9fc2ff;
+  --syntax-number: #7fd3e6;
+  --syntax-type: #cdbfff;
+  --syntax-property: #b4bfcc;
+  --syntax-definition: #f2f4f6;
+  --syntax-comment: #6b7480;
+  --syntax-meta: #8b83ff;
+  --syntax-gutter: rgba(0, 0, 0, 0.12);
+  --syntax-active-line: rgba(255, 255, 255, 0.035);
+  --syntax-selection: rgba(139, 131, 255, 0.3);
+  --syntax-match: rgba(139, 131, 255, 0.16);
   --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 }
 
@@ -31,7 +44,7 @@ body::after {
 }
 
 /* Shared glass surface */
-#controls .group, #schema-panel, #git-panel, #hud, #chat, .empty-card {
+#schema-panel, #git-panel, #chat {
   background: var(--glass);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -47,63 +60,9 @@ body::after {
   border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent);
 }
 
-/* --- Map controls (bottom left) --- */
-#controls { position: fixed; left: 16px; bottom: 16px; z-index: 2; display: flex; gap: 8px; user-select: none; }
-#controls .group { display: flex; overflow: hidden; }
-#controls button {
-  width: 40px; height: 40px; padding: 0; border: 0; background: transparent;
-  display: grid; place-items: center; cursor: pointer; color: var(--muted);
-}
-#controls .group button + button { border-left: 1px solid var(--line); }
-#controls button:hover { color: var(--accent); background: var(--accent-soft); }
-#controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-#controls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-#controls button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
+/* --- Map controls (bottom left) and the hand camera preview: styles/controls.css --- */
 
-/* Camera preview while the map is moved by hand (mirrored, like a mirror) */
-#hand-preview {
-  position: absolute; left: 0; bottom: 48px; width: 200px; padding: 6px;
-  display: flex; flex-direction: column; gap: 6px;
-  background: var(--glass); border: 1px solid var(--line); border-radius: var(--radius);
-  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-#hand-preview[hidden] { display: none; }
-#hand-preview.pinching { border-color: rgba(139, 131, 255, 0.6); }
-#hand-preview.error { width: 240px; }
-.hand-video video { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; transform: scaleX(-1); background: var(--bg); }
-#hand-preview.error .hand-video { display: none; }
-.hand-status { padding: 0 4px 2px; font: 11px/1.3 var(--sans); color: var(--muted); }
-.hand-status::before {
-  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: middle;
-  border-radius: 50%; background: var(--faint);
-}
-#hand-preview.hand .hand-status::before { background: var(--text); }
-#hand-preview.pinching .hand-status { color: var(--text); }
-#hand-preview.pinching .hand-status::before { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-#hand-preview.error .hand-status { color: var(--danger); }
-#hand-preview.error .hand-status::before { background: var(--danger); }
-
-/* --- HUD: security score and counters (top left, map view) --- */
-#hud {
-  position: fixed; top: 16px; left: 16px; z-index: 2;
-  display: flex; align-items: center; gap: 22px; padding: 12px 20px 12px 14px;
-}
-#hud[hidden] { display: none; }
-.hud-ring { display: flex; align-items: center; gap: 10px; }
-.hud-ring svg { width: 48px; height: 48px; transform: rotate(-90deg); }
-.hud-ring circle { fill: none; stroke-width: 5; }
-.hud-ring .track { stroke: rgba(255, 255, 255, 0.08); }
-.hud-ring .value { stroke: var(--accent); stroke-linecap: round; filter: drop-shadow(0 0 4px var(--accent)); transition: stroke-dashoffset 0.6s ease; }
-#hud[data-level="red"] .hud-ring .value { stroke: var(--danger); filter: drop-shadow(0 0 4px var(--danger)); }
-#hud[data-level="yellow"] .hud-ring .value { stroke: var(--warn); filter: drop-shadow(0 0 4px var(--warn)); }
-#hud[data-level="green"] .hud-ring .value { stroke: var(--ok); filter: drop-shadow(0 0 4px var(--ok)); }
-#hud[data-level="red"] [data-field="score"] { color: var(--danger); }
-#hud[data-level="yellow"] [data-field="score"] { color: var(--warn); }
-#hud[data-level="green"] [data-field="score"] { color: var(--ok); }
-#hud strong { display: block; font: 600 18px var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
-#hud span { display: block; font-size: 11px; color: var(--muted); }
-.hud-stat.risk strong { color: var(--danger); }
-.hud-stat.review strong { color: var(--warn); }
+/* --- HUD: security score and counters: styles/hud.css --- */
 
 /* --- Panels (top left, below the HUD) --- */
 #schema-panel, #git-panel {
@@ -117,8 +76,6 @@ body::after {
 #schema-panel span, #git-panel span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 #schema-panel span.bad, #git-panel #git-risky { color: var(--danger); font-weight: 600; }
 #git-panel #git-risky[hidden] { display: none; }
-.fp-legend { display: flex; gap: 12px; }
-.fp-legend span { display: flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--text); }
 #schema-panel button {
   padding: 7px 12px; border: 1px solid rgba(139, 131, 255, 0.35); border-radius: 8px;
   background: var(--accent-soft); color: var(--accent); font: 600 12px var(--sans); cursor: pointer;
@@ -129,32 +86,7 @@ body::after {
 /* --- Empty state --- */
 #empty-state { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; z-index: 1; }
 #empty-state[hidden] { display: none; }
-.empty-card { pointer-events: auto; width: min(340px, 100%); padding: 28px 24px; text-align: center; font: 14px/1.5 var(--sans); }
-/* Isometric folder standing on a map slab, with a few ghost tiles */
-.iso-empty { width: 160px; height: 120px; display: block; margin: -6px auto 22px; overflow: visible; }
-.iso-empty * { stroke-linejoin: round; stroke-linecap: round; stroke-width: 1; }
-.iso-slab { fill: rgba(255, 255, 255, 0.03); stroke: var(--line-strong); }
-.iso-slab-side { fill: rgba(255, 255, 255, 0.05); stroke: var(--line-strong); }
-.iso-slab-side.dark { fill: rgba(255, 255, 255, 0.025); }
-.iso-grid { stroke: var(--line); }
-.iso-ghost { fill: rgba(255, 255, 255, 0.03); stroke: rgba(255, 255, 255, 0.1); }
-.iso-folder { stroke: var(--accent); stroke-width: 1.4; }
-.iso-folder.back { fill: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
-.iso-folder.side { fill: color-mix(in srgb, var(--accent) 24%, var(--bg)); }
-.iso-folder.front { fill: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
-.iso-folder-line { stroke: var(--accent); stroke-width: 1.4; opacity: 0.6; }
-.empty-card strong { display: block; font-size: 16px; font-weight: 600; }
-.empty-card p { margin: 6px 0 18px; color: var(--muted); }
-/* Empty state actions: new project (primary) and open project (secondary). Scoped by id because
-   the recent-project rows are buttons too and keep their own style. */
-.empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-#new-project, #open-project {
-  padding: 10px 18px; border-radius: 10px; font: 700 13px var(--sans); cursor: pointer;
-}
-#new-project { border: 1px solid transparent; background: var(--accent); color: #0b0a1f; }
-#new-project:hover { filter: brightness(1.08); }
-#open-project { border: 1px solid var(--line-strong); background: transparent; color: var(--text); }
-#open-project:hover { border-color: rgba(139, 131, 255, 0.5); color: var(--accent); }
+/* The card itself: styles/start.css */
 
 /* --- Labels that follow objects on the map: small glass cards --- */
 #map-labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -167,22 +99,16 @@ body::after {
 }
 .map-label[hidden], .map-label.off-layer { display: none; }
 .map-label strong { font: 600 12px var(--mono); color: var(--text); }
-.map-label strong::before {
-  content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 6px; vertical-align: middle;
-  border-radius: 50%; background: var(--accent);
-}
 .map-label span { font-size: 11px; color: var(--muted); }
 .map-label em { font-style: normal; font-size: 11px; font-weight: 600; }
 .map-label em.risk { color: var(--danger); }
 .map-label em.review { color: var(--warn); }
-.map-label.root { z-index: 2; padding: 8px 12px; border-color: rgba(139, 131, 255, 0.3); }
-.map-label.root strong { font: 600 14px var(--sans); }
-/* Open folder and its problem files: the dot takes the file's level */
-.map-label.open { border-color: rgba(139, 131, 255, 0.45); }
-.map-label.file { padding: 4px 8px 5px; }
-.map-label.file strong { font-size: 11px; }
-.map-label strong.yellow::before { background: var(--warn); }
-.map-label strong.red::before { background: var(--danger); }
+.map-label.root { z-index: 2; }
+.map-label.more { padding: 3px 8px; }
+/* Name of the integrations band: plain text on the dark ground, not a card */
+.map-label.band { padding: 0; background: none; border: 0; box-shadow: none; }
+.map-label.band span { font: 600 10px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+.map-label.more span { font: 600 11px var(--mono); }
 /* The welcome robot's question */
 .map-label.robot-bubble { z-index: 3; padding: 8px 12px; border-color: rgba(139, 131, 255, 0.45); }
 .map-label.robot-bubble strong { font: 600 13px var(--sans); }
@@ -190,14 +116,16 @@ body::after {
 
 /* Floors of an open building */
 .map-label.floor { flex-direction: row; align-items: center; gap: 8px; padding: 4px 9px; }
-.map-label.floor strong::before { display: none; }
 .map-label.floor.focus { border-color: rgba(139, 131, 255, 0.45); background: rgba(139, 131, 255, 0.12); }
 
 /* Supabase node label */
 .map-label.sb-label { flex-direction: row; align-items: center; gap: 8px; padding: 6px 10px; font: 600 11px var(--sans); }
 .sb-label span { color: inherit; font-size: inherit; }
 .sb-label b { color: var(--accent); font: 600 11px var(--mono); }
-.sb-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: blink 1.4s infinite; }
+.sb-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: blink 1.4s infinite; }
+/* Integration states: connected (green, above), with an incident (amber), disconnected (red, steady) */
+.sb-label .dot.incident { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.sb-label .dot.disconnected { background: var(--danger); box-shadow: none; animation: none; }
 .map-label.sb-label.vuln { border-color: rgba(255, 90, 106, 0.5); background: rgba(60, 18, 24, 0.9); animation: shake 0.5s infinite; }
 .sb-label.vuln b { color: #fff; background: var(--danger); padding: 2px 6px; border-radius: 4px; }
 .sb-label.vuln .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation-duration: 0.4s; }
@@ -292,3 +220,5 @@ canvas.grabbing { cursor: grabbing; }
 .map-label.build-site strong::before { background: #c9ced4; }
 .map-label.build-site.current { border-style: solid; border-color: rgba(139, 131, 255, 0.6); }
 .map-label.build-site.current strong::before { background: var(--accent); }
+.map-label.build-site.counter { padding: 2px 8px; border-radius: 999px; }
+.map-label.build-site.counter span { font-size: 10.5px; color: #c9c5ff; }

@@ -1,6 +1,7 @@
 // Which view is on screen: the project map or the git branches. Each view keeps its own camera,
 // so switching back and forth returns to where you were.
 import { Observable } from '../core/observable.js';
+import { CAMERA } from './cameraViewModel.js';
 
 export const VIEWS = ['map', 'git'];
 
@@ -31,6 +32,7 @@ export class AppViewModel {
       this.#camera.restoreView(saved);
       this.#camera.azimuthGoal = saved.azimuth;
     } else if (view === 'git') {
+      this.#camera.azimuthGoal = CAMERA.gitAzimuth;
       this.#gitViewModel.centerOnHead();
     }
     if (view === 'git') this.#gitModel.load(); // always show fresh history

@@ -5,16 +5,16 @@
 // goes when the work is over (the radar map stays the source of truth).
 import * as THREE from 'three';
 import { FOLDER } from '../../viewmodels/layout.js';
-import { buildFolderIcon } from './builders/folderIconBuilder.js';
+import { buildGlassFolder } from './builders/glassFolderBuilder.js';
 import { PALETTE, materials as M } from './materials.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
 
 const RISE_S = 0.5;
 const FLY_S = 0.6;
-const MAX_SHEETS = 7;
-// folderIconBuilder draws log2(1 + files) sheets: this many files show `sheets` of them
-const filesFor = (sheets) => 2 ** Math.min(Math.max(sheets, 1), MAX_SHEETS) - 1;
+const MAX_SHEETS = 4;
+// glassFolderBuilder draws log2(1 + files) / 2 sheets (up to 4): this many files show `sheets` of them
+const filesFor = (sheets) => 2 ** (2 * Math.min(Math.max(sheets, 1), MAX_SHEETS)) - 1;
 const ringMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.accent, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
 
 export function createBuildSiteView({ sceneView, labels, buildViewModel, hands = () => null }) {
@@ -41,7 +41,7 @@ export function createBuildSiteView({ sceneView, labels, buildViewModel, hands =
     s.z = site.z;
     // a folder the map already shows (it has problems) keeps its own building; root files use the plaza
     if (site.kind === 'ghost') {
-      const built = buildFolderIcon({ size: FOLDER.size, files: filesFor(sheets), level: 'green' });
+      const built = buildGlassFolder({ size: FOLDER.size, files: filesFor(sheets), level: 'green' }); // like the map's folders
       built.group.position.set(site.x, 0, site.z);
       layer.add(built.group);
       s.group = built.group;
@@ -53,8 +53,11 @@ export function createBuildSiteView({ sceneView, labels, buildViewModel, hands =
       s.top = site.kind === 'plaza' ? 1 : 3;
     }
     // the plaza already has the project's label: its loose files are told just in front of it
-    const anchor = site.kind === 'plaza' ? { x: site.x, y: 0.6, z: site.z + 3.4 } : { x: site.x, y: s.top + 1.1, z: site.z };
-    s.label ??= labels.add({ className: 'build-site', anchor });
+    // a folder the map draws already has its label: only a small counter goes under it
+    const anchor = site.kind === 'plaza' ? { x: site.x, y: 0.6, z: site.z + 3.4 }
+      : site.kind === 'building' ? { x: site.x, y: 0.2, z: site.z + 2.6 }
+        : { x: site.x, y: s.top + 1.1, z: site.z };
+    s.label ??= labels.add({ className: `build-site${site.kind === 'building' ? ' counter' : ''}`, anchor });
     s.label.setAnchor(anchor.x, anchor.y, anchor.z);
     sites.set(site.folder, s);
     return s;
@@ -74,7 +77,8 @@ export function createBuildSiteView({ sceneView, labels, buildViewModel, hands =
     for (const site of list) {
       const s = drawSite(site);
       const name = site.kind === 'plaza' ? strings.build.root : site.label;
-      s.label.el.innerHTML = `<strong>${escapeHtml(name)}</strong><span>${escapeHtml(strings.build.papers(site.papers, site.edits))}</span>`;
+      const count = escapeHtml(strings.build.papers(site.papers, site.edits));
+      s.label.el.innerHTML = site.kind === 'building' ? `<span>${count}</span>` : `<strong>${escapeHtml(name)}</strong><span>${count}</span>`;
       s.label.el.classList.toggle('current', site.current);
       if (site.current) current = { site, s };
     }

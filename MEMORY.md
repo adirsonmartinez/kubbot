@@ -37,13 +37,22 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
 - **Video del producto**: `video/` (Remotion) y `scripts/demo/` (grabación por CDP + proyecto de ejemplo «Feria Online»).
 
 ## Cómo comprobar
-- `npm test` (359 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
+- `npm test` (409 pruebas al 2026-10-24, con develop fusionado) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
 - **App real:** `npx electron . --remote-debugging-port=9223 --open=<proyecto>` y scripts CDP (`scripts/demo/cdp.mjs`).
 - **Banderas:**
   - `PLATANUS_SIM=1`: agente «Simulador», escenarios en `scripts/sim/scenarios.js`;
   - `PLATANUS_SIM_DEFAULT=feria`: escenario por defecto del Simulador;
   - `PLATANUS_DEMO=1`: cursor visible y `window.__platanus` con los viewmodels.
 - **Video:** `cd video && npm run take && npm run render`.
+
+## Mapa (develop, 2026-10-24)
+El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el proyecto**.
+- **Contenido:** carpetas de vidrio en filas (`buildings`), la ruta abierta en `branches` y una banda de integraciones arriba.
+- **Cámara:** `CAMERA.azimuth` es 0.
+- **Lo que se adaptó:**
+  - `ghostSlots(points, count)` pone una fila de fantasmas debajo del árbol;
+  - `placesFor` usa `buildings` y `branches`;
+  - las obras usan `buildGlassFolder`.
 
 ## Decisiones vigentes
 - El LLM propone, el plano decide: hechos y validaciones deterministas; el modelo solo narra o sugiere.

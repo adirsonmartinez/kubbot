@@ -1,7 +1,7 @@
 // Supabase node on the map: whether it is shown, its live status and the schema view.
 import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
-import { SCHEMA_CENTER } from './layout.js';
+import { integrationToWorld, SCHEMA_CENTER } from './layout.js';
 
 const VULNERABILITY_DELAY_MS = 5000; // demo: the vulnerability shows up a few seconds after opening
 const LATENCY_INTERVAL_MS = 1200;
@@ -40,7 +40,7 @@ export class SupabaseViewModel {
     if (on === this.store.state.schemaOpen) return;
     if (on) {
       this.#returnView = this.#camera.saveView();
-      this.#camera.flyTo(SCHEMA_CENTER, SCHEMA_ZOOM);
+      this.#camera.flyTo(integrationToWorld(SCHEMA_CENTER), SCHEMA_ZOOM);
     } else {
       this.#camera.flyTo(this.#returnView?.target ?? { x: 0, z: 0 }, 1);
       this.#returnView = null;

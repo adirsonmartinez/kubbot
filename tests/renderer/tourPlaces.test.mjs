@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { placesFor } from '../../renderer/viewmodels/tourPlaces.js';
-import { folderSlots, ghostSlots } from '../../renderer/viewmodels/layout.js';
+import { ghostSlots, screenOf } from '../../renderer/viewmodels/layout.js';
 
 const map = { plaza: { size: 5 }, buildings: [{ path: 'src', x: 12, z: 0 }] };
 const steps = [
@@ -19,10 +19,13 @@ const steps = [
   { id: 'start', kind: 'start', target: 'README.md' },
 ];
 
-test('ghost slots never take a building slot', () => {
-  const taken = folderSlots(3, { plazaSize: 5 }).map((s) => `${s.x},${s.z}`);
-  for (const g of ghostSlots(3, 4, { plazaSize: 5 })) assert.ok(!taken.includes(`${g.x},${g.z}`));
-  assert.equal(ghostSlots(3, 4, { plazaSize: 5 }).length, 4);
+test('ghost places go in a row under everything the map draws, never on a folder', () => {
+  const drawn = [{ x: 0, z: 9 }, { x: 6, z: 12 }];
+  const ghosts = ghostSlots(drawn, 3);
+  assert.equal(ghosts.length, 3);
+  const lowest = Math.max(...drawn.map((p) => screenOf(p.x, p.z).v));
+  for (const g of ghosts) assert.ok(screenOf(g.x, g.z).v > lowest, 'below the tree');
+  assert.equal(new Set(ghosts.map((g) => `${g.x.toFixed(2)},${g.z.toFixed(2)}`)).size, 3, 'apart');
 });
 
 test('the plaza, root files, buildings and ghosts', () => {
@@ -46,9 +49,9 @@ test('the robot stands on the plaza side of a place, close enough to see it', ()
   assert.ok(Math.hypot(src.stand.x - src.x, src.stand.z - src.z) < 5);
 });
 
-test('ghosts keep away from the Supabase node when it is shown', () => {
-  const places = placesFor(steps, { ...map, buildings: [] }, { usesSupabase: true });
-  for (const p of places.values()) if (p.kind === 'ghost') assert.ok(!(p.x > 0 && p.x < 28.5 && Math.abs(p.z) < 7.5), `${p.x},${p.z}`);
+test('a subfolder the open tree draws is its own place', () => {
+  const places = placesFor([{ id: 'p', kind: 'folder', target: 'src/routes' }], { buildings: [{ path: 'src', x: 0, z: 9 }], branches: [{ folders: [{ path: 'src/routes', x: 4, z: 20 }] }] });
+  assert.deepEqual([places.get('p').kind, places.get('p').x], ['building', 4]);
 });
 
 test('the list of ghosts (what the view draws)', () => {

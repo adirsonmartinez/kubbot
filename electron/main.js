@@ -439,6 +439,51 @@ handle('fs:write', 'write', async (rel, content) => {
   await workspace.writeFile(rel, content);
 });
 
+// --- Editor: files the person opens and saves by hand (the agent never comes through here, it only has
+// the MCP tools, which still refuse secrets). Secrets open too, flagged; saving one asks first. A save
+// carries the mtime the file was read with and is refused if the file changed on disk meanwhile; the
+// previous version is backed up like an agent's change. ---
+const EDITOR_MAX_BYTES = 2 * 1024 * 1024;
+const BINARY_PROBE_BYTES = 8000;
+const editorError = (code, message = t.editor.errors[code]) => Object.assign(new Error(message), { code });
+
+async function editorAnswer(action, rel, fn) {
+  try {
+    const data = await fn();
+    log(action, rel, true);
+    return { ok: true, data };
+  } catch (err) {
+    log(action, rel, false, err.message);
+    return { ok: false, code: err.code ?? 'failed', error: err.message };
+  }
+}
+
+ipcMain.handle('editor:open', (_e, rel) => editorAnswer('editor:open', rel, async () => {
+  const abs = await workspace.resolve(rel);
+  const stat = await fs.stat(abs).catch(() => { throw editorError('notFound'); });
+  if (!stat.isFile()) throw editorError('notFile');
+  if (stat.size > EDITOR_MAX_BYTES) throw editorError('tooLarge');
+  const bytes = await fs.readFile(abs);
+  if (bytes.subarray(0, BINARY_PROBE_BYTES).includes(0)) throw editorError('binary');
+  const secret = isBlockedPath(rel) || (await isBlockedRealPath(workspace.root, abs));
+  return { content: bytes.toString('utf8'), mtime: stat.mtimeMs, secret };
+}));
+
+ipcMain.handle('editor:save', (_e, rel, content, mtime) => editorAnswer('editor:save', rel, async () => {
+  if (typeof content !== 'string') throw editorError('failed');
+  if (Buffer.byteLength(content) > EDITOR_MAX_BYTES) throw editorError('tooLarge');
+  const abs = await workspace.resolve(rel);
+  const stat = await fs.stat(abs).catch(() => null);
+  if (!stat?.isFile()) throw editorError('notFound');
+  if (stat.mtimeMs !== mtime) throw editorError('changedOnDisk');
+  if (isBlockedPath(rel) || (await isBlockedRealPath(workspace.root, abs))) {
+    if (!(await confirm(t.editor.confirmSecret(rel), t.editor.confirmSecretDetail, t.editor.saveButton))) throw editorError('cancelled');
+  }
+  await backupFile(rel, abs, true);
+  await workspace.writeFile(rel, content);
+  return { mtime: (await fs.stat(abs)).mtimeMs };
+}));
+
 // Deleting always asks for confirmation
 handle('fs:delete', 'delete', async (rel) => {
   const ok = await confirm(t.confirmDelete(rel), t.confirmDeleteDetail);

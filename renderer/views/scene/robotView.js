@@ -8,6 +8,7 @@
 // `grabber` is what the map's input controller drags instead of the map when the pointer is on it.
 import { createGuideRobot } from './guideRobot.js';
 import { strings } from '../../i18n/es.js';
+import { CAMERA } from '../../viewmodels/cameraViewModel.js';
 import { thinkingOrb } from '../ui/thinkingOrb.js';
 import { orbKeyOf, orbStateOf } from '../ui/runCardView.js';
 
@@ -68,7 +69,7 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
         if (phase === 'carry') { robot.moveTo(work.to, work.walkMs); robot.pose('carry'); robot.carry(true); }
         else if (phase === 'drop') { robot.face(work.center); robot.pose('drop'); robot.carry(false); }
         else if (phase === 'edit') { robot.carry(false); robot.pointAt(work.center); }
-        else if (phase === 'done') { robot.carry(false); robot.face({ yaw: cameraViewModel?.azimuth ?? Math.PI / 4 }); robot.pose('wave'); }
+        else if (phase === 'done') { robot.carry(false); robot.face({ yaw: cameraViewModel?.azimuth ?? CAMERA.azimuth }); robot.pose('wave'); }
         else { robot.carry(false); robot.pose('idle'); }
       } else if (work.pose === 'wait' || work.pose === 'carry') robot.pose(work.pose);
       robot.say({ title: work.title, text: work.text, orb: activity?.orb });
@@ -80,7 +81,7 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
         robot.show(true);
         robot.lift(0);
         robot.place(SPOT);
-        robot.face({ yaw: Math.PI / 4 }); // faces the camera
+        robot.face({ yaw: CAMERA.azimuth }); // faces the camera
         robot.pose('wave');
         robot.say({ title: strings.map.welcome.title, text: strings.map.welcome.question });
         job = 'welcome';
@@ -121,7 +122,7 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
           if (!robot.moving && Math.hypot(at.x - companion.at.x, at.z - companion.at.z) > 0.05) robot.place(companion.at); // sent home
           robot.lift(0);
           robot.pose('idle');
-          robot.face({ yaw: cameraViewModel?.azimuth ?? Math.PI / 4 });
+          robot.face({ yaw: cameraViewModel?.azimuth ?? CAMERA.azimuth });
         }
       }
       robot.say(companionWords());

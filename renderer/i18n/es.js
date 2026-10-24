@@ -54,10 +54,13 @@ export const strings = {
   },
 
   emptyState: {
-    title: 'Ningún proyecto abierto',
-    body: 'Crea un proyecto nuevo o abre la carpeta de uno que ya tengas para verlo en el mapa.',
+    title: '¿Qué construimos hoy?',
+    body: 'Crea un proyecto o abre uno que ya tengas para verlo en el mapa.',
     newAction: 'Nuevo proyecto',
-    action: 'Abrir proyecto',
+    action: 'Abrir carpeta…',
+    recentNone: 'Aquí verás los proyectos que abras.',
+    // When a recent project was last opened (calendar days ago)
+    when: (days) => (days === 0 ? 'hoy' : days === 1 ? 'ayer' : days < 7 ? `${days} d` : days < 30 ? `${Math.floor(days / 7)} sem` : `${Math.floor(days / 30)} m`),
   },
 
   floater: {
@@ -65,6 +68,42 @@ export const strings = {
     minimize: 'Minimizar',
     restore: 'Mostrar',
     hud: 'Seguridad del proyecto',
+  },
+
+  // Floating editor: files clicked on the map open as tabs
+  editor: {
+    title: 'Editor',
+    close: 'Cerrar el editor',
+    closeTab: 'Cerrar pestaña',
+    save: 'Guardar',
+    saveHint: 'Guardar (⌘S)',
+    saving: 'Guardando…',
+    saved: 'Guardado',
+    unsaved: 'Sin guardar',
+    loading: 'Abriendo…',
+    secret: 'Secreto',
+    secretHint: 'Este archivo guarda secretos: tu agente no puede leerlo. Guardarlo pide confirmación.',
+    confirmClose: (name) => `"${name}" tiene cambios sin guardar. ¿Cerrar y perderlos?`,
+    stale: 'El archivo cambió en el disco mientras lo editabas.',
+    reload: 'Recargar del disco',
+    // CodeMirror's own texts (search panel, folding), by its English phrase
+    phrases: {
+      'Find': 'Buscar', 'Replace': 'Reemplazar', 'next': 'siguiente', 'previous': 'anterior', 'all': 'todos',
+      'match case': 'mayúsculas', 'regexp': 'expresión regular', 'by word': 'palabra completa',
+      'replace': 'reemplazar', 'replace all': 'reemplazar todo', 'close': 'cerrar',
+      'current match': 'coincidencia actual', 'on line': 'en la línea', 'replaced match on line $': 'reemplazada en la línea $',
+      'replaced $ matches': '$ reemplazos', 'Go to line': 'Ir a la línea', 'go': 'ir',
+      'Folded lines': 'Líneas plegadas', 'Unfolded lines': 'Líneas desplegadas', 'to': 'a', 'folded code': 'código plegado',
+      'unfold': 'desplegar', 'Fold line': 'Plegar línea', 'Unfold line': 'Desplegar línea', 'Control character': 'Carácter de control',
+    },
+    errors: {
+      notFound: 'El archivo ya no existe.',
+      notFile: 'No es un archivo.',
+      tooLarge: 'Es demasiado grande para abrirlo aquí (máximo 2 MB).',
+      binary: 'Es un archivo binario (imagen, fuente…): no se puede editar como texto.',
+      'desktop-only': 'Disponible en la app de escritorio.',
+      failed: 'No se pudo abrir el archivo.',
+    },
   },
 
   panels: {
@@ -78,7 +117,7 @@ export const strings = {
     schemaTitle: 'Supabase · esquema public',
     schemaSummary: (tables, hasError) => (hasError ? `${tables} tablas · 1 con error` : `${tables} tablas · todo en orden`),
     breadcrumbLabel: 'Ruta de la carpeta',
-    upHint: 'Esc cierra la carpeta',
+    upHint: 'Esc sube un nivel',
   },
 
   hud: {
@@ -98,9 +137,17 @@ export const strings = {
     watched: (fileCount) => `${files(fileCount)} vigilados`,
     allClear: 'Todo en orden',
     emptyFolder: 'vacía',
+    more: (n) => `+${n} más`,
+    integrations: 'Integraciones',
     defaultProjectName: 'proyecto',
     // The robot on the plaza of a new, empty project
     welcome: { title: '¡Hola! Soy tu robot', question: '¿Qué quieres construir hoy?' },
+  },
+
+  // Integration nodes in the band at the top of the map (brand names)
+  integrations: {
+    names: { vercel: 'Vercel', github: 'GitHub', clerk: 'Clerk', posthog: 'PostHog' },
+    status: { connected: 'conectado', incident: 'con una incidencia', disconnected: 'desconectado' },
   },
 
   supabase: {
@@ -457,6 +504,7 @@ export const strings = {
     brand: 'Platanus',
     search: 'Buscar o hacer algo…',
     searchShortcut: '⌘K',
+    closePanel: 'Cerrar el panel',
     menus: { file: 'Proyecto' },
     actions: {
       newProject: 'Nuevo proyecto',
@@ -473,7 +521,7 @@ export const strings = {
       repairs: 'Historial de lo que se reparó, lo que falta verificar y lo que falló.',
       servers: 'Lo que está escuchando en un puerto de tu computadora, y si tu red lo puede ver.',
       agent: 'Elige qué IA responde y conéctala desde tu editor.',
-      map: 'Tu proyecto en 3D: solo aparecen las carpetas y archivos con problemas.',
+      map: 'Tu proyecto en 3D: lo que tiene problemas brilla en ámbar o rojo.',
       git: 'Tus ramas y commits, y si algún commit subió un secreto.',
       chat: 'Habla con el agente en palabras sencillas.',
     },
@@ -754,8 +802,8 @@ export const strings = {
       files: (n) => (n === 1 ? '1 archivo' : `${n} archivos`),
       folders: (n) => (n === 1 ? '1 subcarpeta' : `${n} subcarpetas`),
       levels: { red: 'en riesgo', yellow: 'a revisar', green: 'seguros' },
-      folderHint: 'No tiene problemas, por eso no aparece en el mapa. Puedes recorrerla en el explorador.',
-      folderHintRisk: 'Sus archivos con problemas están junto a la carpeta en el mapa. Toca uno para ver el motivo.',
+      folderHint: 'No tiene problemas. Su contenido está junto a la carpeta en el mapa.',
+      folderHintRisk: 'Lo que brilla en ámbar o rojo tiene problemas. Está junto a la carpeta en el mapa: toca un archivo para ver el motivo.',
       folderEmpty: 'Todavía no tiene archivos.',
       seeRisks: 'Ver los riesgos',
       explainFolder: 'Explícame esta carpeta',
@@ -913,8 +961,8 @@ export const strings = {
       if (!fileCount) return `${head}\n\nTodavía no tiene archivos.`;
       const summary = `🔴 ${counts.red} en riesgo · 🟡 ${counts.yellow} a revisar · 🟢 ${counts.green} seguros`;
       const hint = counts.red + counts.yellow
-        ? 'Sus archivos con problemas están junto a la carpeta en el mapa. Haz clic en uno para ver el motivo.'
-        : 'No tiene problemas, por eso no aparece en el mapa.';
+        ? 'Su contenido está junto a la carpeta en el mapa: lo que brilla tiene problemas. Haz clic en un archivo para ver el motivo.'
+        : 'No tiene problemas. Su contenido está junto a la carpeta en el mapa.';
       return `${head}\n${summary}\n\n${hint}`;
     },
     fileSelected: ({ path, levelText, reason, source }) => `📄 ${path}\n${levelText} · ${reason}\n\n${source}`,

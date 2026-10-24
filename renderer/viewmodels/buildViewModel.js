@@ -140,7 +140,7 @@ export class BuildViewModel {
   // Where each site is: the folder's building, the plaza for root files, or a temporary place
   #places() {
     const steps = [...this.#sites.keys()].map((folder) => ({ id: folder, kind: folder ? 'folder' : 'place', target: folder }));
-    return placesFor(steps, this.#map.store.state, { usesSupabase: Boolean(this.#project.store.state.usesSupabase) });
+    return placesFor(steps, this.#map.store.state);
   }
 
   #publish() {
