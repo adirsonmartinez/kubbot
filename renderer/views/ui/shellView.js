@@ -131,7 +131,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
   $('sidebar-actions').appendChild(explorerToggle);
 
   // --- Rail (icons with a hover card: name + what it is for) ---
-  for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
+  for (const button of document.querySelectorAll('#side-dock [data-side]')) {
     const side = button.dataset.side;
     addTip(button, S.rail[side], S.railInfo[side]);
     button.addEventListener('click', () => vm.setSide(side));
@@ -565,7 +565,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
   }
 
   // --- Stage tabs (map / project / graph) with icon, badge and hover card ---
-  const tabs = [...document.querySelectorAll('#stage-tabs [data-stage]')];
+  const tabs = [...document.querySelectorAll('.icon-bar [data-stage]')]; // map and git on top, the rest in the side dock
   for (const tab of tabs) tab.addEventListener('click', () => vm.setStage(tab.dataset.stage));
 
   function renderTabs(state) {
@@ -662,7 +662,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     body.classList.toggle('no-project', !state.open); // start screen: only the empty card and the chat
     body.classList.toggle('chat-closed', !state.chatOpen);
     body.classList.toggle('mode-tech', modeModel.tech);
-    for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
+    for (const button of document.querySelectorAll('#side-dock [data-side]')) {
       button.classList.toggle('active', state.sidebarOpen && button.dataset.side === state.side);
     }
     chatButton?.classList.toggle('active', state.chatOpen);

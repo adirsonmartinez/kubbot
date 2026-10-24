@@ -154,6 +154,7 @@ createShellView({ shellViewModel, modeModel, repairViewModel, repairHistory, ser
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });
+createIconBarView({ bar: document.getElementById('side-dock'), vertical: true });
 // The side panel and the chat can be dragged by their header (double click: back in place)
 const workspaceEl = document.getElementById('workspace');
 makeDraggable({ el: document.getElementById('sidebar'), handle: document.querySelector('#sidebar .card-head'), key: 'sidebar', area: workspaceEl });

@@ -6,6 +6,7 @@ export const ICON_NAMES = {
   folder: 'Folder01Icon',
   alert: 'Alert02Icon',
   wrench: 'Wrench01Icon',
+  server: 'ServerStack01Icon',
   plug: 'Plug01Icon',
   home: 'Home03Icon',
   gitBranch: 'GitBranchIcon',

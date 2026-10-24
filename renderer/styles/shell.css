@@ -1241,3 +1241,22 @@ body.chat-resizing #workspace { transition: none; }
 .floater.docked #hud .hud-ring { grid-column: 1 / -1; }
 .floater.docked #hud .hud-stat { min-width: 0; }
 .floater.docked #hud .hud-stat span { overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Side dock: vertical icon bar on the map's left edge; the side panel opens beside it ---------- */
+#stage .side-dock {
+  position: absolute; z-index: 27; left: 14px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px; border-radius: 999px;
+  background: rgba(17, 19, 25, 0.85); border: 1px solid var(--line-strong);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+.side-dock .icon-bar-divider { width: 22px; height: 1px; margin: 6px 0; }
+.side-dock > button.drop-before { box-shadow: inset 0 2px 0 var(--accent); }
+.side-dock > button.drop-after { box-shadow: inset 0 -2px 0 var(--accent); }
+/* Hover cards open to the right of the dock */
+#side-dock .tip { left: calc(100% + 10px); top: 50%; transform: translate(-4px, -50%); }
+#side-dock button:hover .tip, #side-dock button:focus-visible .tip { opacity: 1; transform: translate(0, -50%); }
+/* The side panel sits right of the dock (8px workspace padding + 14px + 50px dock + 10px gap) */
+#sidebar.card { left: 82px; }
+body:not(.sidebar-closed) { --shift-l: 191px; }
+body.no-project #side-dock { display: none; }
+body.stage-graph #level-legend, body.stage-project #level-legend { visibility: hidden; }
