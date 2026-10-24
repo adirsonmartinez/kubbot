@@ -93,7 +93,7 @@ const actions = {
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
-const chatViewModel = new ChatViewModel({ agentModel, bus, actions });
+const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection });
 
 // --- Views ---
 applyStrings();

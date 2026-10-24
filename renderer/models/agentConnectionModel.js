@@ -107,16 +107,16 @@ export class AgentConnectionModel {
   // session: 'chat' (continues the conversation) or 'repair' (Remi's jobs, a separate conversation).
   // signal (AbortSignal): a waiting question never starts; a running one stops its CLI.
   // onStart(runId): called when the CLI actually starts (after waiting in line).
-  ask(prompt, systemPrompt, { onTool, onText, onThinking, onStart, signal, session = 'chat' } = {}) {
+  ask(prompt, systemPrompt, { onTool, onText, onThinking, onEvent, onStart, signal, session = 'chat' } = {}) {
     // The choice is taken now: a question waiting in line keeps the agent it was asked to
     const { selected: agent, model, effort } = this.store.state;
-    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, onThinking, onStart, signal, session, agent, model, effort });
+    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, onThinking, onEvent, onStart, signal, session, agent, model, effort });
     const result = this.#queue.then(run, run);
     this.#queue = result.catch(() => {});
     return result;
   }
 
-  async #run(prompt, systemPrompt, { onTool, onText, onThinking, onStart, signal, session, agent, model, effort }) {
+  async #run(prompt, systemPrompt, { onTool, onText, onThinking, onEvent, onStart, signal, session, agent, model, effort }) {
     if (signal?.aborted) return { text: '', error: 'cancelled' };
     const key = `${agent}:${session}`;
     const turns = this.#turns.get(key) ?? 0;
@@ -127,8 +127,9 @@ export class AgentConnectionModel {
     const early = [];
     return new Promise((resolve) => {
       const handle = (e) => {
-        if (e.type === 'text') { text += e.delta; onText?.(e.delta); }
-        else if (e.type === 'thinking') onThinking?.(e.delta);
+        onEvent?.(e); // every event (tools, subagents, result) for the live run card
+        if (e.type === 'text' && !e.parent) { text += e.delta; onText?.(e.delta); }
+        else if (e.type === 'thinking' && !e.parent) onThinking?.(e.delta);
         else if (e.type === 'tool') onTool?.(e.name);
         else if (e.type === 'error') error = e.message;
         else if (e.type === 'done') { off(); resolve({ text: text.trim(), error }); }

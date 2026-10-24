@@ -13,6 +13,7 @@ const WORKDIR = path.join(os.homedir(), ".platanus", "agent-workdir"); // empty 
 fs.mkdirSync(WORKDIR, { recursive: true });
 
 const t = require("./strings");
+const { parseAgentLine } = require("./agentEvents");
 
 const AGENTS = {
   claude: { label: t.agents.claude, bin: "claude", login: "claude auth login" },
@@ -122,40 +123,13 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, s
   ];
 }
 
-// Turns each CLI's JSON output into simple events for the chat.
+// Each CLI line -> chat events (agentEvents.js); the session id is kept to continue the conversation
 function parseLine(id, session, line, emit) {
-  let e;
-  try {
-    e = JSON.parse(line);
-  } catch {
-    return;
+  for (const e of parseAgentLine(id, line)) {
+    if (e.type === "session") resumeIds[`${id}:${session}`] = e.id;
+    else if (e.type === "error") emit({ type: "error", message: e.message || t.agents.failed });
+    else emit(e);
   }
-  // Claude Code and Grok Build emit the same format: system / assistant / result.
-  if (id === "claude" || id === "grok") {
-    if (e.type === "system" && e.session_id) resumeIds[`${id}:${session}`] = e.session_id;
-    if (e.type === "assistant") {
-      for (const b of e.message?.content ?? []) {
-        if (b.type === "text" && b.text) emit({ type: "text", delta: b.text });
-        if (b.type === "thinking" && b.thinking) emit({ type: "thinking", delta: b.thinking });
-        // Only Platanus tools are shown, not the agent's internal ones.
-        // Grok wraps MCP tools in use_tool { tool_name: "platanus__x" }.
-        const name = b.type === "tool_use" ? (b.name === "use_tool" ? b.input?.tool_name : b.name) : "";
-        const m = /^(?:mcp__)?platanus(?:__|\.|_|:)(.+)$/.exec(String(name ?? ""));
-        if (m) emit({ type: "tool", name: m[1], status: "start" });
-      }
-    }
-    if (e.type === "result" && e.is_error) emit({ type: "error", message: String(e.result || t.agents.failed) });
-    return;
-  }
-  // codex (eventos JSONL de `codex exec --json`)
-  const item = e.item ?? e.msg;
-  if (!item) return;
-  if (item.type === "reasoning" && (item.text || item.summary)) emit({ type: "thinking", delta: String(item.text || item.summary) });
-  if ((item.type === "agent_message" || item.type === "assistant_message") && (item.text || item.message)) {
-    emit({ type: "text", delta: item.text || item.message });
-  }
-  if (item.type === "mcp_tool_call" && e.type !== "item.completed") emit({ type: "tool", name: String(item.tool || item.name || ""), status: "start" });
-  if (item.type === "error") emit({ type: "error", message: item.message || t.agents.failed });
 }
 
 const running = new Map();
