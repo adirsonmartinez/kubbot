@@ -39,7 +39,7 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
   let lastFlight = null;
 
   // Where it would land while held: a ring on that folder
-  const target = new THREE.Mesh(new THREE.RingGeometry(1, 1.12, 64), new THREE.MeshBasicMaterial({ color: PALETTE.accent, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+  const target = new THREE.Mesh(new THREE.RingGeometry(1, 1.12, 64), new THREE.MeshBasicMaterial({ color: PALETTE.marker, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
   target.rotation.x = -Math.PI / 2;
   target.scale.setScalar(FOLDER.platform * 0.7);
   target.visible = false;

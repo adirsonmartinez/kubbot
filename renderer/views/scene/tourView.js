@@ -1,6 +1,6 @@
 // The tour's own layer on the map (TourViewModel.ghosts / current): folders with no problems are not
 // buildings on the security radar, so while the tour lasts each stop among them gets a low silver
-// "ghost" plate with a dashed edge and its name; a purple ring marks the stop on screen. Nothing here
+// "ghost" plate with a dashed edge and its name; a white ring marks the stop on screen. Nothing here
 // glows like a problem does, nothing is clickable, and all of it goes away when the tour ends.
 import * as THREE from 'three';
 import { FOLDER } from '../../viewmodels/layout.js';
@@ -11,7 +11,7 @@ import { strings } from '../../i18n/es.js';
 const PLATE = FOLDER.platform;
 const ghostMaterial = new THREE.MeshStandardMaterial({ color: 0x8d959e, transparent: true, opacity: 0.16, roughness: 0.8, metalness: 0.1, depthWrite: false });
 const edgeMaterial = new THREE.LineDashedMaterial({ color: 0xc9ced4, dashSize: 0.35, gapSize: 0.25, transparent: true, opacity: 0.7 });
-const ringMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.accent, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+const ringMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.marker, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
 
 export function createTourView({ sceneView, labels, tourViewModel }) {
   const group = new THREE.Group();

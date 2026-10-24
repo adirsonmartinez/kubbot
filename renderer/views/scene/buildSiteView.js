@@ -15,7 +15,7 @@ const FLY_S = 0.6;
 const MAX_SHEETS = 4;
 // glassFolderBuilder draws log2(1 + files) / 2 sheets (up to 4): this many files show `sheets` of them
 const filesFor = (sheets) => 2 ** (2 * Math.min(Math.max(sheets, 1), MAX_SHEETS)) - 1;
-const ringMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.accent, transparent: true, opacity: 0.85, side: THREE.DoubleSide });
+const ringMaterial = new THREE.MeshBasicMaterial({ color: PALETTE.marker, transparent: true, opacity: 0.75, side: THREE.DoubleSide });
 
 export function createBuildSiteView({ sceneView, labels, buildViewModel, hands = () => null }) {
   const layer = sceneView.layers.map;
