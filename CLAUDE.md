@@ -36,7 +36,7 @@ renderer/
     serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo),
     handGesture (pinch tracker: hand landmarks -> drag or turn)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
-    camera, map (security radar: folders and files with problems), supabase, git (branches), app (which 3D view),
+    camera, map (the whole project; problems glow), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open),
     handControl (camera on/off, pinch and move pans the map, pinch and turn rotates it)
@@ -107,7 +107,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 ## Map navigation
 
-The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. A project just created and still empty (`MapViewModel.welcome`) has a robot on its plaza asking what to build (`robotView.js`); it leaves with the first file. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
+The map shows the whole project: the project's plaza in the middle with its root files (isometric file icons; past 24 the rest is counted as "+N"), the integrations around it, and every top-level folder (isometric folders). Safe things stay silver and calm; problems glow amber or red and come first (folders worst first, files riskiest first). Only files with a problem get a label (hover shows the rest). A project just created and still empty (`MapViewModel.welcome`) has a robot on its plaza asking what to build (`robotView.js`); it leaves with the first file. Clicking a folder opens it: its direct subfolders (small folders) and files appear on a tray beside it (up to 48, then "+N"); clicking a subfolder goes one level down on the same tray, beside the same top-level folder. Esc goes up one level; the breadcrumb jumps to any level. A fixed file turns silver and stays. `MapViewModel.path` is the open folder at any depth (`''` = none); `opened` holds its top-level folder, subfolders, files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
 
 ## Views
 

@@ -1,8 +1,8 @@
-// Draws the security map from MapViewModel: the project's plaza in the middle (root files with a
-// problem), the top-level folders that hold a problem around it, linked by plain roads, and the
-// problem files of the open folder on a tray beside it. Anything that appears for the first time
-// rises from the ground; fixed files and folders simply disappear on the next redraw.
-// Labels follow the mode: friendly names in Vibe, folder names and counts in Dev.
+// Draws the project map from MapViewModel: the project's plaza in the middle (its root files), every
+// top-level folder around it, linked by plain roads, and the open folder's subfolders (small folders)
+// and files on a tray beside it. Problems glow; anything that appears for the first time rises from the
+// ground. Labels follow the mode (friendly names in Vibe, folder names and counts in Dev); files only get
+// one when they have a problem, so a big project does not drown in names (hover shows the rest).
 import * as THREE from 'three';
 import { groundLink, materials as M } from './materials.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
@@ -18,6 +18,7 @@ import { FOLDER } from '../../viewmodels/layout.js';
 const BUILDING_STYLE = 'folders';
 
 const RISE_SPEED = 2.2;
+const SUBFOLDER_SCALE = 0.3; // folders inside the open one, on its tray
 const ICON_RISE_STAGGER = 0.06;
 
 const tagHtml = (tags = []) =>
@@ -36,19 +37,18 @@ function folderLabel(b, tech) {
   return `<strong>${title}</strong><span>${sub}</span>${tagHtml(b.tags)}${riskLine(b.counts)}`;
 }
 
-// File name, and the folder it sits in (inside the open folder) when it is nested
-function fileLabel(f) {
-  const rel = f.rel ?? f.path;
-  const dir = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/') + 1) : '';
-  return `<strong class="${f.level}">${escapeHtml(f.name)}</strong>${dir ? `<span>${escapeHtml(dir)}</span>` : ''}`;
-}
+const hasProblem = (f) => f.level === 'yellow' || f.level === 'red';
+const subfolderLabel = (f) => `<strong>${escapeHtml(f.name)}/</strong>${riskLine(f.counts)}`;
+
+// Files on the map are always direct children of what is shown (the plaza or the open folder): the name is enough
+const fileLabel = (f) => `<strong class="${f.level}">${escapeHtml(f.name)}</strong>`;
 
 export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
   let group = null;
   let ownLabels = [];
   let session = null;
   const seen = new Set();       // 'folder:path' / 'file:path' already shown this session (they do not rise again)
-  const risers = [];            // { group, k }
+  const risers = [];            // { group, k, to: final scale.y }
   function clear() {
     if (group) sceneView.layers.map.remove(group);
     ownLabels.forEach((l) => l.remove());
@@ -62,20 +62,26 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     const isNew = !seen.has(key);
     seen.add(key);
     if (!animate || !isNew) return;
+    risers.push({ group: object, k: -delay, to: object.scale.y });
     object.scale.y = 0.001;
-    risers.push({ group: object, k: -delay });
   }
 
   function addFiles(built, files, animate) {
     built.icons.forEach(({ mesh, index }) => {
       const f = files[index];
       rise(`file:${f.path}`, mesh, index * ICON_RISE_STAGGER, animate);
+      if (!hasProblem(f)) return;
       ownLabels.push(labels.add({
         html: fileLabel(f),
         anchor: { x: mesh.position.x + built.group.position.x, y: built.top + 1.2, z: mesh.position.z + built.group.position.z },
         className: 'file',
       }));
     });
+  }
+
+  // "+N" in front of a group of files that did not all fit
+  function addMore(count, x, z) {
+    if (count > 0) ownLabels.push(labels.add({ html: `<span>${strings.map.more(count)}</span>`, anchor: { x, y: 0.3, z }, className: 'more', align: 'below' }));
   }
 
   function render(state, { animate = true } = {}) {
@@ -90,11 +96,12 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     group = new THREE.Group();
     sceneView.layers.map.add(group);
 
-    // The project's plaza with its root files that have a problem
+    // The project's plaza with its root files
     const { plaza, root } = state;
     const built = buildPlaza(plaza);
     group.add(built.group);
     addFiles(built, plaza.files, animate);
+    addMore(plaza.more, plaza.size / 2, plaza.size / 2);
     const summary = root.red + root.yellow ? strings.map.watched(root.total) : strings.map.allClear;
     ownLabels.push(labels.add({
       html: `<strong>${escapeHtml(plaza.name)}</strong><span>${summary}</span>${riskLine(root.counts)}`,
@@ -102,7 +109,7 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
       className: 'root',
     }));
 
-    // Folders with problems around it
+    // Every top-level folder around it
     state.buildings.forEach((b) => {
       groundLink(group, M.road, 0, 0, b.x, b.z, 0.35, 0.05).castShadow = false;
       const building = BUILDING_STYLE === 'folders'
@@ -121,14 +128,24 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
       rise(`folder:${b.path}`, building.group, b.order * 0.06, animate);
     });
 
-    // The open folder's problem files, on a tray beside it
+    // The open folder's contents on a tray beside its top-level folder: subfolders, then files
     const { opened } = state;
     if (opened) {
-      const folder = state.buildings.find((b) => b.path === opened.path);
+      const folder = state.buildings.find((b) => b.path === opened.top);
       groundLink(group, M.road, folder.x, folder.z, opened.x, opened.z, 0.35, 0.05).castShadow = false;
       const tray = buildFileTray(opened);
       group.add(tray.group);
+      opened.folders.forEach((f, i) => {
+        const sub = buildFolderIcon({ size: FOLDER.size, files: f.files, level: f.level });
+        sub.group.scale.setScalar(SUBFOLDER_SCALE);
+        sub.group.position.set(f.x, tray.top, f.z);
+        sub.group.traverse((o) => { o.userData.pick = { type: 'folder', path: f.path }; });
+        group.add(sub.group);
+        ownLabels.push(labels.add({ html: subfolderLabel(f), anchor: { x: f.x, y: tray.top + sub.top * SUBFOLDER_SCALE + 0.5, z: f.z }, className: 'file' }));
+        rise(`folder:${f.path}`, sub.group, i * ICON_RISE_STAGGER, animate);
+      });
       addFiles(tray, opened.files, animate);
+      addMore(opened.more, opened.x + opened.size / 2, opened.z + opened.size / 2);
     }
   }
 
@@ -147,7 +164,7 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
       const r = risers[i];
       r.k = Math.min(r.k + dt * RISE_SPEED, 1);
       const k = Math.max(r.k, 0);
-      r.group.scale.y = Math.max(1 - (1 - k) ** 3, 0.001);
+      r.group.scale.y = Math.max((1 - (1 - k) ** 3) * r.to, 0.001);
       if (r.k >= 1) risers.splice(i, 1);
     }
   });

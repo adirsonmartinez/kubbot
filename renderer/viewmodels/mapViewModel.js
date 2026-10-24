@@ -1,8 +1,7 @@
-// The project map as a security radar, not a file explorer. In the middle, the project's plaza with
-// its root files that have a problem; around it, only the top-level folders with a yellow or red file
-// anywhere inside. Opening a folder lays its problem files out beside it (at any depth); when a
-// problem is fixed its file disappears, and so does the folder with its last one. Browsing the whole
-// project is the explorer's job. It also routes clicks and coordinates the schema.
+// The whole project as a map. In the middle, the project's plaza with its root files; around it, every
+// top-level folder. Safe things stay calm, problems glow (amber / red) and come first. Opening a folder
+// lays out its direct subfolders and files beside it; opening a subfolder goes one level down, beside the
+// same top-level folder. Esc goes back up. It also routes clicks and coordinates the schema.
 import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
@@ -15,7 +14,8 @@ const WELCOME_ZOOM = 1.9; // close to the plaza of a new project, where the robo
 const emptyCounts = () => ({ green: 0, yellow: 0, red: 0, grey: 0 });
 const parentOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 const topFolderOf = (path) => path.split('/')[0];
-const hasProblem = (level) => level === 'yellow' || level === 'red';
+const MAX_PLAZA_FILES = 24; // root files on the plaza; the rest is counted ("+N")
+const MAX_SIDE_ITEMS = 48;  // subfolders and files beside an open folder
 const byRisk = (a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level] || a.path.localeCompare(b.path);
 
 export class MapViewModel {
@@ -27,7 +27,7 @@ export class MapViewModel {
   #session = 0;
   #welcomeSession = null; // session of a project just created, until it gets its first file
 
-  // `version` changes whenever the map must be redrawn; `path` is the open folder ('' = none);
+  // `version` changes whenever the map must be redrawn; `path` is the open folder, at any depth ('' = none);
   // `welcome`: a new, empty project, where a robot on the plaza asks what to build
   store = new Observable({
     status: 'empty', session: 0, projectName: '', path: '', crumbs: [],
@@ -76,33 +76,27 @@ export class MapViewModel {
     }
   }
 
-  // Opens the top-level folder that holds `path` ('' closes it). A folder without problems is not on
-  // the map: it is only announced in the chat.
+  // Opens a folder at any depth beside its top-level folder ('' closes it)
   enterFolder(path) {
-    const tree = this.#project.store.state.tree;
-    const top = path ? topFolderOf(path) : '';
-    if (top === this.store.state.path) return;
-    const node = top && findNode(tree, top);
-    if (top && !node) return;
+    if (path === this.store.state.path) return;
+    const node = path && findNode(this.#project.store.state.tree, path);
+    if (path && node?.type !== 'dir') return;
     this.#supabase.openSchema(false);
-    if (top && !this.store.state.buildings.some((b) => b.path === top)) {
-      this.#announce(top, node.children ?? []);
-      return;
-    }
-    this.#recompute({ path: top, announce: true });
+    this.#recompute({ path, announce: true });
   }
 
+  // One level up: a subfolder goes back to its parent, a top-level folder closes
   goUp() {
-    if (this.store.state.path !== '') this.enterFolder('');
+    if (this.store.state.path !== '') this.enterFolder(parentOf(this.store.state.path));
   }
 
-  // Shows a project file or folder (links in the chat, "ver: ruta"). A file also opens its card in
-  // the chat, even a safe one that is not on the map. Returns false when the path is not in the project.
+  // Shows a project file or folder (links in the chat, "ver: ruta"): opens the folder it is in, and a
+  // file also opens its card in the chat. Returns false when the path is not in the project.
   show(path) {
     const node = findNode(this.#project.store.state.tree, path);
     if (!node) return false;
     const isDir = node.type === 'dir' || path === '';
-    if (isDir || hasProblem(this.#security.scoreOf(path).level)) this.enterFolder(isDir ? path : parentOf(path));
+    this.enterFolder(isDir ? path : parentOf(path));
     if (!isDir) this.selectFile(path);
     return true;
   }
@@ -129,7 +123,7 @@ export class MapViewModel {
   describePick(pick) {
     const { buildings, plaza, opened } = this.store.state;
     if (pick.type === 'folder') {
-      const b = buildings.find((x) => x.path === pick.path);
+      const b = [...buildings, ...(opened?.folders ?? [])].find((x) => x.path === pick.path);
       return b ? { kind: 'folder', ...b } : null;
     }
     if (pick.type === 'file') {
@@ -139,10 +133,10 @@ export class MapViewModel {
     return null;
   }
 
-  // Where Remi goes to repair a file: next to its icon (its folder opens), or the plaza for root files
+  // Where Remi goes to repair a file: next to its icon (the folder it is in opens), or the plaza for root files
   locateFile(path) {
     const folder = path.includes('/') ? topFolderOf(path) : '';
-    if (folder) this.enterFolder(folder);
+    if (folder) this.enterFolder(parentOf(path));
     const icon = this.store.state.opened?.files.find((f) => f.path === path);
     if (icon) return { folder, x: icon.x, z: icon.z, height: 1, radius: this.store.state.opened.size / 2 }; // just off the tray
     const plaza = this.store.state.plaza;
@@ -181,12 +175,21 @@ export class MapViewModel {
     });
   }
 
-  // Problem files under `nodes`, riskiest first
-  #problemsOf(nodes) {
-    return allFiles(nodes)
-      .map((f) => this.#describeFile(f))
-      .filter((f) => hasProblem(f.level))
-      .sort(byRisk);
+  // A folder with the levels of everything inside it
+  #describeFolder(dir) {
+    const nodes = dir.children ?? [];
+    return { path: dir.path, name: baseName(dir.path), files: countFiles(nodes), ...this.#levelsOf(nodes) };
+  }
+
+  // Problems first (worst first), then by name
+  #sortFolders(folders) {
+    return folders.sort((a, b) => b.red - a.red || b.yellow - a.yellow || a.path.localeCompare(b.path));
+  }
+
+  // The deepest folder of `path` that still exists ('' when none)
+  #existing(tree, path) {
+    while (path && findNode(tree, path)?.type !== 'dir') path = parentOf(path);
+    return path;
   }
 
   #recompute({ path = this.store.state.path, announce = false } = {}) {
@@ -194,6 +197,7 @@ export class MapViewModel {
     const newSession = session !== this.#session;
     this.#session = session;
     if (newSession) path = '';
+    path = open ? this.#existing(tree, path) : '';
 
     if (!open) {
       this.store.set({ status: 'empty', path: '', crumbs: [], root: null, plaza: null, buildings: [], opened: null, welcome: false, version: this.store.state.version + 1 });
@@ -205,53 +209,50 @@ export class MapViewModel {
     const total = countFiles(tree);
     if (this.#welcomeSession !== session || total > 0) this.#welcomeSession = null;
 
-    // Plaza: the root files with a problem
-    const files = tree
-      .filter((c) => c.type === 'file')
-      .map((f) => this.#describeFile(f))
-      .filter((f) => hasProblem(f.level))
-      .sort(byRisk);
+    // Plaza: the root files, riskiest first
+    const rootFiles = tree.filter((c) => c.type === 'file').map((f) => this.#describeFile(f)).sort(byRisk);
+    const files = rootFiles.slice(0, MAX_PLAZA_FILES);
     const grid = plazaGrid(files.length);
 
-    // Top-level folders with a problem anywhere inside, worst first
-    const dirs = tree
-      .filter((c) => c.type === 'dir')
-      .map((dir) => ({ dir, ...this.#levelsOf(dir.children ?? []) }))
-      .filter((d) => d.red + d.yellow > 0)
-      .sort((a, b) => b.red - a.red || b.yellow - a.yellow || a.dir.path.localeCompare(b.dir.path));
+    // Every top-level folder, problems first
+    const dirs = this.#sortFolders(tree.filter((c) => c.type === 'dir').map((dir) => ({ ...this.#describeFolder(dir), node: dir })));
+    const top = path ? topFolderOf(path) : '';
     const slots = folderSlots(dirs.length, { plazaSize: grid.size, avoidSupabase: usesSupabase });
-    const buildings = dirs.map(({ dir, ...levels }, i) => ({
-      path: dir.path,
-      name: baseName(dir.path),
+    const buildings = dirs.map(({ node, ...folder }, i) => ({
+      ...folder,
       x: slots[i].x,
       z: slots[i].z,
-      files: countFiles(dir.children ?? []),
-      height: folderHeight(countFiles(dir.children ?? [])),
-      ...levels,
-      ...this.#guideOf(dir.path, dir.children ?? []),
-      open: dir.path === path,
+      height: folderHeight(folder.files),
+      ...this.#guideOf(folder.path, node.children ?? []),
+      open: folder.path === top,
       order: i,
     }));
 
-    // The open folder closes by itself once it has no problems left (or it disappeared from disk)
+    // The open folder's direct contents, beside its top-level folder: subfolders first, then files
     const openBuilding = buildings.find((b) => b.open);
-    if (!openBuilding) path = '';
     let opened = null;
     if (openBuilding) {
-      const node = findNode(tree, path);
-      const problems = this.#problemsOf(node.children ?? []);
-      const side = sideGrid(problems.length, openBuilding);
+      const children = findNode(tree, path).children ?? [];
+      const subfolders = this.#sortFolders(children.filter((c) => c.type === 'dir').map((d) => this.#describeFolder(d)));
+      const inside = children.filter((c) => c.type === 'file').map((f) => this.#describeFile(f)).sort(byRisk);
+      const shown = [...subfolders, ...inside].slice(0, MAX_SIDE_ITEMS);
+      const side = sideGrid(shown.length, openBuilding);
+      const placed = shown.map((item, i) => ({ ...item, ...side.slots[i] }));
       opened = {
         path,
+        top,
         x: side.x,
         z: side.z,
         size: side.size,
-        files: problems.map((f, i) => ({ ...f, rel: f.path.slice(path.length + 1), ...side.slots[i] })),
+        folders: placed.slice(0, Math.min(subfolders.length, shown.length)),
+        files: placed.slice(subfolders.length),
+        more: subfolders.length + inside.length - shown.length,
       };
     }
 
+    // Project, then each folder down to the open one
     const crumbs = [{ name: projectName, path: '' }];
-    if (path) crumbs.push({ name: path, path });
+    path.split('/').filter(Boolean).forEach((name, i, parts) => crumbs.push({ name, path: parts.slice(0, i + 1).join('/') }));
 
     this.store.set({
       status: 'ready',
@@ -267,15 +268,16 @@ export class MapViewModel {
         // Share of evaluated files that are safe (100 when there is nothing to evaluate)
         securityScore: total ? Math.round((project.counts.green / total) * 100) : 100,
       },
-      // The project's plaza; counts are the open folder's, or the whole project's
+      // The project's plaza; counts are the open folder's (at any depth), or the whole project's
       plaza: {
         name: projectName,
         files,
+        more: rootFiles.length - files.length,
         cols: grid.cols,
         size: grid.size,
         total,
         folders: buildings.length,
-        ...(openBuilding ? { counts: openBuilding.counts, level: openBuilding.level, red: openBuilding.red, yellow: openBuilding.yellow } : project),
+        ...(opened ? this.#levelsOf(findNode(tree, path).children ?? []) : project),
       },
       buildings,
       opened,

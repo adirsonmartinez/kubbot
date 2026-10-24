@@ -78,7 +78,7 @@ export const strings = {
     schemaTitle: 'Supabase · esquema public',
     schemaSummary: (tables, hasError) => (hasError ? `${tables} tablas · 1 con error` : `${tables} tablas · todo en orden`),
     breadcrumbLabel: 'Ruta de la carpeta',
-    upHint: 'Esc cierra la carpeta',
+    upHint: 'Esc sube un nivel',
   },
 
   hud: {
@@ -98,6 +98,7 @@ export const strings = {
     watched: (fileCount) => `${files(fileCount)} vigilados`,
     allClear: 'Todo en orden',
     emptyFolder: 'vacía',
+    more: (n) => `+${n} más`,
     defaultProjectName: 'proyecto',
     // The robot on the plaza of a new, empty project
     welcome: { title: '¡Hola! Soy tu robot', question: '¿Qué quieres construir hoy?' },
@@ -319,7 +320,7 @@ export const strings = {
       repairs: 'Historial de lo que se reparó, lo que falta verificar y lo que falló.',
       servers: 'Lo que está escuchando en un puerto de tu computadora, y si tu red lo puede ver.',
       agent: 'Elige qué IA responde y conéctala desde tu editor.',
-      map: 'Tu proyecto en 3D: solo aparecen las carpetas y archivos con problemas.',
+      map: 'Tu proyecto en 3D: lo que tiene problemas brilla en ámbar o rojo.',
       git: 'Tus ramas y commits, y si algún commit subió un secreto.',
       chat: 'Habla con el agente en palabras sencillas.',
     },
@@ -482,8 +483,8 @@ export const strings = {
       files: (n) => (n === 1 ? '1 archivo' : `${n} archivos`),
       folders: (n) => (n === 1 ? '1 subcarpeta' : `${n} subcarpetas`),
       levels: { red: 'en riesgo', yellow: 'a revisar', green: 'seguros' },
-      folderHint: 'No tiene problemas, por eso no aparece en el mapa. Puedes recorrerla en el explorador.',
-      folderHintRisk: 'Sus archivos con problemas están junto a la carpeta en el mapa. Toca uno para ver el motivo.',
+      folderHint: 'No tiene problemas. Su contenido está junto a la carpeta en el mapa.',
+      folderHintRisk: 'Lo que brilla en ámbar o rojo tiene problemas. Está junto a la carpeta en el mapa: toca un archivo para ver el motivo.',
       folderEmpty: 'Todavía no tiene archivos.',
       seeRisks: 'Ver los riesgos',
       explainFolder: 'Explícame esta carpeta',
@@ -540,8 +541,8 @@ export const strings = {
       if (!fileCount) return `${head}\n\nTodavía no tiene archivos.`;
       const summary = `🔴 ${counts.red} en riesgo · 🟡 ${counts.yellow} a revisar · 🟢 ${counts.green} seguros`;
       const hint = counts.red + counts.yellow
-        ? 'Sus archivos con problemas están junto a la carpeta en el mapa. Haz clic en uno para ver el motivo.'
-        : 'No tiene problemas, por eso no aparece en el mapa.';
+        ? 'Su contenido está junto a la carpeta en el mapa: lo que brilla tiene problemas. Haz clic en un archivo para ver el motivo.'
+        : 'No tiene problemas. Su contenido está junto a la carpeta en el mapa.';
       return `${head}\n${summary}\n\n${hint}`;
     },
     fileSelected: ({ path, levelText, reason, source }) => `📄 ${path}\n${levelText} · ${reason}\n\n${source}`,

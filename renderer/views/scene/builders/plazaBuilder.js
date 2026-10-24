@@ -1,5 +1,5 @@
-// Plazas with problem files: the project's plaza in the middle of the map (its root files) and the
-// tray next to an open folder (the files inside it). Files come sorted riskiest first.
+// Plazas with files: the project's plaza in the middle of the map (its root files) and the tray next to
+// an open folder (its contents). Files come sorted riskiest first.
 import * as THREE from 'three';
 import { box, materials as M, platform } from '../materials.js';
 import { PLAZA } from '../../../viewmodels/layout.js';

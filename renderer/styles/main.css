@@ -176,6 +176,8 @@ body::after {
 .map-label.open { border-color: rgba(139, 131, 255, 0.45); }
 .map-label.file { padding: 4px 8px 5px; }
 .map-label.file strong { font-size: 11px; }
+.map-label.more { padding: 3px 8px; }
+.map-label.more span { font: 600 11px var(--mono); }
 .map-label strong.yellow::before { background: var(--warn); }
 .map-label strong.red::before { background: var(--danger); }
 /* The welcome robot's question */
