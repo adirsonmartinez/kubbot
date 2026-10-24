@@ -158,24 +158,13 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
       groundLink(group, M.road, x1, z1, x2, z2, ROAD_WIDTH[kind], 0.05).castShadow = false;
     });
 
-    // The project's root has no platform: its name floats where the folders' trunk meets the integrations
-    const { plaza, root } = state;
-
+    // The project's root has no platform and no name card: the trunk meets the integrations there
     // Root files, right after the last top-level folder, as big as the folders
     const rootIcons = buildFileIcons(state.rootFiles.files, FILE_SCALE);
     group.add(rootIcons.group);
     addFiles(rootIcons, state.rootFiles.files, animate);
     const lastRoot = state.rootFiles.files.at(-1);
     if (lastRoot) addMore(state.rootFiles.more, lastRoot.x + 1.2, lastRoot.z + 1.2);
-    // The project's name card; a new, empty project has none (the welcome robot talks there instead)
-    const summary = root.red + root.yellow ? strings.map.watched(root.total) : strings.map.allClear;
-    if (!plaza.empty) {
-      ownLabels.push(labels.add({
-        html: `<strong>${escapeHtml(plaza.name)}</strong><span>${summary}</span>${riskLine(root.counts)}`,
-        anchor: { x: 0, y: 2.3, z: 0 },
-        className: 'root',
-      }));
-    }
 
     // The row of top-level folders
     state.buildings.forEach((b) => {

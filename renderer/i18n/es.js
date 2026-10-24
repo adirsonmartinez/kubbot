@@ -121,8 +121,6 @@ export const strings = {
     risk: (n) => `${n} en riesgo`,
     review: (n) => `${n} a revisar`,
     rootSummary: (fileCount, folderCount) => `${files(fileCount)} · ${folders(folderCount)}`,
-    watched: (fileCount) => `${files(fileCount)} vigilados`,
-    allClear: 'Todo en orden',
     emptyFolder: 'vacía',
     more: (n) => `+${n} más`,
     integrations: 'Integraciones',
