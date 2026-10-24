@@ -758,6 +758,8 @@ body.chat-min #chat.card.min {
 /* ---------- Floating chat button (chat minimized or closed) with the options menu ---------- */
 .chat-launcher { position: fixed; right: 18px; bottom: 40px; z-index: 35; display: none; }
 body.chat-min .chat-launcher, body.chat-closed .chat-launcher { display: block; }
+/* Start screen (no project): no dock, no side panel and no chat button, nothing to navigate yet */
+body.no-project #stage-tabs, body.no-project #sidebar-toggle, body.no-project #sidebar, body.no-project .chat-launcher { display: none; }
 body.chat-min #chat.card.min { display: none; }
 .chat-launcher-button {
   display: grid; place-items: center; width: 48px; height: 48px; border: 0; border-radius: 16px; cursor: pointer;

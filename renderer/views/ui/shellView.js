@@ -469,6 +469,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     panelToggle.setAttribute('aria-expanded', String(state.sidebarOpen));
     panelToggle.classList.toggle('active', state.sidebarOpen);
     panelToggle.querySelector('.tip').replaceChildren(el('strong', '', toggleText), el('small', '', S.panelToggle.info));
+    body.classList.toggle('no-project', !state.open); // start screen: only the empty card and the chat
     body.classList.toggle('chat-closed', !state.chatOpen);
     body.classList.toggle('mode-tech', modeModel.tech);
     for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
