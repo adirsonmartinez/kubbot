@@ -16,6 +16,8 @@ export function createAgentService(bridge = window.platanus) {
       onScore: () => () => {},
       onChanged: () => () => {},
       undo: async () => ({ ok: false }),
+      auditLog: async () => ({ ok: true, data: [] }),
+      onAudit: () => () => {},
     };
   }
   return {
@@ -31,6 +33,8 @@ export function createAgentService(bridge = window.platanus) {
     replyMcp: (payload) => bridge.mcp.reply(payload),
     onScore: (cb) => bridge.mcp.onScore(cb),
     onChanged: (cb) => bridge.mcp.onChanged(cb),
+    auditLog: () => bridge.auditLog(),
+    onAudit: (cb) => bridge.onAudit(cb),
     undo: (change) => bridge.mcp.undo(change),
   };
 }

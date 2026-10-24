@@ -948,3 +948,6 @@ body.stage-graph #cracks-card, body.stage-project #cracks-card { display: none; 
 #chat .msg.run .md.streaming > :last-child::after { content: "▍"; color: var(--accent); animation: pulse 1s steps(2) infinite; margin-left: 2px; }
 .run-foot { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--faint); font: 10.5px var(--mono); }
 @media (prefers-reduced-motion: reduce) { .run-dot.running, .run-state.running::before, .run-step { animation: none; } }
+.run-error { margin: 0 0 6px; padding: 8px 10px; border-radius: 9px; background: rgba(255, 90, 106, .08); box-shadow: inset 0 0 0 1px rgba(255, 90, 106, .3); font-size: 12px; }
+.run-error strong { color: var(--danger); }
+.run-compare { padding: 2px 7px; border-radius: 999px; background: rgba(245, 197, 66, .14); color: #f5c542; font: 600 9.5px var(--font); }

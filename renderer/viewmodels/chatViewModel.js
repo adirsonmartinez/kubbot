@@ -105,7 +105,15 @@ export class ChatViewModel {
     if (!text || this.store.state.typing) return;
     this.store.set({ chips: null, welcome: false });
     this.#push({ role: 'user', text });
-    if (this.#connection?.live) return this.#sendLive(text);
+    if (this.#connection?.live) {
+      // With "Comparar respuestas", the same question goes to a second agent at the same time
+      const second = this.#connection.store.state.compareWith;
+      this.store.set({ typing: true });
+      await Promise.all([this.#sendLive(text), second && this.#sendLive(text, second)].filter(Boolean));
+      this.store.set({ typing: false });
+      this.#next(); // map messages that arrived while the answers were streaming
+      return;
+    }
     // Scripted demo (or no agent): show "typing…" and the reply
     // A connected agent streams its answer into a bubble that grows; a tool use starts a new one.
     this.store.set({ typing: true });
@@ -136,13 +144,16 @@ export class ChatViewModel {
   // subagents and their tools), the answer as it streams, and time/turns/tokens at the end.
   // run: { agent, model, effort, startedAt, endedAt, status: 'running'|'done'|'error', steps, result }
   // step: { id, kind: 'tool'|'subagent', name?, target?, description?, agentKind?, parent, status, startedAt, endedAt, output? }
-  async #sendLive(text) {
-    const { selected, model, effort } = this.#connection.store.state;
+  async #sendLive(text, otherAgent = null) {
+    const state = this.#connection.store.state;
+    const agentId = otherAgent ?? state.selected;
+    const label = state.agents?.find((a) => a.id === agentId)?.label ?? (otherAgent ? agentId : this.#connection.agentLabel);
+    const model = otherAgent ? '' : state.model;
+    const effort = otherAgent ? null : state.effort;
     const id = this.#push({
       role: 'bot', text: '', thinking: '',
-      run: { agent: this.#connection.agentLabel, agentId: selected, model, effort, startedAt: Date.now(), endedAt: null, status: 'running', steps: [], result: null },
+      run: { agent: label, agentId, model, effort: effort ?? state.effort, compare: Boolean(state.compareWith), startedAt: Date.now(), endedAt: null, status: 'running', steps: [], result: null },
     });
-    this.store.set({ typing: true });
     const run = (fn) => this.#update(id, (m) => ({ ...m, run: fn(m.run) }));
     const step = (stepId, fn) => run((r) => ({ ...r, steps: r.steps.map((x) => (x.id === stepId ? fn(x) : x)) }));
     const onEvent = (e) => {
@@ -171,7 +182,8 @@ export class ChatViewModel {
     };
     const reply = await this.#agent.reply(text, {
       onEvent,
-      onText: (delta) => { if (this.store.state.typing) this.store.set({ typing: false }); this.#append(id, delta); },
+      onText: (delta) => this.#append(id, delta),
+      ...(otherAgent ? { agent: otherAgent } : {}),
     });
     const failed = reply.tone === 'alert';
     run((r) => ({
@@ -180,13 +192,9 @@ export class ChatViewModel {
       endedAt: Date.now(),
       steps: r.steps.map((x) => (x.status === 'running' ? { ...x, status: failed ? 'error' : 'done', endedAt: Date.now() } : x)),
     }));
-    this.store.set({ typing: false });
-    if (failed) this.#enqueue(reply);
-    else {
-      if (!this.store.state.messages.find((m) => m.id === id)?.text && reply.text) this.#update(id, (m) => ({ ...m, text: reply.text }));
-      this.store.set({ chips: reply.chips ?? null });
-      this.#next(); // map messages that arrived while the answer was streaming
-    }
+    if (failed) this.#update(id, (m) => ({ ...m, run: { ...m.run, error: reply.html ?? '' } }));
+    else if (!this.store.state.messages.find((m) => m.id === id)?.text && reply.text) this.#update(id, (m) => ({ ...m, text: reply.text }));
+    if (reply.chips) this.store.set({ chips: reply.chips });
   }
 
   #update(id, fn) {

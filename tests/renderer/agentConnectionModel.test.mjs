@@ -106,3 +106,70 @@ test('a cancelled question never starts if it was waiting, and stops the CLI if 
   assert.equal(svc.runs.length, 1, 'the waiting question never ran');
   assert.equal(r2.error, 'cancelled');
 });
+
+test('different agents run in parallel (compare); the same agent stays one at a time', async () => {
+  const svc = fakeService();
+  svc.detect = async () => ({ ok: true, data: [
+    { id: 'claude', label: 'Claude', installed: true, loggedIn: true },
+    { id: 'grok', label: 'Grok', installed: true, loggedIn: true },
+  ] });
+  const m = new AgentConnectionModel(svc);
+  await m.refresh();
+  m.select('claude');
+  const a = m.ask('uno', 'sys');
+  const b = m.ask('uno', 'sys', { agent: 'grok' });
+  const c = m.ask('dos', 'sys');
+  await tick();
+  assert.deepEqual(svc.runs.map((r) => r.req.agent), ['claude', 'grok'], 'claude and grok at once, the 2nd claude waits');
+  svc.finish('1', 'A'); svc.finish('2', 'B');
+  await Promise.all([a, b]);
+  await tick();
+  assert.equal(svc.runs.length, 3);
+  svc.finish('3', 'C');
+  await c;
+});
+
+test('each run updates that agent stats (runs, tokens, last use, last error)', async () => {
+  const svc = fakeService();
+  localStorage.clear(); // stats persist between sessions: start from zero here
+  const m = new AgentConnectionModel(svc);
+  await m.refresh();
+  m.select('claude');
+  const p = m.ask('x', 'sys');
+  await tick();
+  svc.emit({ runId: '1', type: 'result', durationMs: 10, turns: 1, inputTokens: 100, outputTokens: 20 });
+  svc.finish('1', 'ok');
+  await p;
+  const s = m.store.state.stats.claude;
+  assert.equal(s.runs, 1);
+  assert.equal(s.tokens, 120);
+  assert.equal(new AgentConnectionModel(svc).store.state.stats.claude.runs, 1, 'remembered for next time');
+  assert.ok(s.lastUsedAt > 0);
+  assert.equal(s.lastError, '');
+});
+
+test('compare: only another installed agent that is not logged out', async () => {
+  const svc = fakeService();
+  svc.detect = async () => ({ ok: true, data: [
+    { id: 'claude', label: 'Claude', installed: true, loggedIn: true },
+    { id: 'codex', label: 'Codex', installed: true, loggedIn: false },
+  ] });
+  const m = new AgentConnectionModel(svc);
+  await m.refresh();
+  m.select('claude');
+  m.setCompare('codex');
+  assert.equal(m.store.state.compareWith, null);
+  m.setCompare('claude');
+  assert.equal(m.store.state.compareWith, null);
+});
+
+test('MCP activity comes from the audit log, newest first', async () => {
+  const svc = fakeService();
+  let push;
+  svc.auditLog = async () => ({ ok: true, data: [{ at: '2026-10-24T01:00:00Z', action: 'mcp:platanus_read_file', path: 'a.js', ok: true }, { at: '2026-10-24T01:01:00Z', action: 'workspace:open', path: '/p', ok: true }] });
+  svc.onAudit = (cb) => { push = cb; return () => {}; };
+  const m = new AgentConnectionModel(svc);
+  await m.refresh();
+  push({ at: '2026-10-24T01:02:00Z', action: 'mcp:platanus_write_file', path: 'b.js', ok: false, detail: 'La persona no aprobó el cambio.' });
+  assert.deepEqual(m.store.state.activity.map((a) => [a.tool, a.path, a.ok]), [['write_file', 'b.js', false], ['read_file', 'a.js', true]]);
+});

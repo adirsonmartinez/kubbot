@@ -65,7 +65,7 @@ export function renderRunCard(el0, message) {
   const timer = el('span', 'run-time', R.seconds((run.endedAt ?? Date.now()) - run.startedAt));
   timer.dataset.start = String(run.startedAt);
   if (running) timer.dataset.live = '1';
-  head.append(avatar, who, state, timer);
+  head.append(avatar, who, ...(run.compare ? [el('span', 'run-compare', strings.hub.compare)] : []), state, timer);
   const parts = [head];
 
   const top = run.steps.filter((s) => !s.parent);
@@ -89,6 +89,12 @@ export function renderRunCard(el0, message) {
     body.innerHTML = markdownToHtml(thinking);
     why.append(el('summary', '', strings.chat.reasoning), body);
     parts.push(why);
+  }
+
+  if (run.error) {
+    const fail = el('div', 'run-error');
+    fail.innerHTML = run.error; // our own message (strings.agent.liveFailed), already escaped
+    parts.push(fail);
   }
 
   const answer = el('div', `md${running ? ' streaming' : ''}`);

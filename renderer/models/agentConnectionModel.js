@@ -45,27 +45,52 @@ export const CATALOG = {
 export const modelLabel = (agent, id) => CATALOG[agent]?.models.find((m) => m.id === id)?.label ?? null;
 
 const CHOICE_KEY = 'platanus.agent.choice.v1';
+const STATS_KEY = 'platanus.agent.stats.v1';
+const MAX_ACTIVITY = 30;
+
+// Audit log entry of the main process -> activity row ({ at, tool, path, ok, error })
+const toActivity = (e) => ({ at: Date.parse(e.at) || Date.now(), tool: String(e.action).replace(/^mcp:(platanus_)?/, ''), path: e.path ?? '', ok: Boolean(e.ok), error: e.detail ?? '' });
 
 export class AgentConnectionModel {
   #service;
   #turns = new Map(); // "agent:session" -> messages sent (to continue the conversation)
-  #queue = Promise.resolve(); // one run at a time: the chat and Remi never talk over each other
+  #queues = new Map(); // agent -> promise: one run at a time per agent (chat and Remi never talk over
+                       // each other); different agents (compare) run at the same time
 
   // agents: [{ id, label, installed, loggedIn: true | false | null }]
-  store = new Observable({ agents: [], selected: null, model: '', effort: 'low', mcp: { url: null, running: false }, isDesktop: false });
+  // stats: { [agent]: { runs, tokens, lastUsedAt, lastError } } · activity: MCP calls, newest first
+  // testing / testResult: the "Probar" button per agent · compareWith: second agent for the same question
+  store = new Observable({
+    agents: [], selected: null, model: '', effort: 'low', compareWith: null,
+    mcp: { url: null, running: false }, isDesktop: false,
+    stats: {}, activity: [], testing: {}, testResult: {},
+  });
 
   constructor(service) {
     this.#service = service;
-    this.store.set({ isDesktop: service.isDesktop, ...this.#loadChoice() });
+    this.store.set({ isDesktop: service.isDesktop, stats: this.#loadStats(), ...this.#loadChoice() });
     service.onMcpStatus((mcp) => this.store.set({ mcp }));
+    service.onAudit?.((entry) => {
+      if (!String(entry.action).startsWith('mcp:')) return;
+      this.store.set({ activity: [toActivity(entry), ...this.store.state.activity].slice(0, MAX_ACTIVITY) });
+    });
   }
 
   async refresh() {
-    const [agents, mcp] = await Promise.all([this.#service.detect(), this.#service.mcpInfo()]);
+    const [agents, mcp, audit] = await Promise.all([
+      this.#service.detect(), this.#service.mcpInfo(), this.#service.auditLog?.() ?? { data: [] },
+    ]);
     const list = (agents.data ?? []).filter((a) => a.installed);
-    const { selected } = this.store.state;
+    const { selected, compareWith } = this.store.state;
+    const activity = (audit.data ?? []).filter((e) => String(e.action).startsWith('mcp:')).map(toActivity).reverse().slice(0, MAX_ACTIVITY);
     // Keep the saved choice only if that agent is still installed
-    this.store.set({ agents: list, mcp: mcp.data ?? this.store.state.mcp, selected: list.some((a) => a.id === selected) ? selected : null });
+    this.store.set({
+      agents: list,
+      mcp: mcp.data ?? this.store.state.mcp,
+      selected: list.some((a) => a.id === selected) ? selected : null,
+      compareWith: list.some((a) => a.id === compareWith) ? compareWith : null,
+      activity: activity.length ? activity : this.store.state.activity,
+    });
   }
 
   select(id) {
@@ -90,8 +115,28 @@ export class AgentConnectionModel {
     if (c?.efforts.includes(effort)) { this.store.set({ effort }); this.#saveChoice(); }
   }
 
+  // Second agent that answers the same question (null = only one)
+  setCompare(id) {
+    const { agents, selected } = this.store.state;
+    const ok = id === null || (id !== selected && agents.some((a) => a.id === id && a.loggedIn !== false));
+    if (ok) this.store.set({ compareWith: id });
+  }
+
   login(id) {
     return this.#service.login(id);
+  }
+
+  // "Probar": a minimal question to see that the agent answers (spends a few tokens of the plan)
+  async testAgent(id, prompt) {
+    if (!CATALOG[id] || this.store.state.testing[id] === 'running') return;
+    const mark = (state, result) => this.store.set({
+      testing: { ...this.store.state.testing, [id]: state },
+      ...(result ? { testResult: { ...this.store.state.testResult, [id]: result } } : {}),
+    });
+    mark('running');
+    const started = Date.now();
+    const r = await this.ask(prompt, '', { agent: id, model: '', effort: 'low', session: 'repair' });
+    mark(r.text && !r.error ? 'ok' : 'error', { ms: Date.now() - started, error: r.error ?? '' });
   }
 
   get live() {
@@ -107,12 +152,19 @@ export class AgentConnectionModel {
   // session: 'chat' (continues the conversation) or 'repair' (Remi's jobs, a separate conversation).
   // signal (AbortSignal): a waiting question never starts; a running one stops its CLI.
   // onStart(runId): called when the CLI actually starts (after waiting in line).
-  ask(prompt, systemPrompt, { onTool, onText, onThinking, onEvent, onStart, signal, session = 'chat' } = {}) {
+  // agent / model / effort: another agent than the selected one (compare, "Probar")
+  ask(prompt, systemPrompt, { onTool, onText, onThinking, onEvent, onStart, signal, session = 'chat', ...choice } = {}) {
     // The choice is taken now: a question waiting in line keeps the agent it was asked to
-    const { selected: agent, model, effort } = this.store.state;
+    const state = this.store.state;
+    const agent = choice.agent ?? state.selected;
+    const own = agent === state.selected;
+    const catalog = CATALOG[agent];
+    const model = choice.model ?? (own ? state.model : '');
+    const effort = choice.effort ?? (own ? state.effort : catalog?.efforts.includes(state.effort) ? state.effort : catalog?.defaultEffort ?? 'low');
     const run = () => this.#run(prompt, systemPrompt, { onTool, onText, onThinking, onEvent, onStart, signal, session, agent, model, effort });
-    const result = this.#queue.then(run, run);
-    this.#queue = result.catch(() => {});
+    const queue = this.#queues.get(agent) ?? Promise.resolve();
+    const result = queue.then(run, run);
+    this.#queues.set(agent, result.catch(() => {}));
     return result;
   }
 
@@ -124,29 +176,43 @@ export class AgentConnectionModel {
     let text = '';
     let error = null;
     let runId = null;
+    let tokens = 0;
     const early = [];
+    const finish = (value) => { this.#recordRun(agent, tokens, value.error ?? ''); return value; };
     return new Promise((resolve) => {
       const handle = (e) => {
         onEvent?.(e); // every event (tools, subagents, result) for the live run card
+        if (e.type === 'result') tokens += (e.inputTokens ?? 0) + (e.outputTokens ?? 0);
         if (e.type === 'text' && !e.parent) { text += e.delta; onText?.(e.delta); }
         else if (e.type === 'thinking' && !e.parent) onThinking?.(e.delta);
         else if (e.type === 'tool') onTool?.(e.name);
         else if (e.type === 'error') error = e.message;
-        else if (e.type === 'done') { off(); resolve({ text: text.trim(), error }); }
+        else if (e.type === 'done') { off(); resolve(finish({ text: text.trim(), error })); }
       };
       const off = this.#service.onEvent((e) => {
         if (!runId) return void early.push(e);
         if (e.runId === runId) handle(e);
       });
       this.#service.run({ agent, prompt, systemPrompt, model, effort, session, continued: session === 'chat' && turns > 0 }).then((r) => {
-        if (!r.ok) { off(); return resolve({ text: '', error: r.error }); }
+        if (!r.ok) { off(); return resolve(finish({ text: '', error: r.error })); }
         runId = r.data;
         onStart?.(runId);
         if (signal?.aborted) this.#service.cancel?.(runId);
         else signal?.addEventListener('abort', () => this.#service.cancel?.(runId), { once: true });
         early.filter((e) => e.runId === runId).forEach(handle);
-      }, (err) => { off(); resolve({ text: '', error: err?.message ?? String(err) }); });
+      }, (err) => { off(); resolve(finish({ text: '', error: err?.message ?? String(err) })); });
     });
+  }
+
+  #recordRun(agent, tokens, error) {
+    const before = this.store.state.stats[agent] ?? { runs: 0, tokens: 0, lastUsedAt: null, lastError: '' };
+    const stats = { ...this.store.state.stats, [agent]: { runs: before.runs + 1, tokens: before.tokens + tokens, lastUsedAt: Date.now(), lastError: error === 'cancelled' ? before.lastError : error } };
+    this.store.set({ stats });
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch { /* private mode */ }
+  }
+
+  #loadStats() {
+    try { return JSON.parse(localStorage.getItem(STATS_KEY) ?? '{}') ?? {}; } catch { return {}; }
   }
 
   #loadChoice() {
