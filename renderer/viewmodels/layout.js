@@ -8,7 +8,7 @@ export const SCHEMA_CENTER = { x: SUPABASE_NODE.x - 0.4, z: SUPABASE_NODE.z - 13
 // Git view: commits advance along X (newest at x = 0), each lane is a row along Z
 export const GIT_LAYOUT = { step: 2.4, laneGap: 3.6, zoom: 1.2 };
 
-// Plaza: the platform in the middle of every level, with the folder's own files as cubes
+// Plaza: the platform in the middle of the map, with the root files that have a problem
 export const PLAZA = { cube: 0.7, pitch: 1.0, margin: 0.9, minSize: 5 };
 
 export function plazaGrid(fileCount) {
@@ -17,8 +17,26 @@ export function plazaGrid(fileCount) {
   return { cols, size };
 }
 
+// Folder on the map: its icon footprint and the platform it stands on
+export const FOLDER = { size: 3, platform: 4.6 };
+
+// Problem files of an open folder: a small square grid next to the folder, on its far side from the
+// plaza (so it never covers the roads). Slots are in world units, filled front rows first.
+export function sideGrid(count, folder) {
+  const { pitch, margin } = PLAZA;
+  const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
+  const rows = Math.max(1, Math.ceil(count / cols));
+  const size = cols * pitch + margin * 1.4;
+  const length = Math.hypot(folder.x, folder.z);
+  const [dx, dz] = length ? [folder.x / length, folder.z / length] : [1, 0];
+  const t = (FOLDER.platform / 2 + size / 2 + 0.6) / Math.max(Math.abs(dx), Math.abs(dz));
+  const x = folder.x + dx * t, z = folder.z + dz * t;
+  const x0 = x - ((cols - 1) * pitch) / 2, z0 = z + ((rows - 1) * pitch) / 2;
+  const slots = Array.from({ length: count }, (_, i) => ({ x: x0 + (i % cols) * pitch, z: z0 - Math.floor(i / cols) * pitch }));
+  return { x, z, size, slots };
+}
+
 export const folderHeight = (files) => Math.min(1.2 + Math.log2(1 + files) * 1.4, 9);
-export const fileCubeHeight = (bytes) => PLAZA.cube * (0.55 + Math.min(Math.log10(bytes + 1) / 6, 0.75));
 
 // Rings of slots around the plaza. Spacing grows with the plaza so folders never overlap it;
 // the Supabase node and its cable are kept clear when the node is shown.
