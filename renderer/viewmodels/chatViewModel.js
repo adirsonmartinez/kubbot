@@ -255,7 +255,7 @@ export class ChatViewModel {
     const risky = counts.red + counts.yellow > 0;
     return {
       kind: 'folder', name, files, folders, counts,
-      hint: !files ? CARDS.folderEmpty : counts.red ? CARDS.folderHintRisk : CARDS.folderHint,
+      hint: !files ? CARDS.folderEmpty : risky ? CARDS.folderHintRisk : CARDS.folderHint,
       actions: [
         risky && a.showRisks && { kind: 'risks', label: CARDS.seeRisks, run: () => a.showRisks() },
         risky && a.repairWorst && { kind: 'repair', label: strings.repair.chipWorst, run: (from) => a.repairWorst(from) },

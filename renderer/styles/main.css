@@ -148,6 +148,12 @@ body::after {
 .map-label em.review { color: var(--warn); }
 .map-label.root { z-index: 2; padding: 8px 12px; border-color: rgba(139, 131, 255, 0.3); }
 .map-label.root strong { font: 600 14px var(--sans); }
+/* Open folder and its problem files: the dot takes the file's level */
+.map-label.open { border-color: rgba(139, 131, 255, 0.45); }
+.map-label.file { padding: 4px 8px 5px; }
+.map-label.file strong { font-size: 11px; }
+.map-label strong.yellow::before { background: var(--warn); }
+.map-label strong.red::before { background: var(--danger); }
 
 /* Floors of an open building */
 .map-label.floor { flex-direction: row; align-items: center; gap: 8px; padding: 4px 9px; }

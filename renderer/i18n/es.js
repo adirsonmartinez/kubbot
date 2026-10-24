@@ -54,17 +54,17 @@ export const strings = {
   },
 
   panels: {
-    // Breadcrumb counts: files of the current level by traffic light
+    // Breadcrumb counts: files of the open folder (or the project) by traffic light
     levelCount: (level, n) => ({
-      red: `${n} ${n === 1 ? 'archivo' : 'archivos'} en riesgo en este nivel`,
-      yellow: `${n} ${n === 1 ? 'archivo' : 'archivos'} por revisar en este nivel`,
-      green: `${n} ${n === 1 ? 'archivo seguro' : 'archivos seguros'} en este nivel`,
+      red: `${n} ${n === 1 ? 'archivo' : 'archivos'} en riesgo aquí`,
+      yellow: `${n} ${n === 1 ? 'archivo' : 'archivos'} por revisar aquí`,
+      green: `${n} ${n === 1 ? 'archivo seguro' : 'archivos seguros'} aquí`,
     })[level],
     backToMap: 'Volver al mapa',
     schemaTitle: 'Supabase · esquema public',
     schemaSummary: (tables, hasError) => (hasError ? `${tables} tablas · 1 con error` : `${tables} tablas · todo en orden`),
     breadcrumbLabel: 'Ruta de la carpeta',
-    upHint: 'Esc sube un nivel',
+    upHint: 'Esc cierra la carpeta',
   },
 
   hud: {
@@ -81,7 +81,8 @@ export const strings = {
     risk: (n) => `${n} en riesgo`,
     review: (n) => `${n} a revisar`,
     rootSummary: (fileCount, folderCount) => `${files(fileCount)} · ${folders(folderCount)}`,
-    levelSummary: (fileCount, folderCount) => `${files(fileCount)} · ${plural(folderCount, 'subcarpeta', 'subcarpetas')}`,
+    watched: (fileCount) => `${files(fileCount)} vigilados`,
+    allClear: 'Todo en orden',
     emptyFolder: 'vacía',
     defaultProjectName: 'proyecto',
   },
@@ -497,8 +498,8 @@ export const strings = {
       files: (n) => (n === 1 ? '1 archivo' : `${n} archivos`),
       folders: (n) => (n === 1 ? '1 subcarpeta' : `${n} subcarpetas`),
       levels: { red: 'en riesgo', yellow: 'a revisar', green: 'seguros' },
-      folderHint: 'Toca un archivo en el mapa para ver su detalle, o una subcarpeta para entrar.',
-      folderHintRisk: 'Los archivos con riesgo están al frente de la plaza.',
+      folderHint: 'No tiene problemas, por eso no aparece en el mapa. Puedes recorrerla en el explorador.',
+      folderHintRisk: 'Sus archivos con problemas están junto a la carpeta en el mapa. Toca uno para ver el motivo.',
       folderEmpty: 'Todavía no tiene archivos.',
       seeRisks: 'Ver los riesgos',
       explainFolder: 'Explícame esta carpeta',
@@ -556,9 +557,9 @@ export const strings = {
       const head = `📂 ${name} · ${files(fileCount)} · ${plural(folderCount, 'subcarpeta', 'subcarpetas')}`;
       if (!fileCount) return `${head}\n\nTodavía no tiene archivos.`;
       const summary = `🔴 ${counts.red} en riesgo · 🟡 ${counts.yellow} a revisar · 🟢 ${counts.green} seguros`;
-      const hint = counts.red
-        ? 'Los archivos con riesgo están al frente de la plaza. Haz clic en uno para ver el motivo.'
-        : 'Haz clic en un archivo para ver su detalle, o en una subcarpeta para entrar.';
+      const hint = counts.red + counts.yellow
+        ? 'Sus archivos con problemas están junto a la carpeta en el mapa. Haz clic en uno para ver el motivo.'
+        : 'No tiene problemas, por eso no aparece en el mapa.';
       return `${head}\n${summary}\n\n${hint}`;
     },
     fileSelected: ({ path, levelText, reason, source }) => `📄 ${path}\n${levelText} · ${reason}\n\n${source}`,

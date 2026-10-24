@@ -34,11 +34,11 @@ renderer/
     answerFormat (the agent's ```sugerencias block -> next steps),
     serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
-    camera, map (one folder level at a time), supabase, git (branches), app (which 3D view),
+    camera, map (security radar: folders and files with problems), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), graph (threat graph), chat,
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
-                  builders/ (block, folderIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader)
+                  builders/ (block, folderIcon, fileIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader)
   views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown with answer cards and
                   file links, chatCards: folder / file cards), icons (DOM helper over views/icons.js), thinkingOrb
                   (libraries.dev orbs over the package engine), agentPicker
@@ -103,7 +103,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 ## Map navigation
 
-The map shows one folder at a time: a plaza in the middle with the folder's own files (cubes with their traffic light, riskiest at the front) and its subfolders as blocks around it. Clicking a block enters that folder; the breadcrumb (in the status bar at the bottom) or Esc go back up; the folder's traffic-light counts stay at the top left of the map. `MapViewModel.path` is the folder on screen (`''` = root). The Supabase node only appears at the root. Folders are isometric folders (`builders/folderIconBuilder.js`; `BUILDING_STYLE` in `mapView.js` switches back to plain blocks).
+The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
 
 ## Views
 
