@@ -162,10 +162,6 @@ body::after {
 }
 .map-label[hidden], .map-label.off-layer { display: none; }
 .map-label strong { font: 600 12px var(--mono); color: var(--text); }
-.map-label strong::before {
-  content: ""; display: inline-block; width: 5px; height: 5px; margin-right: 6px; vertical-align: middle;
-  border-radius: 50%; background: var(--accent);
-}
 .map-label span { font-size: 11px; color: var(--muted); }
 .map-label em { font-style: normal; font-size: 11px; font-weight: 600; }
 .map-label em.risk { color: var(--danger); }
@@ -174,15 +170,13 @@ body::after {
 .map-label.root strong { font: 600 14px var(--sans); }
 /* Open folder and its problem files: the dot takes the file's level */
 .map-label.open { border-color: rgba(139, 131, 255, 0.45); }
-.map-label.file { padding: 4px 8px 5px; }
-.map-label.file strong { font-size: 11px; }
+.map-label.file { padding: 3px 7px 4px; }
+.map-label.file strong { font-size: 10px; }
 .map-label.more { padding: 3px 8px; }
 /* Name of the integrations band: plain text on the dark ground, not a card */
 .map-label.band { padding: 0; background: none; border: 0; box-shadow: none; }
 .map-label.band span { font: 600 10px var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
 .map-label.more span { font: 600 11px var(--mono); }
-.map-label strong.yellow::before { background: var(--warn); }
-.map-label strong.red::before { background: var(--danger); }
 /* The welcome robot's question */
 .map-label.robot-bubble { z-index: 3; padding: 8px 12px; border-color: rgba(139, 131, 255, 0.45); }
 .map-label.robot-bubble strong { font: 600 13px var(--sans); }
@@ -190,7 +184,6 @@ body::after {
 
 /* Floors of an open building */
 .map-label.floor { flex-direction: row; align-items: center; gap: 8px; padding: 4px 9px; }
-.map-label.floor strong::before { display: none; }
 .map-label.floor.focus { border-color: rgba(139, 131, 255, 0.45); background: rgba(139, 131, 255, 0.12); }
 
 /* Supabase node label */

@@ -8,26 +8,29 @@ import { box, glowLines, groundLink, materials as M } from './materials.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { buildBlock } from './builders/blockBuilder.js';
 import { buildFolderIcon } from './builders/folderIconBuilder.js';
+import { buildGlassFolder, GLASS_FOLDER_HEIGHT } from './builders/glassFolderBuilder.js';
+import { FILE_ICON } from './builders/fileIconBuilder.js';
 import { buildFileIcons } from './builders/plazaBuilder.js';
 import { buildIntegration } from './builders/integrationBuilder.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
 import { BOX, boxHeight, FOLDER, INTEGRATIONS, SCREEN_ANGLE, screenOf, toWorld } from '../../viewmodels/layout.js';
 
-// 'folders': isometric folders; 'blocks': plain cubes; 'detailed': full buildings
-const BUILDING_STYLE = 'blocks';
+// 'glass': frosted glass folders; 'folders': isometric folders; 'blocks': cubes; 'detailed': full buildings
+const BUILDING_STYLE = 'glass';
 
 const RISE_SPEED = 2.2;
 const GLIDE_SPEED = 3; // folders that move (rows making room for an open folder) slide in ~1/3 s
-const SUBFOLDER_SCALE = 0.5; // folders inside an open one
 
 // A folder in the current style: a box as tall as its file count, an isometric folder or a building
 function buildFolder(f) {
+  if (BUILDING_STYLE === 'glass') return buildGlassFolder({ size: 3.2, files: f.files, level: f.level });
   if (BUILDING_STYLE === 'blocks') return buildBlock({ size: BOX.size, height: boxHeight(f.files), level: f.level });
   if (BUILDING_STYLE === 'folders') return buildFolderIcon({ size: FOLDER.size, files: f.files, level: f.level });
   return buildFolderBuilding(f);
 }
-const BRANCH_FILE_SCALE = 1.5; // files inside an open folder
+// Files stand as tall as the folders next to them, at every depth
+const FILE_SCALE = GLASS_FOLDER_HEIGHT / FILE_ICON.height;
 const ROAD_WIDTH = { top: 0.35, branch: 0.2 };
 const ICON_RISE_STAGGER = 0.06;
 
@@ -41,10 +44,9 @@ function riskLine(counts) {
 // Folder labels, at any zoom and in both modes: the folder's own name and its risk line (the hover card
 // has the rest), so neighbors never cover each other
 const folderLabel = (f) => `<strong>${escapeHtml(f.name)}/</strong>${riskLine(f.counts)}`;
-const hasProblem = (f) => f.level === 'yellow' || f.level === 'red';
 
 // Files on the map are always direct children of what is shown (the root or the open folder): the name is enough
-const fileLabel = (f) => `<strong class="${f.level}">${escapeHtml(f.name)}</strong>`;
+const fileLabel = (f) => `<strong>${escapeHtml(f.name)}</strong>`;
 
 export function createMapView({ sceneView, labels, mapViewModel }) {
   let group = null;
@@ -86,15 +88,16 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
     label.setAnchor(from.x, label.anchor.y, from.z);
   }
 
-  function addFiles(built, files, animate, labeled = true) {
+  // Every file has its name (with its extension) under its icon
+  function addFiles(built, files, animate) {
     built.icons.forEach(({ mesh, index }) => {
       const f = files[index];
       rise(`file:${f.path}`, mesh, index * ICON_RISE_STAGGER, animate);
-      if (!labeled || !hasProblem(f)) return;
       ownLabels.push(labels.add({
         html: fileLabel(f),
-        anchor: { x: mesh.position.x + built.group.position.x, y: built.top + 1.2, z: mesh.position.z + built.group.position.z },
+        anchor: { x: mesh.position.x + built.group.position.x, y: built.top, z: mesh.position.z + built.group.position.z },
         className: 'file',
+        align: 'below',
       }));
     });
   }
@@ -154,8 +157,8 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
     // The project's root has no platform: its name floats where the folders' trunk meets the integrations
     const { plaza, root } = state;
 
-    // Root files, below the folders
-    const rootIcons = buildFileIcons(state.rootFiles.files, BRANCH_FILE_SCALE);
+    // Root files, right after the last top-level folder, as big as the folders
+    const rootIcons = buildFileIcons(state.rootFiles.files, FILE_SCALE);
     group.add(rootIcons.group);
     addFiles(rootIcons, state.rootFiles.files, animate);
     const lastRoot = state.rootFiles.files.at(-1);
@@ -187,18 +190,17 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
     state.branches.forEach((branch) => {
       branch.folders.forEach((f, i) => {
         const sub = buildFolder(f);
-        sub.group.scale.setScalar(SUBFOLDER_SCALE);
         sub.group.position.set(f.x, 0, f.z);
         sub.group.traverse((o) => { o.userData.pick = { type: 'folder', path: f.path }; });
         group.add(sub.group);
         ownLabels.push(labels.add({
           html: folderLabel(f),
-          anchor: { x: f.x, y: sub.top * SUBFOLDER_SCALE + 0.5, z: f.z },
+          anchor: { x: f.x, y: sub.top + 0.9, z: f.z },
           className: `file${f.open ? ' open' : ''}`,
         }));
         rise(`folder:${f.path}`, sub.group, i * ICON_RISE_STAGGER, animate);
       });
-      const icons = buildFileIcons(branch.files, BRANCH_FILE_SCALE);
+      const icons = buildFileIcons(branch.files, FILE_SCALE);
       group.add(icons.group);
       addFiles(icons, branch.files, animate);
       const last = branch.files.at(-1) ?? branch.folders.at(-1);

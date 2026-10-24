@@ -32,14 +32,15 @@ export const folderHeight = (files) => Math.min(1.2 + Math.log2(1 + files) * 1.4
 export const BOX = { size: 2.2, minHeight: 0.8, step: 0.45, maxHeight: 4.5 };
 export const boxHeight = (files) => Math.min(BOX.minHeight + Math.log2(1 + files) * BOX.step, BOX.maxHeight);
 
-// The tree: the plaza at the top, the top-level folders in a row below it, and the open path unfolding
-// one level per block further down. `top` is the row of top-level folders, `branch` the contents of an
-// open folder (smaller items, closer together).
+// The tree: the project at the top, the top-level folders in rows below it, and the open path unfolding
+// one level per block further down. `top` is the rows of top-level folders, `branch` the contents of an
+// open folder: the same size at every depth (nothing shrinks as you go down).
+const ROWS = { pitch: 9, cols: 8, rowGap: 9 };
 export const TREE = {
-  top: { pitch: 9, cols: 8, rowGap: 9 },
-  branch: { pitch: 3.4, cols: 10, rowGap: 4.2 },
-  gap: 5,          // from the plaza's edge (or a folder) down to the bar its children hang from, and below
-  itemHalf: { top: 2.6, branch: 1.3 }, // half of an item's depth on screen: where the next level starts
+  top: ROWS,
+  branch: ROWS,
+  gap: 5,          // from the project (or a folder) down to the bar its children hang from, and below
+  itemHalf: { top: 2.6, branch: 2.6 }, // half of an item's depth on screen: where the next level starts
 };
 
 // Items hanging from a parent: rows of up to `cols`, centered under the parent (but never left of `minU`),

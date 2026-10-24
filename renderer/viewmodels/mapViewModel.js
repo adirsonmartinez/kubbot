@@ -1,5 +1,5 @@
 // The whole project as a tree that unfolds down the screen. At the top, the project's name (its root, with
-// no platform); below it, rows with every top-level folder, and below those the root files. Opening a
+// no platform); below it, rows with every top-level folder and, right after the last one, the root files. Opening a
 // folder unfolds its direct subfolders and files in a block below it, and opening one of those unfolds one more level: one path at a time (opening
 // another folder folds the rest). Safe things stay calm, problems glow (amber / red) and come first.
 // Above the plaza, a darker band holds the integrations. Esc goes back up. It also routes clicks and
@@ -239,7 +239,11 @@ export class MapViewModel {
 
     // The open path: each folder on it unfolds its direct contents (subfolders first, then files) right
     // below it. Its row of top-level folders stays put; the rows under it move down to make room.
-    const firstBlock = treeBlock(dirs.length, topOptions);
+    // Root files follow the folders in the same rows, riskiest first, right after the last folder
+    const rootList = tree.filter((c) => c.type === 'file').map((f) => this.#describeFile(f)).sort(byRisk);
+    const rootShown = rootList.slice(0, MAX_BRANCH_ITEMS);
+    const topCount = dirs.length + rootShown.length;
+    const firstBlock = treeBlock(topCount, topOptions);
     const branches = [];
     const branchLinks = [];
     let parent = topIndex >= 0 ? firstBlock.slots[topIndex] : null; // { u, v } on screen
@@ -251,9 +255,8 @@ export class MapViewModel {
       const subfolders = this.#sortFolders(children.filter((c) => c.type === 'dir').map((d) => this.#describeFolder(d)));
       const inside = children.filter((c) => c.type === 'file').map((f) => this.#describeFile(f)).sort(byRisk);
       const shown = [...subfolders, ...inside].slice(0, MAX_BRANCH_ITEMS);
-      // Kept right of the road on the folder rows' left edge (their spine, or the root files' road)
-      const leftRoad = firstBlock.spine !== null || tree.some((c) => c.type === 'file');
-      const minU = leftRoad && dirs.length ? (firstBlock.spine ?? firstBlock.slots[0].u - TREE.top.pitch / 2) + 2 : -Infinity;
+      // Kept right of the rows' spine (when they wrap), so the branch never runs over it
+      const minU = firstBlock.spine === null ? -Infinity : firstBlock.spine + 2;
       const block = treeBlock(shown.length, { parentU: parent.u, parentV: parent.v, startV: endV + TREE.gap + TREE.itemHalf.branch, minU, ...TREE.branch });
       branchLinks.push(block);
       const next = levels[branches.length + 1];
@@ -275,7 +278,7 @@ export class MapViewModel {
     // The top-level rows, with a gap under the open folder's row as tall as its branches
     const openRow = topIndex >= 0 ? Math.floor(topIndex / TREE.top.cols) : -1;
     const gap = branches.length ? endV - (firstBlock.slots[topIndex].v + TREE.itemHalf.top) + TREE.gap : 0;
-    const topBlock = treeBlock(dirs.length, { ...topOptions, insert: gap ? { row: openRow, height: gap } : null });
+    const topBlock = treeBlock(topCount, { ...topOptions, insert: gap ? { row: openRow, height: gap } : null });
     addLinks(topBlock, 'top');
     branchLinks.forEach((block) => addLinks(block, 'branch'));
     const buildings = dirs.map(({ node, ...folder }, i) => ({
@@ -287,24 +290,8 @@ export class MapViewModel {
       order: i,
     }));
     const opened = branches.at(-1) ?? null;
-
-    // Root files, riskiest first, in rows below the folders (and below an open branch). Their road runs
-    // down the left edge of the folder rows, so it never crosses them.
-    const rootList = tree.filter((c) => c.type === 'file').map((f) => this.#describeFile(f)).sort(byRisk);
-    const rootShown = rootList.slice(0, MAX_BRANCH_ITEMS);
-    let rootBlock;
-    if (dirs.length) {
-      const edgeU = topBlock.spine ?? topBlock.slots[0].u - TREE.top.pitch / 2;
-      const bar = topBlock.slots[0].v - TREE.top.rowGap / 2;
-      const above = Math.max(topBlock.endV + TREE.itemHalf.top, branches.length ? endV : -Infinity);
-      rootBlock = treeBlock(rootShown.length, { parentU: edgeU, parentV: bar, startV: above + TREE.gap + TREE.itemHalf.branch, minU: edgeU + 2, ...TREE.branch });
-      if (rootShown.length) rootBlock.links.push([edgeU, bar, topBlock.slots[0].u, bar]);
-    } else {
-      rootBlock = treeBlock(rootShown.length, { parentU: 0, parentV: INTEGRATION_ROW.busV, startV: grid.size * Math.SQRT1_2 + TREE.gap + TREE.itemHalf.branch, ...TREE.branch });
-    }
-    addLinks(rootBlock, 'branch');
     const rootFiles = {
-      files: rootShown.map((f, i) => ({ ...f, ...toWorld(rootBlock.slots[i].u, rootBlock.slots[i].v) })),
+      files: rootShown.map((f, i) => ({ ...f, ...toWorld(topBlock.slots[dirs.length + i].u, topBlock.slots[dirs.length + i].v) })),
       more: rootList.length - rootShown.length,
     };
 
@@ -398,7 +385,7 @@ export class MapViewModel {
       }
     } else if (newSession || announce) {
       // From the integrations (their nodes, not the empty ends of the band) down to the top-level folders
-      const bottom = rootShown.length ? rootBlock.endV + TREE.itemHalf.branch : topBlock.endV + TREE.itemHalf.top;
+      const bottom = topBlock.endV + TREE.itemHalf.top;
       const width = Math.max(topBlock.width / 2, 6) + 3;
       const lastNode = Math.max(6, ...nodes.map((n) => n.u + 4));
       const view = fitView([toWorld(-6, integrationV), toWorld(lastNode, integrationV), toWorld(-width, bottom), toWorld(width, bottom)]);

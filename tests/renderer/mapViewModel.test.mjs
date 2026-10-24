@@ -61,30 +61,33 @@ test('folders with problems come first (worst first), then the rest by name', ()
   assert.equal(docs.level, 'green');
 });
 
-test('root files hang below the top-level folders, riskiest first; past the limit the rest is counted', () => {
+test('root files follow the top-level folders in the same rows, right after the last one, riskiest first', () => {
   const { state } = setup();
   const { rootFiles, buildings } = state();
   assert.deepEqual(rootFiles.files.map((f) => f.path), ['.env', 'package.json', 'README.md']);
   assert.equal(rootFiles.files[0].level, 'red');
-  const lowest = Math.max(...buildings.map((b) => at(b).v));
-  rootFiles.files.forEach((f) => assert.ok(at(f).v > lowest + 2));
+  // One row: src, docs, tests, then the files, at the same pitch
+  const row = [...buildings, ...rootFiles.files].map((x) => at(x));
+  row.forEach((p) => assert.ok(Math.abs(p.v - row[0].v) < 1e-9));
+  const steps = row.slice(1).map((p, i) => p.u - row[i].u);
+  steps.forEach((d) => assert.ok(Math.abs(d - steps[0]) < 1e-9 && d > 0));
   const many = setup(Array.from({ length: 60 }, (_, i) => file(`f${String(i).padStart(2, '0')}.txt`)));
   assert.equal(many.state().rootFiles.files.length, 48);
   assert.equal(many.state().rootFiles.more, 12);
 });
 
-test('with no folders, root files hang right below the plaza', () => {
+test('with no folders, root files hang right below the project', () => {
   const { state } = setup([file('README.md'), file('index.html')]);
   state().rootFiles.files.forEach((f) => assert.ok(at(f).v > state().plaza.size / 2));
 });
 
-test('an open folder pushes the root files down too', () => {
-  const { vm, state } = setup();
-  const before = Math.min(...state().rootFiles.files.map((f) => at(f).v));
-  vm.enterFolder('src');
-  const items = [...state().opened.folders, ...state().opened.files];
-  const lowestItem = Math.max(...items.map((f) => at(f).v));
-  const after = Math.min(...state().rootFiles.files.map((f) => at(f).v));
+test('an open folder pushes down the rows under it, root files included', () => {
+  const dirs = 'abcdefgh'.split('').map((n) => dir(n, [file(`${n}/one.js`)]));
+  const { vm, state } = setup([...dirs, file('README.md')]); // README.md wraps to the second row
+  const before = at(state().rootFiles.files[0]).v;
+  vm.enterFolder('a');
+  const lowestItem = Math.max(...state().opened.files.map((f) => at(f).v));
+  const after = at(state().rootFiles.files[0]).v;
   assert.ok(after > before);
   assert.ok(after > lowestItem + 2);
 });
