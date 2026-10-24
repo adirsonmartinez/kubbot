@@ -62,3 +62,29 @@
 .entry-icon.yellow { color: var(--warn); }
 .entry-icon.red { color: var(--danger); filter: drop-shadow(0 0 4px rgba(255, 90, 106, .55)); }
 .guide-head .entry-icon svg { width: 16px; height: 16px; }
+
+/* Explorer (Dev) toolbar: the search field on its own row, the actions below as chips */
+#sidebar .devtree-toolbar { flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 10px 8px; }
+#sidebar .devtree-searchbox {
+  display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border-radius: 999px;
+  background: var(--lg-chip); box-shadow: var(--lg-rim); cursor: text;
+  transition: background .2s var(--lg-ease), box-shadow .2s var(--lg-ease);
+}
+#sidebar .devtree-searchbox:focus-within { background: var(--lg-chip-hover); box-shadow: var(--lg-rim), 0 0 0 1px rgba(255, 255, 255, .22); }
+#sidebar .devtree-search-icon { display: grid; place-items: center; flex: none; color: var(--lg-icon-muted); }
+#sidebar .devtree-search-icon svg { width: 14px; height: 14px; }
+#sidebar .devtree-search {
+  flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent;
+  color: var(--lg-text); font: 12px var(--lg-font);
+}
+#sidebar .devtree-search:focus { background: transparent; }
+#sidebar .devtree-search::-webkit-search-cancel-button { filter: invert(1) opacity(.5); }
+#sidebar .devtree-matches { margin: 0; color: var(--lg-faint); font: 11px var(--lg-font); font-variant-numeric: tabular-nums; }
+#sidebar .devtree-toolbar-actions { display: flex; align-items: center; gap: 4px; }
+#sidebar .devtree-action { height: 24px; padding: 0 10px; border-radius: 999px; font: 500 11px var(--lg-font); color: var(--lg-muted); }
+#sidebar .devtree-action:hover { background: var(--lg-chip); color: var(--lg-text); }
+/* "Solo riesgos": a toggle chip on the right, red when on */
+#sidebar .devtree-risk { margin-left: auto; border: 0; background: var(--lg-chip); box-shadow: var(--lg-rim); }
+#sidebar .devtree-risk:hover { background: var(--lg-chip-hover); }
+#sidebar .devtree-risk.active { background: rgba(255, 90, 106, .14); color: var(--danger); box-shadow: inset 0 0 0 1px rgba(255, 90, 106, .35); }
+#sidebar .devtree-matches[hidden] { display: none; }

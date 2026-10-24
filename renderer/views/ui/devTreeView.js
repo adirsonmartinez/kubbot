@@ -167,7 +167,14 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
 
     searchEl = search;
 
-    bar.append(search, matchesEl, expandBtn, collapseBtn, riskBtnEl);
+    // Row 1: the search field (magnifier, text, how many match); row 2: the actions, risks filter on the right
+    const box = h('label', 'devtree-searchbox');
+    const glass = h('span', 'devtree-search-icon');
+    glass.innerHTML = icon('search'); // static icon
+    box.append(glass, search, matchesEl);
+    const actions = h('div', 'devtree-toolbar-actions');
+    actions.append(expandBtn, collapseBtn, riskBtnEl);
+    bar.append(box, actions);
     return bar;
   }
 
@@ -419,6 +426,7 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
       collect(lastTree, 0, items);
 
       matchesEl.textContent = S.matches(items.length);
+      matchesEl.hidden = !filtering(); // the count only matters while searching or filtering
 
       // Issue 9: no matches -> show message
       if (!items.length) {
