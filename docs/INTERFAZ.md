@@ -14,7 +14,7 @@ El **mapa ocupa toda la ventana**. Todo lo demás flota encima y se puede plegar
 | Ruta | Al lado del botón del panel | El proyecto y la carpeta abierta (`team-12 / src`; tocar el proyecto o Esc la cierra) y sus archivos por semáforo: en riesgo, por revisar, seguros. |
 | Panel lateral | Flota a la izquierda | Explorador (Vibe: guía con nombres sencillos; Dev: árbol completo con búsqueda), Riesgos (la única lista de riesgos), Reparaciones (historial de Remi y del agente), Conecta tu agente. Queda fijo junto al dock; el "–" de su encabezado lo cierra, como el del chat. |
 | Chat | Fijo abajo a la derecha (no se arrastra) | **Pin** 📌: lo fija como columna y el mapa le deja su espacio. **Borde izquierdo**: cambia el ancho (300–720 px, doble clic lo resetea). Minimizado o cerrado, queda el botón flotante del agente (abajo a la derecha) con su menú. |
-| Tarjeta de seguridad | Fija arriba a la derecha del mapa (el chat abierto puede quedar encima) | Puntaje, archivos, en riesgo, por revisar, commits. Sus números de riesgo abren la lista de Riesgos. No se mueve ni se minimiza. |
+| Tarjeta de seguridad | Fija arriba a la izquierda del mapa, en una fila compacta (reemplaza al antiguo semáforo) | Puntaje, archivos, en riesgo, por revisar, commits. Sus números de riesgo abren la lista de Riesgos. No se mueve ni se minimiza. |
 | Menú de arriba (macOS) | Barra del sistema | Solo Platanus, Edición y Ventana: los menús de la app (Archivo, Ver, Agente…) están dentro de la ventana. |
 
 Cada cosa aparece **una sola vez**: la lista de riesgos está en el panel, los totales en la tarjeta de

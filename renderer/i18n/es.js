@@ -100,12 +100,6 @@ export const strings = {
   },
 
   panels: {
-    // Breadcrumb counts: files of the open folder (or the project) by traffic light
-    levelCount: (level, n) => ({
-      red: `${n} ${n === 1 ? 'archivo' : 'archivos'} en riesgo aquí`,
-      yellow: `${n} ${n === 1 ? 'archivo' : 'archivos'} por revisar aquí`,
-      green: `${n} ${n === 1 ? 'archivo seguro' : 'archivos seguros'} aquí`,
-    })[level],
     backToMap: 'Volver al mapa',
     schemaTitle: 'Supabase · esquema public',
     schemaSummary: (tables, hasError) => (hasError ? `${tables} tablas · 1 con error` : `${tables} tablas · todo en orden`),
