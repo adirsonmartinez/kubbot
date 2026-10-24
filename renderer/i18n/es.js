@@ -614,10 +614,10 @@ export const strings = {
         revert: /^(?:(?:rollback|revert(?:ir)?)(?:\s+(?:al?|el?|del?)\s+commit)?\s+|deshacer?\s+(?:el\s+)?commit\s+)([0-9a-f]{4,40}[\s\S]*)$/i,
         // reset: "reset al commit abc1234", "reset --hard abc1234"
         reset:  /^(?:reset(?:\s+--hard)?(?:\s+(?:al?|el?)\s+commit)?\s+)([0-9a-f]{4,40}[\s\S]*)$/i,
-        // createBranch: "crea la rama feature/xyz", "nueva rama hotfix/login"
-        createBranch: /^(?:crea(?:r)?(?:\s+(?:una?\s+|la\s+))?rama|nueva\s+rama)\s+([\w./-]+)$/i,
-        // checkout: "cambia a la rama main", "checkout develop"
-        checkout: /^(?:cambia(?:r)?\s+(?:a\s+)?(?:la\s+)?(?:rama\s+)?|checkout\s+)([\w./-]+)$/i,
+        // createBranch: "crear rama feature/xyz", "crea la rama feature/xyz", "nueva rama hotfix/login", "branch feature/xyz"
+        createBranch: /^(?:crea(?:r)?\s+(?:(?:una?|la)\s+)?rama|nueva\s+rama|branch)\s+([\w./-]+)$/i,
+        // checkout: "cambia a la rama main", "checkout develop", "cambia a main"
+        checkout: /^(?:cambia(?:r)?\s+(?:a\s+)?(?:(?:la\s+)?rama\s+)?|checkout\s+)([\w./-]+)$/i,
       },
       desktopOnly: 'Los comandos git solo funcionan dentro de la app de escritorio (npm start).',
       needsMessage:  'Escríbeme el mensaje del commit. Ejemplo: "haz commit con \"Fix login bug\""',
