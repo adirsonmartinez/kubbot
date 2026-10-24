@@ -5,7 +5,7 @@ import { strings } from '../i18n/es.js';
 import { allFiles, baseName, countDirs, countFiles, findNode } from '../models/fileTree.js';
 import { worstLevel } from '../models/securityModel.js';
 import { folderHeight as folderHeightOf, folderSlots, hqHeight } from './layout.js';
-import { fileTags, folderTags, friendlyName } from '../models/folderTags.js';
+import { fileTags, folderGuide, folderTags } from '../models/folderTags.js';
 
 export class MapViewModel {
   #project;
@@ -133,13 +133,14 @@ export class MapViewModel {
     const describe = (path, nodes) => {
       const files = allFiles(nodes);
       const levels = files.map((f) => this.#security.scoreOf(f.path).level);
-      const tags = folderTags(path, files);
+      const guide = folderGuide(path, files);
+      const tags = guide.tags;
       return {
         level: worstLevel(levels),
         red: levels.filter((l) => l === 'red').length,
         yellow: levels.filter((l) => l === 'yellow').length,
         tags,
-        friendly: friendlyName(path, tags),
+        friendly: strings.describeFolder(guide, baseName(path)).name,
       };
     };
     const total = countFiles(tree);

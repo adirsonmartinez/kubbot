@@ -13,6 +13,7 @@ import { SupabaseModel } from './models/supabaseModel.js';
 import { AgentModel } from './models/agentModel.js';
 import { AgentConnectionModel } from './models/agentConnectionModel.js';
 import { ModeModel } from './models/modeModel.js';
+import { RepairHistoryModel } from './models/repairHistoryModel.js';
 
 import { CameraViewModel } from './viewmodels/cameraViewModel.js';
 import { TowerViewModel } from './viewmodels/towerViewModel.js';
@@ -51,6 +52,7 @@ const supabaseModel = new SupabaseModel();
 const agentService = createAgentService();
 const connection = new AgentConnectionModel(agentService);
 const modeModel = new ModeModel();
+const repairHistory = new RepairHistoryModel();
 const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel });
 
 // --- ViewModels ---
@@ -60,7 +62,7 @@ const supabaseViewModel = new SupabaseViewModel({ supabaseModel, projectModel, c
 const mapViewModel = new MapViewModel({ projectModel, securityModel, camera: cameraViewModel, towerViewModel, supabaseViewModel });
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
 const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
-const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, towerViewModel, connection, bus });
+const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, towerViewModel, connection, history: repairHistory, agentService, bus });
 
 // App actions shared by the chat, the menus and the sidebar
 const stage = document.getElementById('stage');
@@ -78,6 +80,7 @@ const actions = {
   },
   showRisks: () => shellViewModel.store.state.side === 'risks' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('risks'),
   showGraph: () => shellViewModel.setStage('graph'),
+  showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
 const chatViewModel = new ChatViewModel({ agentModel, bus, actions });
 
@@ -102,8 +105,8 @@ createInputController({
 createControlsView({ cameraViewModel });
 createPanelsView({ mapViewModel, towerViewModel, supabaseViewModel });
 createChatView({ chatViewModel, connection });
-createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, actions });
-createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel });
+createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, actions });
+createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({
   container: document.getElementById('agent-picker'),
   connectorsButton: document.getElementById('chat-connectors'),
@@ -117,7 +120,10 @@ connection.refresh();
 
 // --- Wiring between layers ---
 projectModel.store.subscribe((state, previous) => {
-  if (state.session !== previous.session) bus.emit(EVENTS.projectOpened, { name: state.name ?? strings.map.defaultProjectName });
+  if (state.session !== previous.session) {
+    repairHistory.load(state.name ?? strings.map.defaultProjectName); // each project keeps its own history
+    bus.emit(EVENTS.projectOpened, { name: state.name ?? strings.map.defaultProjectName });
+  }
 });
 
 workspace.onChanged((paths) => {

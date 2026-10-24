@@ -11,7 +11,7 @@ import { TAG_COLOR } from '../../models/folderTags.js';
 const RISE_SPEED = 2.2;
 
 const tagHtml = (tags = []) =>
-  tags.length ? `<span class="tags">${tags.map((t) => `<em style="--c:${TAG_COLOR[t]}">${escapeHtml(t)}</em>`).join('')}</span>` : '';
+  tags.length ? `<span class="tags">${tags.map((t) => `<em style="--c:${TAG_COLOR[t]}">${escapeHtml(strings.tags[t] ?? t)}</em>`).join('')}</span>` : '';
 const crackHtml = (red) => (red ? `<span class="cracks">${strings.hover.cracks(red)}</span>` : '');
 
 // Label text: friendly names in "vibe" mode, folder names and counts in "técnico"

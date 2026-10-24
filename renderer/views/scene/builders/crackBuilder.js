@@ -35,10 +35,12 @@ function zigzag(parent, face, top, bottom, halfWidth, rnd, size) {
   const pieces = [];
   while (y > bottom) {
     const length = (0.45 + rnd() * 0.5) * size;
-    const angle = dir * (0.25 + rnd() * 0.45);
-    const dx = Math.sin(angle) * length; // a segment rotated by `angle` ends this far sideways
+    const tilt = 0.25 + rnd() * 0.45;
+    // A segment rotated by `angle` ends sin(angle) * length sideways: turn back before leaving the wall
+    if (Math.abs(x + Math.sin(dir * tilt) * length - face.center) > halfWidth) dir = -dir;
+    const angle = dir * tilt;
+    const dx = Math.sin(angle) * length;
     const dy = Math.cos(angle) * length;
-    if (Math.abs(x + dx - face.center) > halfWidth) dir = -dir;
     const mx = x + dx / 2, my = y - dy / 2;
     const out = face.sign * 0.035;
     // Glow behind (wider), dark gap in front

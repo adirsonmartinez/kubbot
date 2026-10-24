@@ -14,7 +14,7 @@ const el = (tag, className, text) => {
   return node;
 };
 
-export function createRepairPanelView({ container, repairViewModel: vm, modeModel }) {
+export function createRepairPanelView({ container, repairViewModel: vm, modeModel, actions }) {
   const card = el('aside', 'remi-card');
   card.setAttribute('role', 'status');
   card.setAttribute('aria-live', 'polite');
@@ -56,7 +56,9 @@ export function createRepairPanelView({ container, repairViewModel: vm, modeMode
     frame.appendChild(canvas);
     const info = el('div', 'remi-info');
     const path = modeModel.tech ? job.path : job.path.split('/').pop();
-    info.append(el('p', 'remi-kicker', R.working), el('p', 'remi-title', path), el('p', `remi-step${done ? ' ok' : ''}`, R.steps[job.step] + (done ? '' : '…')));
+    const stepNames = job.source === 'agent' ? R.stepsAgent(job.agentLabel) : R.steps;
+    const stepText = done ? R.outcome[job.outcome] ?? R.steps[job.step] : `${stepNames[job.step]}…`;
+    info.append(el('p', 'remi-kicker', R.working), el('p', 'remi-title', path), el('p', `remi-step${done ? ` ok ${job.outcome}` : ''}`, stepText));
     if (modeModel.tech) info.appendChild(el('p', 'remi-reason', strings.security.techReasons[job.reasonKey] ?? job.reason));
     const top = el('div', 'remi-top');
     top.append(frame, info);
@@ -78,15 +80,18 @@ export function createRepairPanelView({ container, repairViewModel: vm, modeMode
     }
     if (done) {
       parts.push(el('p', 'remi-honest', R.honest));
-      const actions = el('div', 'remi-actions');
-      const fixed = el('button', 'remi-btn primary', R.markFixed);
-      fixed.type = 'button';
-      fixed.addEventListener('click', () => vm.markFixed());
-      const close = el('button', 'remi-btn', R.close);
-      close.type = 'button';
-      close.addEventListener('click', () => vm.close());
-      actions.append(fixed, close);
-      parts.push(actions);
+      const row = el('div', 'remi-actions');
+      const button = (label, run, primary = false) => {
+        const b = el('button', `remi-btn${primary ? ' primary' : ''}`, label);
+        b.type = 'button';
+        b.addEventListener('click', run);
+        row.appendChild(b);
+      };
+      if (job.outcome === 'fixed') button(R.history.verify, () => vm.markFixed(), true);
+      else if (job.outcome === 'planned') button(R.markFixed, () => vm.markFixed(), true);
+      button(R.history.title, () => actions?.showRepairs());
+      button(R.close, () => vm.close());
+      parts.push(row);
     }
     const strip = el('ol', 'remi-strip');
     R.steps.forEach((label, i) => {

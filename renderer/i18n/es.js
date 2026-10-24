@@ -75,6 +75,64 @@ export const strings = {
     byDemo: 'Regla de demo: el agente de IA lo evaluará más adelante.',
   },
 
+  // Folder tags (models/folderTags.js) and the friendly names of "vibe" mode
+  tags: {
+    ui: 'Interfaz',
+    scene3d: '3D',
+    logic: 'Lógica',
+    data: 'Datos',
+    server: 'Servidor',
+    desktop: 'Escritorio',
+    agent: 'Agente',
+    security: 'Seguridad',
+    tests: 'Pruebas',
+    docs: 'Documentación',
+    config: 'Configuración',
+    assets: 'Recursos',
+  },
+  folders: {
+      root: { name: 'Edificio principal', summary: 'La raíz del proyecto: lo que está fuera de las carpetas.' },
+      screen: { name: 'Lo que ves en pantalla', summary: 'Todo lo que aparece en la ventana: mapa, paneles, chat y estilos.' },
+      components: { name: 'Piezas de la pantalla', summary: 'Botones, paneles y vistas que dibujan lo que ves.' },
+      styles: { name: 'Colores y estilos', summary: 'Cómo se ve todo: colores, tamaños, efectos de vidrio y animaciones.' },
+      scene: { name: 'Escena 3D', summary: 'Los edificios, las grietas, Remi y la cámara del mapa.' },
+      viewmodels: { name: 'Estado de cada pantalla', summary: 'Qué muestra cada parte y qué pasa al hacer clic, sin dibujar nada.' },
+      services: { name: 'Conexiones', summary: 'Habla con el disco, la app de escritorio y tu agente de IA.' },
+      core: { name: 'Cómo funciona por dentro', summary: 'Piezas básicas que usa el resto del código.' },
+      models: { name: 'Datos que recuerda la app', summary: 'El proyecto abierto, el semáforo de cada archivo y lo que eligió la persona.' },
+      database: { name: 'Base de datos', summary: 'Tablas, migraciones y reglas de quién puede leer qué.' },
+      server: { name: 'Servidor', summary: 'Lo que corre fuera de la pantalla y responde a la app.' },
+      desktop: { name: 'App de escritorio', summary: 'La ventana, los permisos al disco, el servidor local y los agentes con tu suscripción.' },
+      agent: { name: 'Inteligencia artificial', summary: 'Instrucciones y conexiones del agente de IA.' },
+      security: { name: 'Seguridad y accesos', summary: 'Quién puede entrar y qué puede hacer.' },
+      tests: { name: 'Pruebas automáticas', summary: 'Revisiones que se corren solas para que nada se rompa.' },
+      docs: { name: 'Documentación', summary: 'Explicaciones, decisiones e instrucciones del proyecto.' },
+      automation: { name: 'Automatizaciones y ajustes', summary: 'Lo que se ejecuta solo al subir cambios o publicar versiones.' },
+      assets: { name: 'Imágenes y archivos', summary: 'Logos, imágenes, fuentes y archivos que se sirven tal cual.' },
+      i18n: { name: 'Textos e idiomas', summary: 'Todas las frases que lee la persona, en un solo lugar.' },
+  },
+  // Name + sentence of a folder from folderTags.folderGuide(): { key, tags }
+  describeFolder: ({ key, tags }, folder) => {
+    if (key) return strings.folders[key];
+    const tag = strings.tags[tags[0]];
+    return { name: tag ? `${tag} · ${folder}` : folder, summary: tag ? `Archivos de ${tag.toLowerCase()}.` : 'Archivos del proyecto.' };
+  },
+
+  devTree: {
+    search: 'Buscar archivo o carpeta…',
+    expandAll: 'Expandir todo',
+    collapseAll: 'Contraer todo',
+    onlyRisks: 'Solo riesgos',
+    map: 'Ver en el mapa',
+    repair: 'Reparar',
+    copyPath: 'Copiar ruta',
+    copied: 'Ruta copiada',
+    noMatches: 'Nada coincide con la búsqueda.',
+    by: { agent: 'IA', remi: 'Remi' },
+    size: (bytes) => (bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1048576).toFixed(1)} MB`),
+    matches: (n) => (n === 1 ? '1 resultado' : `${n} resultados`),
+  },
+
   mode: {
     vibe: 'Vibe',
     tech: 'Dev',
@@ -100,11 +158,35 @@ export const strings = {
     step: (i, n) => `paso ${i}/${n}`,
     queued: (n) => `${n} en fila`,
     working: 'Arreglando',
-    steps: ['Caminando hacia la grieta', 'Mirando el problema', 'Pensando el plan', 'Apuntalando la grieta', 'Plan listo'],
+    steps: ['Caminando hacia la grieta', 'Mirando el problema', 'Reparando', 'Revisando el resultado', 'Listo'],
+    stepsAgent: (agent) => ['Caminando hacia la grieta', 'Mirando el problema', `${agent} está reparando`, 'Revisando el resultado', 'Listo'],
+    outcome: { fixed: 'Reparado: revísalo', planned: 'Plan listo', failed: 'No se pudo reparar' },
+    fixedToVerify: (n) => `Tu agente cambió ${n === 1 ? '1 archivo' : `${n} archivos`} para arreglarlo. Revísalo y márcalo como verificado.`,
+    timeout: 'El agente tardó demasiado.',
+    cancelled: 'Se canceló.',
+    verified: 'Verificado',
+    undo: 'Deshacer cambio',
+    undone: 'Deshecho',
+    agentFixPrompt: (path, reason) =>
+      `Repara este problema de seguridad del archivo ${path}: ${reason}\n` +
+      '1. Lee el archivo con platanus_read_file (si se niega porque tiene secretos, no insistas).\n' +
+      '2. Si hay un arreglo pequeño y seguro editando archivos del proyecto, escribe el archivo completo corregido con platanus_write_file y explica el cambio en "reason". La persona aprobará cada cambio. Si el arreglo no se hace editando (por ejemplo, rotar claves en otro servicio), no escribas nada.\n' +
+      '3. Responde en español sencillo, sin jerga, con tres partes cortas: "Qué encontré", "Qué cambié" y "Qué te falta hacer a ti". Usa viñetas que empiecen con "- ".',
+    chat: {
+      started: (path, agent) => (agent ? `🔧 Remi y ${agent} van a reparar ${path}.` : `🔧 Remi va a revisar ${path}.`),
+      changed: (path, reason) => `✏️ Cambio aprobado en ${path}: ${reason}`,
+      finished: {
+        fixed: (path, n) => `✅ Reparación de ${path}: ${n === 1 ? '1 archivo cambiado' : `${n} archivos cambiados`}. Quedó en amarillo hasta que lo verifiques en el historial de reparaciones.`,
+        planned: (path) => `📝 Plan de reparación de ${path} listo. Cuando lo apliques, márcalo en el historial de reparaciones.`,
+        failed: (path, why) => `⛔ No se pudo reparar ${path}. ${why}`,
+        verified: (path) => `🟢 ${path} quedó verificado.`,
+      },
+      planTitle: 'Pasos:',
+    },
     myPlan: 'Mi plan',
     fromAgent: (agent) => `Plan escrito con ${agent}`,
     fromGuide: 'Plan de la guía de Platanus',
-    honest: 'Remi no cambia tus archivos: deja el plan y marca la grieta en amarillo hasta que lo apliques.',
+    honest: 'Remi no cambia archivos. Tu agente sí puede, pero solo con tu aprobación y guardando una copia para deshacer. La grieta queda en amarillo hasta que lo verifiques.',
     markFixed: 'Ya lo apliqué',
     close: 'Cerrar',
     repair: 'Reparar',
@@ -116,7 +198,25 @@ export const strings = {
     fixedReason: 'Arreglado siguiendo el plan de Remi.',
     nothing: 'No hay grietas para reparar. ¡Todo en orden! 🟢',
     started: (path) => `🔧 Remi va a revisar ${path}.`,
-    planned: (path, steps) => `🔧 Plan de Remi para ${path}:\n${steps.map((s, i) => `${i + 1}. ${s}`).join('\n')}\n\nCuando lo apliques, toca "Ya lo apliqué".`,
+    history: {
+      title: 'Reparaciones',
+      intro: 'Todo lo que Remi y tu agente repararon o dejaron pendiente.',
+      empty: 'Todavía no hay reparaciones. Toca "Reparar" en un riesgo.',
+      clear: 'Limpiar terminadas',
+      status: { queued: 'En fila', working: 'Trabajando', planned: 'Plan listo', fixed: 'Por verificar', verified: 'Verificado', failed: 'Falló' },
+      by: (agent) => (agent ? `con ${agent}` : 'con la guía de Platanus'),
+      changes: 'Cambios',
+      plan: 'Pasos',
+      explanation: 'Lo que explicó el agente',
+      created: 'archivo nuevo',
+      verify: 'Marcar verificado',
+      retry: 'Reintentar',
+      open: 'Ver en el mapa',
+      ago: (iso) => {
+        const s = Math.max(1, Math.round((Date.now() - Date.parse(iso)) / 1000));
+        return s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : s < 86400 ? `hace ${Math.round(s / 3600)} h` : `hace ${Math.round(s / 86400)} d`;
+      },
+    },
     agentPrompt: (path, reason) =>
       `Lee el archivo ${path} con platanus_read_file si puedes. El problema es: ${reason}. ` +
       'Responde SOLO con 3 pasos cortos para arreglarlo, uno por línea, cada línea empezando con "- ". No cambies ningún archivo.',
@@ -153,11 +253,12 @@ export const strings = {
       repairWorst: 'Reparar la grieta más grave',
       toggleMode: 'Cambiar entre Vibe y Dev',
     },
-    rail: { explorer: 'Explorador', risks: 'Riesgos', agent: 'Conecta tu agente', map: 'Mapa 3D', project: 'Mapa del proyecto', graph: 'Grafo de amenazas', chat: 'Agente' },
+    rail: { explorer: 'Explorador', risks: 'Riesgos', repairs: 'Reparaciones', agent: 'Conecta tu agente', map: 'Mapa 3D', project: 'Mapa del proyecto', graph: 'Grafo de amenazas', chat: 'Agente' },
     // Shown when hovering a rail button or a tab
     railInfo: {
       explorer: 'Las partes de tu proyecto con etiquetas y su semáforo.',
       risks: 'Lo que está en rojo o amarillo. Desde aquí Remi lo repara.',
+      repairs: 'Historial de lo que se reparó, lo que falta verificar y lo que falló.',
       agent: 'Elige qué IA responde y conéctala desde tu editor.',
       map: 'Tu proyecto como una ciudad: cada carpeta es un edificio.',
       graph: 'El camino que seguiría un atacante hasta tus datos.',
@@ -184,6 +285,7 @@ export const strings = {
     sidebar: {
       explorer: 'Explorador',
       risks: 'Riesgos',
+      repairs: 'Reparaciones',
       agent: 'Conecta tu agente',
       noProject: 'Abre un proyecto para ver sus carpetas.',
       noRisks: 'Ningún archivo en rojo o amarillo. ¡Bien!',
@@ -306,7 +408,7 @@ export const strings = {
       'Eres el agente de seguridad de Platanus. Quien te escribe no es desarrollador: responde en español sencillo, en pocas frases, sin jerga. ' +
       'Usa las herramientas de Platanus: platanus_get_project para ver el proyecto, platanus_list_risks para los archivos en riesgo, ' +
       'platanus_read_file para leer un archivo, platanus_set_file_score para marcar el semáforo de un archivo (verde, amarillo o rojo, con una razón corta) ' +
-      'y platanus_show_folder para mostrar una carpeta en el mapa. Nunca pidas ni muestres secretos. Termina con un paso concreto que la persona pueda hacer.',
+      'platanus_show_folder para mostrar una carpeta en el mapa y platanus_write_file para guardar un arreglo (solo si la persona lo pide o estás reparando; ella aprueba cada cambio). Nunca pidas ni muestres secretos. Termina con un paso concreto que la persona pueda hacer.',
     // Added to livePrompt in "dev" mode
     techSuffix: ' La persona eligió el modo técnico: puedes usar rutas, nombres de archivos, comandos y fragmentos de código, siempre breves.',
     liveFailed: (why) => `<strong>No pude hablar con tu agente.</strong> ${why || 'Revisa en "Conecta tu agente" que la sesión esté iniciada.'}`,

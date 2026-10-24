@@ -60,11 +60,21 @@ function login(id) {
   return true;
 }
 
-const resumeIds = {}; // conversation continuity per agent
+const resumeIds = {}; // conversation continuity per agent and session ("chat" | "repair")
+
+// Grok's built-in tools (terminal, file edits, subagents, media…) are removed: it only acts through
+// Platanus' MCP tools (use_tool). Verified: with these flags `touch` from a prompt is not possible.
+const GROK_DISALLOWED = [
+  "run_terminal_command", "read_file", "search_replace", "write", "list_dir", "grep",
+  "kill_command_or_subagent", "get_command_or_subagent_output", "spawn_subagent",
+  "scheduler_create", "scheduler_delete", "scheduler_list", "monitor", "workflow",
+  "image_gen", "image_edit", "image_to_video", "reference_to_video",
+].join(",");
 
 // Minimal context: the CLI's own system prompt, tools, skills and settings are replaced/disabled;
 // only Platanus' tools remain, through MCP. (Claude Code: ~24k -> ~2k input tokens per message.)
-function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort }) {
+function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, session }) {
+  const resume = continued ? resumeIds[`${id}:${session}`] : null;
   if (id === "claude") {
     const mcp = JSON.stringify({ mcpServers: { platanus: { type: "http", url: mcpUrl } } });
     return [
@@ -79,7 +89,7 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort })
       "--disable-slash-commands",
       "--effort", effort,
       ...(model ? ["--model", model] : []),
-      ...(resumeIds.claude ? ["--resume", resumeIds.claude] : []),
+      ...(resume ? ["--resume", resume] : []),
     ];
   }
   if (id === "grok") {
@@ -91,9 +101,12 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort })
       "--system-prompt-override", systemPrompt,
       "--reasoning-effort", effort === "xhigh" || effort === "max" ? "high" : effort,
       ...(model ? ["-m", model] : []),
-      "--always-approve", // runs only in WORKDIR, an empty folder
+      "--permission-mode", "dontAsk",
+      "--allow", "use_tool",
+      "--disallowed-tools", GROK_DISALLOWED,
+      "--disable-web-search",
       "--cwd", WORKDIR,
-      ...(continued ? ["-c"] : []),
+      ...(resume ? ["--resume", resume] : []),
     ];
   }
   // codex
@@ -107,7 +120,7 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort })
 }
 
 // Turns each CLI's JSON output into simple events for the chat.
-function parseLine(id, line, emit) {
+function parseLine(id, session, line, emit) {
   let e;
   try {
     e = JSON.parse(line);
@@ -116,7 +129,7 @@ function parseLine(id, line, emit) {
   }
   // Claude Code and Grok Build emit the same format: system / assistant / result.
   if (id === "claude" || id === "grok") {
-    if (e.type === "system" && e.session_id) resumeIds[id] = e.session_id;
+    if (e.type === "system" && e.session_id) resumeIds[`${id}:${session}`] = e.session_id;
     if (e.type === "assistant") {
       for (const b of e.message?.content ?? []) {
         if (b.type === "text" && b.text) emit({ type: "text", delta: b.text });
@@ -136,34 +149,38 @@ function parseLine(id, line, emit) {
   if ((item.type === "agent_message" || item.type === "assistant_message") && (item.text || item.message)) {
     emit({ type: "text", delta: item.text || item.message });
   }
-  if (item.type === "mcp_tool_call" && e.type !== "item.completed") emit({ type: "tool", name: String(item.tool || item.name || "herramienta"), status: "start" });
+  if (item.type === "mcp_tool_call" && e.type !== "item.completed") emit({ type: "tool", name: String(item.tool || item.name || ""), status: "start" });
   if (item.type === "error") emit({ type: "error", message: item.message || t.agents.failed });
 }
 
 const running = new Map();
 
+// One run per agent and session at a time (the window serializes its requests; this is a safety net).
 function run(id, opts, emit) {
   if (!AGENTS[id]) return emit({ type: "error", message: t.agents.unknown }), emit({ type: "done" });
-  running.get(id)?.kill("SIGTERM");
-  const child = spawn(AGENTS[id].bin, argsFor(id, opts), { env: ENV, cwd: WORKDIR, stdio: ["ignore", "pipe", "pipe"] });
-  running.set(id, child);
+  const session = opts.session === "repair" ? "repair" : "chat";
+  const key = `${id}:${session}`;
+  running.get(key)?.kill("SIGTERM");
+  const child = spawn(AGENTS[id].bin, argsFor(id, { ...opts, session }), { env: ENV, cwd: WORKDIR, stdio: ["ignore", "pipe", "pipe"] });
+  running.set(key, child);
   let buffer = "";
   let stderr = "";
   child.stdout.on("data", (chunk) => {
     buffer += chunk.toString("utf8");
     const lines = buffer.split("\n");
     buffer = lines.pop() ?? "";
-    lines.forEach((l) => l.trim() && parseLine(id, l.trim(), emit));
+    lines.forEach((l) => l.trim() && parseLine(id, session, l.trim(), emit));
   });
   child.stderr.on("data", (c) => (stderr = (stderr + c.toString("utf8")).slice(-2000)));
   child.on("error", (err) => emit({ type: "error", message: t.agents.cannotStart(AGENTS[id].bin, err.message) }));
-  child.on("close", (code) => {
-    if (buffer.trim()) parseLine(id, buffer.trim(), emit);
-    if (code !== 0 && code !== null) {
+  child.on("close", (code, signal) => {
+    if (buffer.trim()) parseLine(id, session, buffer.trim(), emit);
+    if (signal) emit({ type: "error", message: t.agents.interrupted });
+    else if (code !== 0 && code !== null) {
       const hint = /login|auth|sign in|unauthori/i.test(stderr) ? t.agents.loginHint : "";
       emit({ type: "error", message: t.agents.exitCode(code) + hint });
     }
-    running.delete(id);
+    if (running.get(key) === child) running.delete(key); // a newer run may already own the key
     emit({ type: "done" });
   });
 }

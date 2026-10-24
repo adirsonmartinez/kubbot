@@ -15,7 +15,8 @@ const CHOICE_KEY = 'platanus.agent.choice.v1';
 
 export class AgentConnectionModel {
   #service;
-  #turns = new Map(); // agent -> messages sent (to continue the conversation)
+  #turns = new Map(); // "agent:session" -> messages sent (to continue the conversation)
+  #queue = Promise.resolve(); // one run at a time: the chat and Remi never talk over each other
 
   // agents: [{ id, label, installed, loggedIn: true | false | null }]
   store = new Observable({ agents: [], selected: null, model: '', effort: 'low', mcp: { url: null, running: false }, isDesktop: false });
@@ -64,12 +65,25 @@ export class AgentConnectionModel {
     return Boolean(this.store.state.selected);
   }
 
-  // Runs one message with the selected agent. Resolves with the full answer text.
+  get agentLabel() {
+    return this.store.state.agents.find((a) => a.id === this.store.state.selected)?.label ?? '';
+  }
+
+  // Runs one message with the selected agent. Resolves with { text, error } (never rejects).
   // onTool(name) is called each time the agent uses a Platanus tool; onText(delta) as the answer streams.
-  async ask(prompt, systemPrompt, { onTool, onText } = {}) {
+  // session: 'chat' (continues the conversation) or 'repair' (Remi's jobs, a separate conversation).
+  ask(prompt, systemPrompt, { onTool, onText, session = 'chat' } = {}) {
+    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, session });
+    const result = this.#queue.then(run, run);
+    this.#queue = result.catch(() => {});
+    return result;
+  }
+
+  async #run(prompt, systemPrompt, { onTool, onText, session }) {
     const { selected: agent, model, effort } = this.store.state;
-    const turns = this.#turns.get(agent) ?? 0;
-    this.#turns.set(agent, turns + 1);
+    const key = `${agent}:${session}`;
+    const turns = this.#turns.get(key) ?? 0;
+    this.#turns.set(key, turns + 1);
     let text = '';
     let error = null;
     let runId = null;
@@ -85,11 +99,11 @@ export class AgentConnectionModel {
         if (!runId) return void early.push(e);
         if (e.runId === runId) handle(e);
       });
-      this.#service.run({ agent, prompt, systemPrompt, model, effort, continued: turns > 0 }).then((r) => {
+      this.#service.run({ agent, prompt, systemPrompt, model, effort, session, continued: session === 'chat' && turns > 0 }).then((r) => {
         if (!r.ok) { off(); return resolve({ text: '', error: r.error }); }
         runId = r.data;
         early.filter((e) => e.runId === runId).forEach(handle);
-      });
+      }, (err) => { off(); resolve({ text: '', error: err?.message ?? String(err) }); });
     });
   }
 

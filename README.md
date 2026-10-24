@@ -23,6 +23,14 @@ npm run dev      # igual, con DevTools abiertas
 ```
 
 Si abres `renderer/index.html` en el navegador, verás un proyecto de demo (sin acceso al disco).
+`npx electron . --open=/ruta/al/proyecto` abre esa carpeta al arrancar; las últimas abiertas quedan en *Archivo → Abrir reciente*.
+
+En la app:
+- **Mapa / Proyecto / Grafo** (pestañas arriba): la ciudad 3D, cómo está repartido el código con etiquetas, y el camino de un atacante.
+- **Mover el mapa**: arrastrar con clic izquierdo rota e inclina; clic derecho o Shift + arrastrar mueve; rueda acerca; flechas o WASD desplazan; Q / E giran 90°.
+- **Vibe / Dev** (arriba a la derecha y en el explorador): Vibe es una guía con nombres sencillos; Dev muestra todas las carpetas, rutas y reglas.
+- **Grietas y Remi**: un archivo en rojo agrieta su edificio. "Reparar" (en Riesgos o en el chat) hace que Remi salte al mapa, camine al edificio, escriba un plan y apuntale la grieta. Remi no cambia archivos: la grieta queda en amarillo hasta que tocas "Ya lo apliqué".
+- **Conecta tu agente**: usa tu suscripción de Claude Code, Grok o Codex en el chat, o conecta tu editor al servidor MCP local (`http://127.0.0.1:7811/mcp`).
 
 En el chat:
 - `abrir carpeta`: elige la carpeta del proyecto. El agente no puede salir de ella.
@@ -64,13 +72,16 @@ Nunca se hace commit directo en `main`. Los mensajes de commit van en inglés.
 ## Estructura
 
 ```
-electron/            proceso principal: ventana, IPC, confirmaciones, límites del workspace
+electron/            proceso principal: ventana, IPC, confirmaciones, límites del workspace,
+                     proyectos recientes, servidor MCP local (mcpServer.js) y agentes CLI (agents.js)
 renderer/
   main.js            arma Models -> ViewModels -> Views
-  models/            datos y reglas (proyecto, semáforo, Supabase, agente)
-  viewmodels/        estado de pantalla y acciones (mapa, edificio abierto, cámara, chat)
-  views/scene/       three.js (mapa, edificio, Supabase, mouse y teclado)
-  views/ui/          HTML (chat, paneles, controles, etiquetas)
+  models/            datos y reglas (proyecto, semáforo, Supabase, agente, etiquetas, modo Vibe/Dev)
+  viewmodels/        estado de pantalla y acciones (mapa, edificio abierto, cámara, chat, shell, grafo, Remi)
+  views/scene/       three.js (mapa, edificio, grietas, Remi 3D, Supabase, mouse y teclado)
+  views/ui/          HTML (shell, chat, selector de agente, grafo, mapa del proyecto, tarjeta de Remi)
+  services/          puente con Electron (disco, agentes, MCP)
+  styles/            main.css (mapa) + shell.css (IDE de vidrio)
   i18n/es.js         todos los textos en español
 ```
 

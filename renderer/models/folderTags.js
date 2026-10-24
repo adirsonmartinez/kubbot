@@ -1,61 +1,63 @@
-// What each part of a project is, so anyone can tell what lives in a folder: tags (Interfaz, Datos…)
-// and, for "vibe" mode, a friendly name. Decided by folder and file names only (no file is read).
+// What each part of a project is, so anyone can tell what lives in a folder: tags (ui, data…) and,
+// for "vibe" mode, a friendly name key. Decided by folder and file names only (no file is read).
+// Labels, friendly names and summaries are user-facing text: they live in i18n/es.js (strings.tags,
+// strings.folders); this model only returns keys.
 import { baseName } from './fileTree.js';
 
-export const TAGS = ['Interfaz', '3D', 'Lógica', 'Datos', 'Servidor', 'Escritorio', 'Agente', 'Seguridad', 'Pruebas', 'Documentación', 'Configuración', 'Recursos'];
+export const TAGS = ['ui', 'scene3d', 'logic', 'data', 'server', 'desktop', 'agent', 'security', 'tests', 'docs', 'config', 'assets'];
 
 // Color of each tag (readable on the dark shell and on the light map)
 export const TAG_COLOR = {
-  Interfaz: '#f5c542',
-  '3D': '#6aa8ff',
-  Lógica: '#8b83ff',
-  Datos: '#3ddc97',
-  Servidor: '#ffab40',
-  Escritorio: '#7dd3fc',
-  Agente: '#c792ea',
-  Seguridad: '#ff5a6a',
-  Pruebas: '#86efac',
-  Documentación: '#a3a3a3',
-  Configuración: '#94a3b8',
-  Recursos: '#f0abfc',
+  ui: '#f5c542',
+  scene3d: '#6aa8ff',
+  logic: '#8b83ff',
+  data: '#3ddc97',
+  server: '#ffab40',
+  desktop: '#7dd3fc',
+  agent: '#c792ea',
+  security: '#ff5a6a',
+  tests: '#86efac',
+  docs: '#a3a3a3',
+  config: '#94a3b8',
+  assets: '#f0abfc',
 };
 
-// Folder name -> tags. First match wins for the friendly name; every match adds its tags.
+// Folder name -> tags. First match wins for the friendly name (strings.folders[key]); every match adds tags.
 const FOLDER_RULES = [
-  { re: /^(renderer|frontend|client|web|app)$/i, tags: ['Interfaz'], name: 'Lo que ves en pantalla', summary: 'Todo lo que aparece en la ventana: mapa, paneles, chat y estilos.' },
-  { re: /^(components|ui|views|pages|screens|layouts|widgets)$/i, tags: ['Interfaz'], name: 'Piezas de la pantalla', summary: 'Botones, paneles y vistas que dibujan lo que ves.' },
-  { re: /^(styles|css|theme|themes)$/i, tags: ['Interfaz'], name: 'Colores y estilos', summary: 'Cómo se ve todo: colores, tamaños, efectos de vidrio y animaciones.' },
-  { re: /^(scene|three|3d|webgl|builders|meshes)$/i, tags: ['3D'], name: 'Escena 3D', summary: 'Los edificios, las grietas, Remi y la cámara del mapa.' },
-  { re: /^viewmodels$/i, tags: ['Lógica'], name: 'Estado de cada pantalla', summary: 'Qué muestra cada parte y qué pasa al hacer clic, sin dibujar nada.' },
-  { re: /^services$/i, tags: ['Lógica', 'Agente'], name: 'Conexiones', summary: 'Habla con el disco, la app de escritorio y tu agente de IA.' },
-  { re: /^(core|utils|helpers|hooks|lib|src|packages)$/i, tags: ['Lógica'], name: 'Cómo funciona por dentro', summary: 'Piezas básicas que usa el resto del código.' },
-  { re: /^(models|store|state|data|schema|schemas)$/i, tags: ['Datos'], name: 'Datos que recuerda la app', summary: 'El proyecto abierto, el semáforo de cada archivo y lo que eligió la persona.' },
-  { re: /^(supabase|db|database|prisma|migrations|sql)$/i, tags: ['Datos', 'Seguridad'], name: 'Base de datos', summary: 'Tablas, migraciones y reglas de quién puede leer qué.' },
-  { re: /^(api|server|backend|routes|functions|edge-functions)$/i, tags: ['Servidor'], name: 'Servidor', summary: 'Lo que corre fuera de la pantalla y responde a la app.' },
-  { re: /^(electron|desktop|main|tauri)$/i, tags: ['Escritorio'], name: 'App de escritorio', summary: 'La ventana, los permisos al disco, el servidor local y los agentes con tu suscripción.' },
-  { re: /^(agent|agents|ai|llm|mcp|chat|prompts|skills)$/i, tags: ['Agente'], name: 'Inteligencia artificial', summary: 'Instrucciones y conexiones del agente de IA.' },
-  { re: /^(auth|security|crypto|middleware|policies)$/i, tags: ['Seguridad'], name: 'Seguridad y accesos', summary: 'Quién puede entrar y qué puede hacer.' },
-  { re: /^(tests?|__tests__|spec|specs|e2e|cypress)$/i, tags: ['Pruebas'], name: 'Pruebas automáticas', summary: 'Revisiones que se corren solas para que nada se rompa.' },
-  { re: /^(docs?|documentation|wiki)$/i, tags: ['Documentación'], name: 'Documentación', summary: 'Explicaciones, decisiones e instrucciones del proyecto.' },
-  { re: /^(\.github|\.gitlab|\.circleci|ci|scripts|\.vscode|\.husky|config)$/i, tags: ['Configuración'], name: 'Automatizaciones y ajustes', summary: 'Lo que se ejecuta solo al subir cambios o publicar versiones.' },
-  { re: /^(public|assets|static|images|img|media|fonts|icons)$/i, tags: ['Recursos'], name: 'Imágenes y archivos', summary: 'Logos, imágenes, fuentes y archivos que se sirven tal cual.' },
-  { re: /^(i18n|locales|lang|translations)$/i, tags: ['Interfaz'], name: 'Textos e idiomas', summary: 'Todas las frases que lee la persona, en un solo lugar.' },
+  { key: 'screen', re: /^(renderer|frontend|client|web|app)$/i, tags: ['ui'] },
+  { key: 'components', re: /^(components|ui|views|pages|screens|layouts|widgets)$/i, tags: ['ui'] },
+  { key: 'styles', re: /^(styles|css|theme|themes)$/i, tags: ['ui'] },
+  { key: 'scene', re: /^(scene|three|3d|webgl|builders|meshes)$/i, tags: ['scene3d'] },
+  { key: 'viewmodels', re: /^viewmodels$/i, tags: ['logic'] },
+  { key: 'services', re: /^services$/i, tags: ['logic', 'agent'] },
+  { key: 'core', re: /^(core|utils|helpers|hooks|lib|src|packages)$/i, tags: ['logic'] },
+  { key: 'models', re: /^(models|store|state|data|schema|schemas)$/i, tags: ['data'] },
+  { key: 'database', re: /^(supabase|db|database|prisma|migrations|sql)$/i, tags: ['data', 'security'] },
+  { key: 'server', re: /^(api|server|backend|routes|functions|edge-functions)$/i, tags: ['server'] },
+  { key: 'desktop', re: /^(electron|desktop|main|tauri)$/i, tags: ['desktop'] },
+  { key: 'agent', re: /^(agent|agents|ai|llm|mcp|chat|prompts|skills)$/i, tags: ['agent'] },
+  { key: 'security', re: /^(auth|security|crypto|middleware|policies)$/i, tags: ['security'] },
+  { key: 'tests', re: /^(tests?|__tests__|spec|specs|e2e|cypress)$/i, tags: ['tests'] },
+  { key: 'docs', re: /^(docs?|documentation|wiki)$/i, tags: ['docs'] },
+  { key: 'automation', re: /^(\.github|\.gitlab|\.circleci|ci|scripts|\.vscode|\.husky|config)$/i, tags: ['config'] },
+  { key: 'assets', re: /^(public|assets|static|images|img|media|fonts|icons)$/i, tags: ['assets'] },
+  { key: 'i18n', re: /^(i18n|locales|lang|translations)$/i, tags: ['ui'] },
 ];
 
 // File name -> tags
 const FILE_RULES = [
-  { re: /(\.test|\.spec)\.[cm]?[jt]sx?$/i, tags: ['Pruebas'] },
-  { re: /^\.env/i, tags: ['Seguridad', 'Configuración'] },
-  { re: /\.(pem|key|p12|pfx|keystore|jks)$/i, tags: ['Seguridad'] },
-  { re: /(auth|login|session|token|jwt|crypto|password|secret)/i, tags: ['Seguridad'] },
-  { re: /\.(html|css|scss|tsx|jsx|vue|svelte)$/i, tags: ['Interfaz'] },
-  { re: /\.(sql|prisma)$/i, tags: ['Datos'] },
-  { re: /\.(md|mdx|txt)$/i, tags: ['Documentación'] },
-  { re: /\.(png|jpe?g|gif|svg|webp|ico|woff2?|ttf|glb|gltf)$/i, tags: ['Recursos'] },
-  { re: /^(package(-lock)?\.json|.*\.config\.[cm]?[jt]s|.*\.ya?ml|.*\.toml|dockerfile|\.gitignore|\.npmrc)$/i, tags: ['Configuración'] },
-  { re: /(mcp|agent|prompt|llm)/i, tags: ['Agente'] },
-  { re: /(three|scene|mesh|camera)/i, tags: ['3D'] },
-  { re: /\.[cm]?[jt]s$/i, tags: ['Lógica'] },
+  { re: /(\.test|\.spec)\.[cm]?[jt]sx?$/i, tags: ['tests'] },
+  { re: /^\.env/i, tags: ['security', 'config'] },
+  { re: /\.(pem|key|p12|pfx|keystore|jks)$/i, tags: ['security'] },
+  { re: /(auth|login|session|token|jwt|crypto|password|secret)/i, tags: ['security'] },
+  { re: /\.(html|css|scss|tsx|jsx|vue|svelte)$/i, tags: ['ui'] },
+  { re: /\.(sql|prisma)$/i, tags: ['data'] },
+  { re: /\.(md|mdx|txt)$/i, tags: ['docs'] },
+  { re: /\.(png|jpe?g|gif|svg|webp|ico|woff2?|ttf|glb|gltf)$/i, tags: ['assets'] },
+  { re: /^(package(-lock)?\.json|.*\.config\.[cm]?[jt]s|.*\.ya?ml|.*\.toml|dockerfile|\.gitignore|\.npmrc)$/i, tags: ['config'] },
+  { re: /(mcp|agent|prompt|llm)/i, tags: ['agent'] },
+  { re: /(three|scene|mesh|camera)/i, tags: ['scene3d'] },
+  { re: /\.[cm]?[jt]s$/i, tags: ['logic'] },
 ];
 
 const unique = (list) => [...new Set(list)];
@@ -75,17 +77,11 @@ export function folderTags(path, files = []) {
   return unique([...own, ...common]).slice(0, 3);
 }
 
-// Friendly name for "vibe" mode ('' = the project root). Falls back to the main tag.
-export function friendlyName(path, tags = []) {
-  if (!path) return 'Edificio principal';
-  const rule = FOLDER_RULES.find((r) => r.re.test(baseName(path)));
-  if (rule) return rule.name;
-  return tags[0] ? `${tags[0]} · ${baseName(path)}` : baseName(path);
-}
-
-// Guide entry for "vibe" mode: friendly name + one simple sentence
+// Folder description for "vibe" mode: { key, tags } where key is a strings.folders entry or null
+// ('' = the project root, key 'root').
 export function folderGuide(path, files = []) {
   const tags = folderTags(path, files);
+  if (!path) return { key: 'root', tags };
   const rule = FOLDER_RULES.find((r) => r.re.test(baseName(path)));
-  return { tags, name: friendlyName(path, tags), summary: rule?.summary ?? (tags[0] ? `Archivos de ${tags[0].toLowerCase()}.` : 'Archivos del proyecto.') };
+  return { key: rule?.key ?? null, tags };
 }

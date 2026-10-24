@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { box, materials as M } from './materials.js';
 import { buildRemi } from './builders/remiBuilder.js';
+import { loadRemiModel } from './builders/remiModelLoader.js';
 import { strings } from '../../i18n/es.js';
 
 const GRAVITY = 14;
@@ -27,6 +28,16 @@ export function createRemiView({ sceneView, labels, repairViewModel }) {
 
   const bubble = labels.add({ className: 'remi-bubble', hidden: true });
 
+  // The 3D character from renderer/assets/remi/ replaces the blocky one when it is there.
+  // It has no skeleton, so the whole model bobs, leans and rocks with the same poses.
+  let skin = null;
+  loadRemiModel().then((model) => {
+    if (!model) return;
+    skin = model;
+    remi.body.visible = false;
+    remi.root.add(skin);
+  });
+
   const sparks = []; // { mesh, v, life }
   let stepStarted = 0;
   let lastStep = -1;
@@ -48,7 +59,10 @@ export function createRemiView({ sceneView, labels, repairViewModel }) {
     if (job.step !== lastStep) {
       lastStep = job.step;
       stepStarted = clock;
-      bubble.el.textContent = `${BUBBLE[job.step]} ${strings.repair.steps[job.step]}`;
+      const R = strings.repair;
+      const names = job.source === 'agent' ? R.stepsAgent(job.agentLabel) : R.steps;
+      const done = job.step === BUBBLE.length - 1;
+      bubble.el.textContent = done ? `${job.outcome === 'failed' ? '⛔' : BUBBLE[job.step]} ${R.outcome[job.outcome] ?? names[job.step]}` : `${BUBBLE[job.step]} ${names[job.step]}`;
       bubble.el.classList.toggle('done', job.step === BUBBLE.length - 1);
     }
   });
@@ -92,7 +106,9 @@ export function createRemiView({ sceneView, labels, repairViewModel }) {
     const look = job.step === 0 ? Math.atan2(job.to.x - job.from.x, job.to.z - job.from.z) : Math.atan2(job.center.x - x, job.center.z - z);
     remi.root.rotation.y = damp(remi.root.rotation.y, angleTo(remi.root.rotation.y, look), dt);
 
-    switch (job.step) {
+    // While the agent is changing files (step 2), Remi hammers instead of thinking
+    const pose3 = job.step === 2 && job.hammering ? 3 : job.step;
+    switch (pose3) {
       case 0: { // walk
         const s = Math.sin(e * 11) * a;
         pose(dt, { legs: s * 0.7, armL: -s * 0.6, armR: s * 0.5 - 0.3, bob: Math.abs(s) * 0.08 });
@@ -121,6 +137,13 @@ export function createRemiView({ sceneView, labels, repairViewModel }) {
       }
     }
 
+    if (skin) {
+      // Whole-body version of the pose: lean, bob, and a rocking strike while hammering
+      skin.position.y = remi.body.position.y;
+      skin.rotation.x = remi.body.rotation.x + (pose3 === 3 ? Math.max(0, -remi.arms[1].rotation.x - 1.6) * 0.12 : 0);
+      skin.rotation.z = pose3 === 0 ? Math.sin(e * 11) * 0.06 * a : 0;
+      skin.rotation.y = remi.head.rotation.y * 0.4;
+    }
     bubble.setAnchor(x, BASE_Y + 3.1, z);
   });
 }

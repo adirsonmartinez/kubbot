@@ -621,3 +621,44 @@ body.stage-project #hover-card { visibility: hidden; }
 /* Remi's speech bubble on the map */
 .map-label.remi-bubble { z-index: 3; padding: 4px 9px; border: 2px solid #000; border-radius: 10px; background: #fff7d6; color: #1b1a2e; font: 700 11px var(--font); box-shadow: 3px 3px 0 #f5c542; white-space: nowrap; }
 .map-label.remi-bubble.done { background: #dcfce9; box-shadow: 3px 3px 0 #3ddc97; }
+
+/* ---------- Repair history (task list) ---------- */
+.rail-badge {
+  position: absolute; top: 3px; right: 3px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px;
+  display: grid; place-items: center; background: #f5c542; color: #1b1a2e; font: 700 9px var(--font); font-style: normal;
+}
+.rail-badge[hidden] { display: none; }
+.task-card { margin-bottom: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; transition: border-color .18s; }
+.task-card.open { border-color: var(--line-strong); }
+.task-card.working { border-color: rgba(245, 197, 66, .45); }
+.task-head {
+  display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; width: 100%; padding: 9px 11px;
+  border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.task-head:hover { background: var(--panel-2); }
+.task-path { font: 600 12px var(--mono); overflow-wrap: anywhere; align-self: center; }
+.task-meta { grid-column: 1 / -1; color: var(--faint); font-size: 10.5px; }
+.task-status { padding: 1px 7px; border-radius: 999px; font: 600 10px var(--font); white-space: nowrap; align-self: center; }
+.task-status.working, .task-status.queued { background: rgba(245, 197, 66, .16); color: #f5c542; }
+.task-status.fixed { background: rgba(139, 131, 255, .18); color: var(--accent); }
+.task-status.planned { background: rgba(255, 194, 74, .12); color: var(--warn); }
+.task-status.verified { background: rgba(61, 220, 151, .14); color: var(--ok); }
+.task-status.failed { background: rgba(255, 90, 106, .14); color: var(--danger); }
+.task-status.working::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: currentColor; animation: pulse 1.2s ease-in-out infinite; }
+.task-body { padding: 0 11px 11px; animation: rise .22s ease both; }
+.task-body .side-label { margin: 10px 0 4px; }
+.task-reason { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.task-change { display: flex; flex-direction: column; gap: 3px; margin-bottom: 6px; padding: 7px 9px; border-radius: 9px; background: rgba(0, 0, 0, .22); font-size: 11.5px; color: var(--muted); }
+.task-change strong { color: var(--ink); font-size: 11px; }
+.task-change .pill { align-self: flex-start; margin-top: 2px; }
+.task-change.undone { opacity: .55; text-decoration: line-through; }
+.task-undone { color: var(--faint); font-size: 10.5px; text-decoration: none; }
+.task-plan { margin: 0; padding-left: 18px; color: var(--ink); font-size: 12px; line-height: 1.5; }
+.task-summary { margin-top: 8px; }
+.task-summary summary { color: var(--muted); font-size: 11.5px; cursor: pointer; }
+.task-summary p { margin: 6px 0 0; white-space: pre-wrap; color: var(--ink); font-size: 12px; line-height: 1.5; }
+.task-error { margin: 8px 0 0; color: var(--danger); font-size: 11.5px; }
+.task-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.remi-step.failed { color: #b4232f !important; }
+#chat .msg.repair { background: rgba(245, 197, 66, .07); box-shadow: inset 2px 0 0 #f5c542; padding: 8px 11px; border-radius: 10px; }
+@media (prefers-reduced-motion: reduce) { .task-body, .task-status.working::before { animation: none; } }

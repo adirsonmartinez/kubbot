@@ -71,6 +71,7 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
   };
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (vm.store.state.typing || !input.value.trim()) return; // keep the text until it can be sent
     vm.send(input.value);
     input.value = '';
     grow();

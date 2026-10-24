@@ -7,7 +7,7 @@ const fs = require('node:fs/promises');
 const { Workspace } = require('./workspace');
 const t = require('./strings');
 const agents = require('./agents');
-const { startMcpServer, MAX_READ_BYTES } = require('./mcpServer');
+const { startMcpServer, MAX_READ_BYTES, isBlockedPath } = require('./mcpServer');
 
 const workspace = new Workspace();
 const audit = []; // log of everything done on disk
@@ -186,9 +186,27 @@ const mcpHandlers = {
   platanus_list_risks: () => askRenderer('list_risks', {}),
   platanus_read_file: async ({ path: rel }) => {
     if (!workspace.root) throw new Error(t.mcp.noProject);
-    const { size } = await fs.stat(await workspace.resolve(rel));
+    const abs = await workspace.resolve(rel);
+    await refuseSecretTarget(abs);
+    const { size } = await fs.stat(abs);
     if (size > MAX_READ_BYTES) throw new Error(t.mcp.tooLarge(Math.round(MAX_READ_BYTES / 1024)));
     return workspace.readFile(rel);
+  },
+  // Every write is approved by the user; the previous version is backed up and can be undone
+  platanus_write_file: async ({ path: rel, content, reason }) => {
+    if (!workspace.root) throw new Error(t.mcp.noProject);
+    if (Buffer.byteLength(content) > MAX_READ_BYTES) throw new Error(t.mcp.tooLarge(Math.round(MAX_READ_BYTES / 1024)));
+    const abs = await workspace.resolve(rel);
+    const exists = await workspace.exists(rel);
+    if (exists) await refuseSecretTarget(abs);
+    const why = String(reason).slice(0, 300);
+    const ok = await confirm(t.mcp.confirmWrite(rel), t.mcp.confirmWriteDetail(why, exists));
+    if (!ok) throw new Error(t.mcp.writeRejected);
+    const backup = exists ? await backupFile(rel, abs) : null;
+    await workspace.writeFile(rel, content);
+    const change = { path: rel, reason: why, created: !exists, backup, at: new Date().toISOString() };
+    send('agent:changed', change);
+    return t.mcp.written(rel);
   },
   platanus_set_file_score: ({ path: rel, level, reason }) => {
     send('agent:score', { path: rel, level, reason: String(reason).slice(0, 240) });
@@ -196,6 +214,39 @@ const mcpHandlers = {
   },
   platanus_show_folder: ({ path: rel }) => askRenderer('show_folder', { path: rel }),
 };
+
+// A symlink inside the project may point to a secret: check the real target too
+async function refuseSecretTarget(abs) {
+  const real = await fs.realpath(abs).catch(() => abs);
+  if (isBlockedPath(path.relative(workspace.root, real))) throw new Error(t.mcp.secret);
+}
+
+// Previous versions written by agents: ~/.platanus/backups/<id>/<path>
+const BACKUPS = path.join(app.getPath('home'), '.platanus', 'backups');
+async function backupFile(rel, abs) {
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const target = path.join(BACKUPS, id, rel);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.copyFile(abs, target);
+  return { id, root: workspace.root };
+}
+
+// Undo an agent's change: put the backed-up version back (asks first)
+ipcMain.handle('agent:undo', async (_e, { path: rel, backup } = {}) => {
+  try {
+    if (!backup?.id || !/^[\w-]+$/.test(backup.id) || backup.root !== workspace.root) throw new Error(t.mcp.cannotUndo);
+    const source = path.join(BACKUPS, backup.id, rel);
+    if (!source.startsWith(path.join(BACKUPS, backup.id) + path.sep)) throw new Error(t.mcp.cannotUndo);
+    const content = await fs.readFile(source, 'utf8');
+    if (!(await confirm(t.mcp.confirmUndo(rel), t.mcp.confirmUndoDetail))) throw new Error(t.mcp.writeRejected);
+    await workspace.writeFile(rel, content);
+    log('agent:undo', rel, true);
+    return { ok: true };
+  } catch (err) {
+    log('agent:undo', rel, false, err.message);
+    return { ok: false, error: err.message };
+  }
+});
 
 async function startMcp() {
   const server = await startMcpServer({
@@ -219,7 +270,7 @@ ipcMain.handle('agents:run', (_e, req) => {
   const effort = ['low', 'medium', 'high', 'xhigh', 'max'].includes(req?.effort) ? req.effort : 'low';
   agents.run(
     String(req?.agent),
-    { prompt: String(req?.prompt ?? ''), systemPrompt: String(req?.systemPrompt ?? ''), mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort },
+    { prompt: String(req?.prompt ?? ''), systemPrompt: String(req?.systemPrompt ?? ''), mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: req?.session === 'repair' ? 'repair' : 'chat' },
     (event) => send('agents:event', { runId, ...event }),
   );
   return { ok: true, data: runId };

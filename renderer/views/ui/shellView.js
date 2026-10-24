@@ -3,6 +3,7 @@
 // Only draws ShellViewModel and forwards clicks to view model actions.
 import { strings } from '../../i18n/es.js';
 import { TAG_COLOR, TAGS } from '../../models/folderTags.js';
+import { createDevTree } from './devTreeView.js';
 
 const S = strings.shell;
 const P = S.project;
@@ -17,7 +18,7 @@ const el = (tag, className, text) => {
 };
 
 const tagChip = (tag, { active = false, onClick = null } = {}) => {
-  const chip = el(onClick ? 'button' : 'span', `tag-chip${active ? ' active' : ''}`, tag);
+  const chip = el(onClick ? 'button' : 'span', `tag-chip${active ? ' active' : ''}`, strings.tags[tag] ?? tag);
   chip.style.setProperty('--c', TAG_COLOR[tag] ?? '#8c909c');
   if (onClick) {
     chip.type = 'button';
@@ -35,10 +36,15 @@ function addTip(button, title, info) {
   button.appendChild(tip);
 }
 
-export function createShellView({ shellViewModel: vm, cameraViewModel: camera, modeModel, repairViewModel, actions }) {
+export function createShellView({ shellViewModel: vm, cameraViewModel: camera, modeModel, repairViewModel, repairHistory, actions }) {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
-  const openDirs = new Set(); // folders expanded in the Dev tree
+  const devTree = createDevTree({
+    onOpenFolder: (path) => vm.showFolder(path),
+    onOpenFile: (path) => vm.showFile(path),
+    onRepair: (path, button) => actions.repair(path, button),
+    isRepairing: (path) => repairViewModel.isQueued(path),
+  });
   let tagFilter = null; // project map filter
 
   // --- Menus (title bar). Items can be a function so they are rebuilt when the menu opens. ---
@@ -231,31 +237,9 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     return row;
   }
 
-  // Dev: every folder, expandable, with real names
-  function renderTree(nodes, depth = 0) {
-    const rows = [];
-    for (const node of nodes) {
-      if (node.type === 'file') { rows.push(fileRow(node, depth)); continue; }
-      const open = openDirs.has(node.path);
-      const row = el('button', `side-row folder${open ? ' open' : ''}`);
-      row.type = 'button';
-      row.style.paddingLeft = `${8 + depth * 12}px`;
-      row.append(el('span', 'chevron', '›'), dot(node.level), el('span', 'side-name', `${node.name}/`), el('span', 'side-count', String(node.files)));
-      row.title = S.sidebar.openFolder(node.name);
-      row.addEventListener('click', () => {
-        if (open) openDirs.delete(node.path); else openDirs.add(node.path);
-        if (depth === 0) vm.showFolder(node.path);
-        render(vm.store.state);
-      });
-      rows.push(row);
-      if (open) rows.push(...renderTree(node.children, depth + 1));
-    }
-    return rows;
-  }
-
   function renderExplorer(state) {
     if (!state.open) return [el('p', 'side-empty', S.sidebar.noProject)];
-    return modeModel.tech ? renderTree(state.tree) : renderGuide(state);
+    return modeModel.tech ? devTree.render(state.tree) : renderGuide(state);
   }
 
   function repairButton(file) {
@@ -289,6 +273,85 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
         return card;
       }),
     ];
+  }
+
+  // --- Repair history: a task list of what Remi and the agent did ---
+  const H = strings.repair.history;
+  const expanded = new Set(); // entries opened by the person (the newest unfinished one opens by itself)
+
+  function repairEntry(entry, isNewest) {
+    const open = expanded.has(entry.id) || (isNewest && entry.status !== 'verified');
+    const card = el('article', `task-card ${entry.status}${open ? ' open' : ''}`);
+    const head = el('button', 'task-head');
+    head.type = 'button';
+    head.setAttribute('aria-expanded', String(open));
+    head.append(
+      el('span', `task-status ${entry.status}`, H.status[entry.status]),
+      el('strong', 'task-path', entry.path),
+      el('span', 'task-meta', `${H.by(entry.agent)} · ${H.ago(entry.endedAt ?? entry.startedAt)}`),
+    );
+    head.addEventListener('click', () => {
+      if (open) expanded.delete(entry.id); else expanded.add(entry.id);
+      render(vm.store.state);
+    });
+    card.appendChild(head);
+    if (!open) return card;
+
+    const body = el('div', 'task-body');
+    if (entry.reason) body.appendChild(el('p', 'task-reason', entry.reason));
+    if (entry.changes.length) {
+      body.appendChild(el('p', 'side-label', H.changes));
+      for (const change of entry.changes) {
+        const row = el('div', `task-change${change.undone ? ' undone' : ''}`);
+        row.append(el('strong', 'mono', change.path + (change.created ? ` · ${H.created}` : '')), el('span', '', change.reason));
+        if (change.backup && !change.undone) {
+          const undo = el('button', 'pill', strings.repair.undo);
+          undo.type = 'button';
+          undo.addEventListener('click', () => repairViewModel.undo(entry.id, change));
+          row.appendChild(undo);
+        } else if (change.undone) row.appendChild(el('span', 'task-undone', strings.repair.undone));
+        body.appendChild(row);
+      }
+    }
+    if (entry.plan.length) {
+      body.appendChild(el('p', 'side-label', H.plan));
+      const list = el('ol', 'task-plan');
+      entry.plan.forEach((step) => list.appendChild(el('li', '', step)));
+      body.appendChild(list);
+    }
+    if (entry.summary) {
+      const details = el('details', 'task-summary');
+      details.append(el('summary', '', H.explanation), el('p', '', entry.summary));
+      body.appendChild(details);
+    }
+    if (entry.error) body.appendChild(el('p', 'task-error', entry.error));
+    const buttons = el('div', 'task-actions');
+    const button = (label, run, primary = false) => {
+      const b = el('button', `pill${primary ? ' active' : ''}`, label);
+      b.type = 'button';
+      b.addEventListener('click', (e) => run(e.currentTarget));
+      buttons.appendChild(b);
+    };
+    if (entry.status === 'fixed' || entry.status === 'planned') button(H.verify, () => repairViewModel.markFixed(entry.id), true);
+    if (entry.status === 'failed') button(H.retry, (b) => actions.repair(entry.path, b), true);
+    button(H.open, () => vm.showFile(entry.path));
+    body.appendChild(buttons);
+    card.appendChild(body);
+    return card;
+  }
+
+  function renderRepairs() {
+    const { entries } = repairHistory.store.state;
+    if (!entries.length) return [el('p', 'side-intro', H.intro), el('p', 'side-empty', H.empty)];
+    const parts = [el('p', 'side-intro', H.intro)];
+    if (entries.some((e) => e.status !== 'working' && e.status !== 'queued')) {
+      const clear = el('button', 'link', H.clear);
+      clear.type = 'button';
+      clear.addEventListener('click', () => repairHistory.clearFinished());
+      parts.push(clear);
+    }
+    entries.forEach((entry, i) => parts.push(repairEntry(entry, i === 0)));
+    return parts;
   }
 
   // --- Stage tabs (map / project / graph) with icon, badge and hover card ---
@@ -406,9 +469,19 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     $('agent-connect').hidden = !agentView;
     if (!agentView) {
       const scroll = sidebarBody.scrollTop;
-      sidebarBody.replaceChildren(...(state.side === 'risks' ? renderRisks(state) : renderExplorer(state)));
+      const views = { risks: renderRisks, repairs: renderRepairs, explorer: renderExplorer };
+      const nodes = (views[state.side] ?? renderExplorer)(state);
+      // The Dev tree keeps its own root: re-inserting it would drop the focus of its search box
+      const same = nodes.length === sidebarBody.childNodes.length && nodes.every((n, i) => n === sidebarBody.childNodes[i]);
+      if (!same) sidebarBody.replaceChildren(...nodes);
       sidebarBody.scrollTop = scroll;
     }
+
+    // Repairs waiting for the person (to verify) show a badge on the rail
+    const pending = repairHistory.store.state.entries.filter((e) => e.status === 'fixed' || e.status === 'planned').length;
+    const badge = $('rail-repairs-badge');
+    badge.hidden = !pending;
+    badge.textContent = String(pending);
 
     const { red, yellow, green } = state.counts;
     $('project-chip').hidden = !state.open;
@@ -418,7 +491,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     status.replaceChildren(
       el('span', 'status-strong', state.open ? state.projectName || strings.map.defaultProjectName : S.status.noProject),
       ...(state.open ? [el('span', 'status-counts', S.status.counts(red, yellow, green))] : []),
-      ...(job ? [el('span', 'status-remi', `${strings.repair.name}: ${strings.repair.steps[job.step]}`)] : []),
+      ...(job ? [el('span', 'status-remi', `${strings.repair.name}: ${(job.source === 'agent' ? strings.repair.stepsAgent(job.agentLabel) : strings.repair.steps)[job.step]}`)] : []),
       el('span', 'status-mode', `${strings.mode.title}: ${strings.mode[modeModel.store.state.mode]}`),
       el('span', 'status-agent', S.status.agent),
     );
@@ -427,8 +500,15 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   // The sidebar animates its content only when the view changes (not on every score update)
   vm.store.subscribe((state, previous) => {
     render(state);
-    if (!previous || previous.side !== state.side) sidebarBody.classList.remove('enter'), void sidebarBody.offsetWidth, sidebarBody.classList.add('enter');
+    if (!previous || previous.side !== state.side) {
+      for (const node of [sidebarBody, sidebarTitle, $('agent-connect')]) {
+        node.classList.remove('enter');
+        void node.offsetWidth; // restart the CSS animation
+        node.classList.add('enter');
+      }
+    }
   }, { immediate: true });
   modeModel.store.subscribe(() => render(vm.store.state));
   repairViewModel.store.subscribe(() => render(vm.store.state));
+  repairHistory.store.subscribe(() => render(vm.store.state));
 }

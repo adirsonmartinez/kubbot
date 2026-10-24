@@ -30,7 +30,7 @@ export function createHoverCardView({ card, stage, mapViewModel, modeModel }) {
     if (d.tags?.length) {
       const row = el('div', 'tag-row');
       d.tags.forEach((t) => {
-        const chip = el('span', 'tag-chip', t);
+        const chip = el('span', 'tag-chip', strings.tags[t] ?? t);
         chip.style.setProperty('--c', TAG_COLOR[t]);
         row.appendChild(chip);
       });

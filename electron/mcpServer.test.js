@@ -9,6 +9,7 @@ const handlers = {
   platanus_get_project: async () => ({ name: 'demo', tree: ['src/', 'src/app.ts'] }),
   platanus_list_risks: async () => [{ path: '.env', level: 'red' }],
   platanus_read_file: async ({ path }) => `contents of ${path}`,
+  platanus_write_file: async ({ path }) => `wrote ${path}`,
   platanus_set_file_score: async ({ path, level }) => `${path} -> ${level}`,
   platanus_show_folder: async ({ path }) => `showing ${path || 'map'}`,
 };
@@ -34,7 +35,8 @@ test('every tool call is reported for the audit log', async () => {
 });
 
 test('secrets are never read, even if the agent asks', async () => {
-  for (const p of ['.env', 'config/.env.local', 'certs/server.pem', 'keys/id_rsa', 'a/b.key']) {
+  for (const p of ['.env', 'config/.env.local', 'certs/server.pem', 'keys/id_rsa', 'a/b.key',
+    '.env/', './.env/.', 'x/../.env/', '.git/config', 'a/.ssh/id_ed25519', '.npmrc', 'sub/.aws/credentials']) {
     assert.equal(isBlockedPath(p), true, p);
     const r = await respond({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'platanus_read_file', arguments: { path: p } } });
     assert.equal(r.result.isError, true, p);
@@ -74,4 +76,11 @@ test('HTTP: answers local clients, refuses browsers (Origin) and foreign hosts',
   } finally {
     server.close();
   }
+});
+
+test('templates are readable; writes to secrets are refused too', async () => {
+  assert.equal(isBlockedPath('.env.example'), false);
+  assert.equal(isBlockedPath('src/app.js'), false);
+  const r = await respond({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'platanus_write_file', arguments: { path: '.env', content: 'x', reason: 'r' } } });
+  assert.equal(r.result.isError, true);
 });

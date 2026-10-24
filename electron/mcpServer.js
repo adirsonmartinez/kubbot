@@ -3,17 +3,21 @@
 // Only listens on 127.0.0.1 and rejects browser requests (Origin header), so a web page cannot use it.
 
 const http = require('node:http');
+const path = require('node:path');
 
 const PROTOCOL_VERSION = '2025-06-18';
 const MAX_BODY = 256 * 1024;
 
-// Files an agent must never read: secrets, private keys, very large files
-const BLOCKED_NAME = /(^|\/)(\.env(\..*)?|id_(rsa|ed25519|ecdsa)[^/]*|[^/]+\.(pem|key|p12|pfx|keystore|jks))$/i;
-const ALLOWED_ENV_TEMPLATE = /(^|\/)\.env\.(example|sample|template)$/i;
+// Files and folders an agent must never read or write: secrets, private keys, credentials and git
+// internals. Checked on every segment of the NORMALIZED path (so ".env/", "x/../.env" or "./.env/."
+// are caught), and main.js checks the real path too (symlinks).
+const BLOCKED_SEGMENT = /^(\.env(\..*)?|\.git|\.ssh|\.aws|\.gnupg|\.npmrc|\.netrc|\.pypirc|\.docker|id_(rsa|ed25519|ecdsa|dsa)[^/]*|[^/]+\.(pem|key|p12|pfx|keystore|jks))$/i;
+const ALLOWED_ENV_TEMPLATE = /^\.env\.(example|sample|template)$/i;
 const MAX_READ_BYTES = 200 * 1024;
 
 function isBlockedPath(rel) {
-  return BLOCKED_NAME.test(rel) && !ALLOWED_ENV_TEMPLATE.test(rel);
+  const normalized = path.posix.normalize(String(rel).replace(/\\/g, '/'));
+  return normalized.split('/').some((seg) => BLOCKED_SEGMENT.test(seg) && !ALLOWED_ENV_TEMPLATE.test(seg));
 }
 
 const TOOLS = [
@@ -34,6 +38,20 @@ const TOOLS = [
       type: 'object',
       properties: { path: { type: 'string', description: 'Path relative to the project root' } },
       required: ['path'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'platanus_write_file',
+    description: 'Writes a text file of the project (the whole new content). The user must approve every write in a dialog, and the previous version is backed up so it can be undone. Explain the change in `reason` in plain Spanish.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Path relative to the project root' },
+        content: { type: 'string', description: 'Full new content of the file' },
+        reason: { type: 'string', maxLength: 300, description: 'What you changed and why, in one or two plain sentences' },
+      },
+      required: ['path', 'content', 'reason'],
       additionalProperties: false,
     },
   },
@@ -77,7 +95,7 @@ function createMcpHandler({ handlers, onCall = () => {} }) {
     for (const key of tool.inputSchema.required ?? []) {
       if (typeof args?.[key] !== 'string') return text(`Missing "${key}".`, true);
     }
-    if (name === 'platanus_read_file' && isBlockedPath(args.path)) {
+    if ((name === 'platanus_read_file' || name === 'platanus_write_file') && isBlockedPath(args.path)) {
       onCall({ tool: name, args, ok: false, error: 'blocked' });
       return text('Refused: this file can contain secrets and is never shared with agents.', true);
     }

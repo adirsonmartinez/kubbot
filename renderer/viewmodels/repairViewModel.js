@@ -1,24 +1,24 @@
-// Remi, the repairer: walks to a cracked building, looks at the file, writes a plan (with the user's
-// own agent when one is connected, otherwise from the Platanus guide) and shores the crack up.
-// Honest by design: Remi never edits files. The file turns yellow ("plan ready") until the person
-// says they applied it, then green.
+// Remi, the repairer: walks to a cracked building and, while he works on the map, the user's own agent
+// (when one is connected) reads the file and repairs it through Platanus' tools. Every write is
+// approved by the person in a dialog and backed up. Without an agent, Remi leaves a plan from the
+// Platanus guide. Each job is a task in the repair history, and the chat explains what happened.
 import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
 import { LEVEL_RANK } from '../models/securityModel.js';
 
 const R = strings.repair;
-export const STEPS = R.steps.length; // walk, look, plan, shore up, done
+export const STEPS = R.steps.length; // walk, look, repair, check, done
 const WALK_SPEED = 9; // map units per second
 const LOOK_MS = 1300;
-const PLAN_MIN_MS = 1500;
-const SHORE_MS = 2300;
-const AGENT_TIMEOUT_MS = 90_000;
+const MIN_WORK_MS = 1800;
+const CHECK_MS = 1600;
+const AGENT_TIMEOUT_MS = 5 * 60_000;
 const HQ_DOOR = { x: -1, z: 2.6 };
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// "- step" / "1. step" lines from an agent answer -> at most 4 steps
+// Bullet lines of an answer ("- step", "1. step") -> at most 4 steps
 function parseSteps(text) {
   return text.split('\n')
     .map((l) => l.trim().match(/^(?:[-*•]|\d+[.)])\s+(.+)$/)?.[1])
@@ -33,19 +33,26 @@ export class RepairViewModel {
   #camera;
   #tower;
   #connection;
+  #history;
+  #agentService;
   #bus;
   #runId = 0;
+  #changes = null; // collects the agent's writes during the current job
 
-  // job: { path, reason, reasonKey, folder, from, to, height, step, stepMs, plan, source, agentLabel }
+  // job: { historyId, path, reason, reasonKey, folder, from, to, center, height, step, stepMs, plan,
+  //        source: 'agent' | 'guide', agentLabel, outcome: 'fixed' | 'planned' | 'failed' | null, hammering }
   store = new Observable({ job: null, queue: [] });
 
-  constructor({ securityModel, mapViewModel, cameraViewModel, towerViewModel, connection, bus }) {
+  constructor({ securityModel, mapViewModel, cameraViewModel, towerViewModel, connection, history, agentService, bus }) {
     this.#security = securityModel;
     this.#map = mapViewModel;
     this.#camera = cameraViewModel;
     this.#tower = towerViewModel;
     this.#connection = connection;
+    this.#history = history;
+    this.#agentService = agentService;
     this.#bus = bus;
+    agentService.onChanged((change) => this.#onAgentChange(change));
   }
 
   get busy() {
@@ -68,7 +75,6 @@ export class RepairViewModel {
     this.#run(path);
   }
 
-  // The riskiest file that is not fixed or planned yet
   startWorst(files) {
     const worst = [...files]
       .filter((f) => f.level === 'red' || (f.level === 'yellow' && f.by !== 'remi'))
@@ -78,18 +84,43 @@ export class RepairViewModel {
     return true;
   }
 
-  // The person applied the plan: the crack is closed
-  markFixed() {
-    const { job } = this.store.state;
-    if (!job) return;
-    this.#security.setScore(job.path, 'green', R.fixedReason, 'remi');
-    this.close();
+  // The person checked the agent's fix, or applied the plan themselves
+  markFixed(historyId = this.store.state.job?.historyId) {
+    const entry = this.#history.get(historyId);
+    if (!entry) return;
+    this.#history.update(historyId, { status: 'verified', endedAt: new Date().toISOString() });
+    this.#security.setScore(entry.path, 'green', R.fixedReason, 'remi');
+    this.#bus.emit(EVENTS.repairFinished, { entry: this.#history.get(historyId) });
+    if (this.store.state.job?.historyId === historyId) this.close();
+  }
+
+  // Puts back the version before the agent's change (Electron asks first)
+  async undo(historyId, change) {
+    const r = await this.#agentService.undo(change);
+    if (!r.ok) return false;
+    const entry = this.#history.get(historyId);
+    const changes = entry.changes.map((c) => (c.at === change.at && c.path === change.path ? { ...c, undone: true } : c));
+    const allUndone = changes.every((c) => c.undone);
+    this.#history.update(historyId, { changes, ...(allUndone ? { status: 'planned' } : {}) });
+    if (allUndone) this.#security.setScore(entry.path, 'red', entry.reason, 'remi');
+    return true;
   }
 
   close() {
+    const { job } = this.store.state;
+    if (job && this.busy) this.#history.update(job.historyId, { status: 'failed', error: R.cancelled, endedAt: new Date().toISOString() });
     this.#runId++;
+    this.#changes = null;
     this.store.set({ job: null });
     this.#next();
+  }
+
+  #onAgentChange(change) {
+    if (!this.#changes) return; // a change made from the chat or an editor, not by a repair
+    this.#changes.push(change);
+    const { job } = this.store.state;
+    if (job) this.store.set({ job: { ...job, hammering: true } });
+    this.#bus.emit(EVENTS.repairChanged, { path: job?.path, change });
   }
 
   async #run(path) {
@@ -98,37 +129,63 @@ export class RepairViewModel {
     const score = this.#security.scoreOf(path);
     const reason = score.reason || strings.security.reasons[score.reasonKey] || '';
     const spot = this.#map.locateFile(path);
+    const live = Boolean(this.#connection?.live);
+    const agentLabel = live ? this.#connection.agentLabel : '';
+    const historyId = this.#history.add({ path, reason, status: 'working', agent: agentLabel });
 
     // Go to the map, with the building in view (an open building would hide Remi)
     if (this.#tower.isOpen) this.#tower.close({ restoreCamera: false });
     this.#camera.flyTo({ x: spot.x, z: spot.z });
-
-    // Remi stands on the side of the building that faces the camera
     const az = this.#camera.azimuth;
     const to = { x: spot.x + Math.sin(az) * 4.8, z: spot.z + Math.cos(az) * 4.8 }; // just outside the plinth
     const walkMs = Math.min(Math.max((Math.hypot(to.x - HQ_DOOR.x, to.z - HQ_DOOR.z) / WALK_SPEED) * 1000, 1200), 3200);
     const set = (patch) => alive() && this.store.set({ job: { ...this.store.state.job, ...patch } });
 
     this.store.set({
-      job: { path, reason, reasonKey: score.reasonKey, folder: spot.folder, from: HQ_DOOR, to, center: { x: spot.x, z: spot.z }, height: spot.height, step: 0, stepMs: walkMs, plan: [], source: null, agentLabel: '' },
+      job: {
+        historyId, path, reason, reasonKey: score.reasonKey, folder: spot.folder, from: HQ_DOOR, to,
+        center: { x: spot.x, z: spot.z }, height: spot.height, step: 0, stepMs: walkMs, plan: [],
+        source: live ? 'agent' : 'guide', agentLabel, outcome: null, hammering: false,
+      },
     });
-    this.#bus.emit(EVENTS.repairStarted, { path });
+    this.#bus.emit(EVENTS.repairStarted, { path, agent: agentLabel });
 
+    // While Remi walks and looks, the agent already starts working
+    this.#changes = [];
+    const work = live ? this.#repairWithAgent(path, reason) : Promise.resolve(null);
     await wait(walkMs);
     set({ step: 1, stepMs: LOOK_MS });
     await wait(LOOK_MS);
     if (!alive()) return;
-
     set({ step: 2, stepMs: 0 });
-    const [planned] = await Promise.all([this.#plan(path, reason, score.reasonKey), wait(PLAN_MIN_MS)]);
+    const [answer] = await Promise.all([work, wait(MIN_WORK_MS)]);
     if (!alive()) return;
-    set({ step: 3, stepMs: SHORE_MS, ...planned });
+    const changes = this.#changes ?? [];
+    this.#changes = null;
 
-    await wait(SHORE_MS);
+    // Outcome: the agent changed files (to verify), left a plan, or failed; no agent: the guide's plan
+    const guidePlan = R.plans[score.reasonKey] ?? R.plans.other;
+    let outcome, plan, summary = '', error = '';
+    if (live && answer?.error && !answer.text && !changes.length) {
+      outcome = 'failed'; plan = guidePlan; error = answer.error;
+    } else if (live) {
+      summary = answer?.text ?? '';
+      plan = parseSteps(summary);
+      outcome = changes.length ? 'fixed' : 'planned';
+      if (!plan.length) plan = changes.length ? changes.map((c) => c.reason) : guidePlan;
+    } else {
+      outcome = 'planned'; plan = guidePlan;
+    }
+
+    set({ step: 3, stepMs: CHECK_MS, plan, outcome, hammering: true });
+    await wait(CHECK_MS);
     if (!alive()) return;
-    this.#security.setScore(path, 'yellow', R.plannedReason(planned.plan[0].toLowerCase()), 'remi');
-    set({ step: 4, stepMs: 0 });
-    this.#bus.emit(EVENTS.repairPlanned, { path, plan: planned.plan });
+
+    this.#history.update(historyId, { status: outcome, plan, changes, summary, error, endedAt: new Date().toISOString() });
+    if (outcome === 'fixed') this.#security.setScore(path, 'yellow', R.fixedToVerify(changes.length), 'remi');
+    else if (outcome === 'planned') this.#security.setScore(path, 'yellow', R.plannedReason(plan[0].toLowerCase()), 'remi');
+    set({ step: 4, stepMs: 0, hammering: false });
+    this.#bus.emit(EVENTS.repairFinished, { entry: this.#history.get(historyId) });
 
     // With more cracks in line, Remi moves on by himself
     if (this.store.state.queue.length) {
@@ -137,14 +194,16 @@ export class RepairViewModel {
     }
   }
 
-  async #plan(path, reason, reasonKey) {
-    const guide = { plan: R.plans[reasonKey] ?? R.plans.other, source: 'guide', agentLabel: '' };
-    const c = this.#connection;
-    if (!c?.live) return guide;
-    const agent = c.store.state.agents.find((a) => a.id === c.store.state.selected);
-    const answer = await Promise.race([c.ask(R.agentPrompt(path, reason), strings.agent.livePrompt), wait(AGENT_TIMEOUT_MS).then(() => null)]);
-    const steps = answer?.text ? parseSteps(answer.text) : [];
-    return steps.length ? { plan: steps, source: 'agent', agentLabel: agent?.label ?? '' } : guide;
+  // The agent reads the file, repairs it if that is safe (each write approved by the person) and
+  // explains in plain words; its answer streams into the chat.
+  #repairWithAgent(path, reason) {
+    const timeout = wait(AGENT_TIMEOUT_MS).then(() => ({ text: '', error: R.timeout }));
+    const ask = this.#connection.ask(R.agentFixPrompt(path, reason), strings.agent.livePrompt, {
+      session: 'repair',
+      onText: (delta) => this.#bus.emit(EVENTS.repairText, { path, delta }),
+      onTool: (name) => this.#bus.emit(EVENTS.repairTool, { path, name }),
+    });
+    return Promise.race([ask, timeout]);
   }
 
   #next() {

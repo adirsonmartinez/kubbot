@@ -33,8 +33,33 @@ export class ChatViewModel {
       this.store.set({ chips: this.#suggestions() });
     });
 
-    bus.on(EVENTS.repairStarted, ({ path }) => this.#push({ role: 'sys', text: strings.repair.started(path) }));
-    bus.on(EVENTS.repairPlanned, ({ path, plan }) => this.sayFromMap({ text: strings.repair.planned(path, plan) }));
+    // Repairs: the agent's explanation streams into its own bubble, then a summary closes the task
+    const RC = strings.repair.chat;
+    let repairBubble = null;
+    bus.on(EVENTS.repairStarted, ({ path, agent }) => {
+      repairBubble = null;
+      this.store.set({ minimized: false });
+      this.#push({ role: 'sys', text: RC.started(path, agent) });
+    });
+    bus.on(EVENTS.repairText, ({ delta }) => {
+      if (repairBubble === null) repairBubble = this.#push({ role: 'bot', tone: 'repair', text: '' });
+      this.#append(repairBubble, delta);
+    });
+    bus.on(EVENTS.repairTool, ({ name }) => { repairBubble = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); });
+    bus.on(EVENTS.repairChanged, ({ change }) => this.#push({ role: 'sys', text: RC.changed(change.path, change.reason) }));
+    bus.on(EVENTS.repairFinished, ({ entry }) => {
+      repairBubble = null;
+      const done = RC.finished;
+      const text = {
+        fixed: () => done.fixed(entry.path, entry.changes.length),
+        planned: () => `${done.planned(entry.path)}${entry.summary ? '' : `\n${RC.planTitle}\n${entry.plan.map((s, i) => `${i + 1}. ${s}`).join('\n')}`}`,
+        failed: () => done.failed(entry.path, entry.error),
+        verified: () => done.verified(entry.path),
+      }[entry.status]?.();
+      if (!text) return;
+      const chips = this.#actions.showRepairs ? [{ label: strings.repair.history.title, run: this.#actions.showRepairs }] : undefined;
+      this.sayFromMap({ text, tone: entry.status === 'failed' ? 'alert' : entry.status === 'verified' ? '' : 'repair', chips });
+    });
 
     bus.on(EVENTS.diskChanged, ({ paths }) => this.#push({ role: 'sys', text: CHAT.diskChanged(paths) }));
 
@@ -86,7 +111,10 @@ export class ChatViewModel {
     });
     this.store.set({ typing: false });
     if (!streamed || reply.tone === 'alert') this.#enqueue(reply);
-    else this.store.set({ chips: reply.chips ?? null });
+    else {
+      this.store.set({ chips: reply.chips ?? null });
+      this.#next(); // map messages that arrived while the answer was streaming
+    }
   }
 
   // A chip with an action runs it; a plain chip is sent as a message

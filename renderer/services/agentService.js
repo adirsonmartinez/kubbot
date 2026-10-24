@@ -13,6 +13,8 @@ export function createAgentService(bridge = window.platanus) {
       onMcpRequest: () => () => {},
       replyMcp: async () => {},
       onScore: () => () => {},
+      onChanged: () => () => {},
+      undo: async () => ({ ok: false }),
     };
   }
   return {
@@ -26,5 +28,7 @@ export function createAgentService(bridge = window.platanus) {
     onMcpRequest: (cb) => bridge.mcp.onRequest(cb),
     replyMcp: (payload) => bridge.mcp.reply(payload),
     onScore: (cb) => bridge.mcp.onScore(cb),
+    onChanged: (cb) => bridge.mcp.onChanged(cb),
+    undo: (change) => bridge.mcp.undo(change),
   };
 }

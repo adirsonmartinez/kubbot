@@ -1,13 +1,14 @@
 // IDE shell state: which side view is active, which panels are visible, and the data the sidebar
 // shows (folders and files with their security level). No DOM, no three.js.
 import { Observable } from '../core/observable.js';
+import { strings } from '../i18n/es.js';
 import { allFiles, baseName } from '../models/fileTree.js';
 import { LEVEL_RANK, worstLevel } from '../models/securityModel.js';
 import { fileTags, folderGuide } from '../models/folderTags.js';
 
 export const STAGES = ['map', 'graph', 'project'];
 
-export const SIDE_VIEWS = ['explorer', 'risks', 'agent'];
+export const SIDE_VIEWS = ['explorer', 'risks', 'repairs', 'agent'];
 
 export class ShellViewModel {
   #projectModel;
@@ -105,7 +106,10 @@ export class ShellViewModel {
     // Full tree (técnico) and the guide of folders two levels deep (vibe + project map)
     const describeTree = (nodes) => nodes
       .map((n) => {
-        if (n.type !== 'dir') return { path: n.path, name: baseName(n.path), type: 'file', level: this.#securityModel.scoreOf(n.path).level, tags: fileTags(n.path) };
+        if (n.type !== 'dir') {
+          const { level, reason, reasonKey, by } = this.#securityModel.scoreOf(n.path);
+          return { path: n.path, name: baseName(n.path), type: 'file', level, reason, reasonKey, by, size: n.size ?? 0, tags: fileTags(n.path) };
+        }
         const children = describeTree(n.children ?? []);
         const levels = allFiles(n.children ?? []).map((f) => this.#securityModel.scoreOf(f.path).level);
         return { path: n.path, name: baseName(n.path), type: 'dir', level: worstLevel(levels), files: levels.length, children };
@@ -116,7 +120,8 @@ export class ShellViewModel {
       const files = allFiles(node.children ?? []);
       if (!files.length) return;
       const levels = files.map((f) => this.#securityModel.scoreOf(f.path).level);
-      const g = folderGuide(node.path, files);
+      const kind = folderGuide(node.path, files);
+      const g = { tags: kind.tags, ...strings.describeFolder(kind, baseName(node.path)) };
       guide.push({
         path: node.path, folder: baseName(node.path), ...g, depth,
         files: files.length, size: files.reduce((sum, f) => sum + (f.size ?? 0), 0),
