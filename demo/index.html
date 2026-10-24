@@ -502,77 +502,138 @@ function renderGitChips(chips){
   });
 }
 
-// ---- git command handler ----
-function handleGitCommand(text){
-  const t=text.trim();
+// ---- git command handler (interpretación de lenguaje natural) ----
+// Pensado para texto escrito y, más adelante, voz: tolera tildes, mayúsculas,
+// muletillas ("por favor", "oye"), sinónimos y órdenes en cualquier redacción.
+const GIT_HELP='Puedo ejecutar git en lenguaje natural. Ejemplos:\n• "guarda los cambios: arreglé el login" (commit)\n• "deshaz el último commit" / "vuelve atrás" (rollback)\n• "borra todo y empieza de cero" (reset)\n• "crea una rama para pagos" / "cámbiate a main"\n• "en qué rama estoy" / "muéstrame el historial"';
 
-  // COMMIT: "commit <msg>", "haz commit con '<msg>'", "realiza un commit: <msg>", "ejecutar commit: <msg>"
-  const commitMatch=t.match(/^(?:(?:haz|realiza(?:r)?|ejecuta(?:r)?)\s+(?:un\s+)?commit(?:\s+con)?[:\s]+|commit[:\s]+)([\s\S]+)$/i);
-  if(commitMatch){
-    const msg=commitMatch[1].trim().replace(/^['"´`]|['"´`]$/g,'');
-    if(!msg){say('Escribe el mensaje del commit. Ej: commit fix login bug');return true;}
+// Normaliza: minúsculas, sin tildes, sin signos ni muletillas
+function gitNorm(t){
+  return t.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[¿?¡!,;]/g,' ')
+    .replace(/\b(por favor|porfa|porfavor|oye|ok|vale|hey|gracias|ia|asistente|quiero que|necesito que|puedes|podrias|podria|me gustaria que|quisiera que|quiero|necesito|ahora|ya)\b/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+// Convierte "login de usuario" → "login-de-usuario" (nombre de rama válido)
+function slugBranch(s){
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/["'´`“”]/g,'').trim().replace(/\s+/g,'-').replace(/[^\w./-]/g,'').replace(/^-+|-+$/g,'');
+}
+// Quita palabras de relleno del inicio hasta llegar al contenido real
+function stripLead(s,words){
+  const re=new RegExp('^\\s*(?:'+words+'|[:\\-–])(?=\\s|$|:)','i');
+  let prev;do{prev=s;s=s.replace(re,'')}while(s!==prev);
+  return s.trim();
+}
+const SHA_RE=/\b(?=[0-9a-f]*\d)[0-9a-f]{4,40}\b/;
+
+function applyReset(sha){
+  setStage(0);
+  logEvent('er','Reset --hard: HEAD vuelto al inicio');
+  say(`⏮ Reset${sha?' al commit '+sha.slice(0,7):''} ejecutado.\nEl mapa volvió al estado inicial (Commit 0/${seq.length}).\n⚠ Los cambios posteriores fueron descartados.`);
+}
+function applyRevert(sha){
+  const target=sha?(gitHistory.find(c=>c.sha.startsWith(sha))||{sha,msg:'commit anterior'})
+                  :(gitHistory.find(c=>!c.msg.startsWith('Revert "'))||{sha:randSha(),msg:'commit anterior'});
+  const newSha=randSha();
+  gitHistory.unshift({sha:newSha,msg:`Revert "${target.msg}"`,branch:activeBranch});
+  logEvent('wr',`Revert del commit ${target.sha.slice(0,7)} → nuevo commit ${newSha}`);
+  if(stage>0)setStage(stage-1);
+  say(`↩️ Revert aplicado al commit ${target.sha.slice(0,7)} ("${target.msg}").\nSe creó el commit ${newSha} que deshace esos cambios.\nAhora en Commit ${stage}/${seq.length}.`);
+}
+function setBranch(name,verb){
+  activeBranch=name;
+  const bb=$('branch-badge');if(bb)bb.textContent='🌿 '+activeBranch;
+  logEvent('inf',`${verb}: ${activeBranch}`);
+}
+
+function handleGitCommand(text){
+  const raw=text.trim();
+  const n=gitNorm(raw);
+  if(!n)return false;
+
+  // --- 0. Preguntas conceptuales: explicar, NO ejecutar ("¿qué es un rollback?") ---
+  if(/^(que|cual|cuales|como|para que|por que|en que)\b.*\b(es|son|significa|hace|sirve|diferencia|diferencias)\b/.test(n)
+     && /\b(commit|rollback|revert|reset|rama|branch|checkout|git)\b/.test(n)
+     && !/\b(en que rama|que rama)\b/.test(n)){
+    if(/diferencia/.test(n)&&/reset/.test(n)&&/(rollback|revert)/.test(n))
+      say('Rollback (revert) crea un commit NUEVO que deshace otro: el historial se conserva y es seguro en equipo.\nReset mueve el historial hacia atrás y descarta cambios: es destructivo, úsalo solo en local.');
+    else if(/reset/.test(n))say('Reset vuelve el proyecto a un commit anterior descartando todo lo posterior. Es destructivo. Dime "reset" y vuelvo al inicio.');
+    else if(/rollback|revert/.test(n))say('Rollback (revert) crea un commit nuevo que deshace los cambios de otro sin borrar el historial. Dime "deshaz el último commit".');
+    else if(/commit/.test(n))say('Un commit es una foto guardada de tu proyecto. En el mapa, cada commit construye un edificio. Dime "guarda los cambios: mensaje".');
+    else if(/rama|branch/.test(n))say('Una rama es una línea paralela de trabajo para probar cosas sin tocar la principal. Dime "crea una rama para pagos".');
+    else say(GIT_HELP);
+    return true;
+  }
+
+  // --- 1. Consultas: rama actual / historial / ayuda ---
+  if(/\b(en que rama|que rama|rama actual|rama activa|donde estoy)\b/.test(n)||/^(rama|branch|git branch)$/.test(n)){
+    say(`🌿 Estás en la rama "${activeBranch}".`);return true;
+  }
+  if(/\b(historial|log|ultimos commits|lista\w* (de )?commits|muestra\w* (los )?commits|que commits|mis commits|git log)\b/.test(n)){
+    if(!gitHistory.length)say('Aún no hay commits en esta sesión. Prueba "guarda los cambios: mi primer commit".');
+    else say('📜 Historial:\n'+gitHistory.slice(0,8).map(c=>`• ${c.sha} · ${c.msg} (${c.branch})`).join('\n'));
+    return true;
+  }
+  if(/\b(ayuda|help|comandos|que puedes hacer|que sabes hacer|que comandos|opciones)\b/.test(n)&&/\b(git|comando\w*|ayuda|help|hacer|opciones)\b/.test(n)&&!/stack|riesgo/.test(n)){
+    say(GIT_HELP);return true;
+  }
+
+  // --- 2. Reset (antes que revert: "borra todo", "empieza de cero") ---
+  if(/\b(reset\w*|resete\w*|reinici\w*|empez\w* de cero|empezar de nuevo|volver? al (inicio|principio|cero|origen)|vuelve al (inicio|principio)|borra\w* todo|elimina\w* todo|descart\w* (todo|los cambios)|limpia\w* todo)\b/.test(n)){
+    const m=n.match(SHA_RE);applyReset(m&&m[0]);return true;
+  }
+
+  // --- 3. Rollback / revert / deshacer ---
+  if(/\b(rollback|roll back|revert\w*|deshac\w*|deshaz|desha\w*|undo|retroced\w*|retrocede|anula\w*|quita\w* (el )?(ultimo |anterior )?commit|elimina\w* (el )?(ultimo )?commit|borra\w* (el )?(ultimo )?commit|echa\w* (para )?atras|vuelve\w* (para )?atras|volver (para )?atras|regres\w* (al )?(commit )?anterior|vuelve al commit anterior|paso atras|marcha atras)\b/.test(n)
+     || /\b(vuelve|volver|regresa\w*|retorna\w*)\b.*\b(commit|version)\b/.test(n)){
+    const m=n.match(SHA_RE);applyRevert(m&&m[0]);return true;
+  }
+
+  // --- 4. Crear rama ---
+  if(/\b(rama|branch)\b/.test(n)&&(/\b(crea\w*|nuev[ao]|new|abre\w*|abrir|haz|hacer|genera\w*|inicia\w*|arranca\w*|agrega\w*|anade\w*|monta\w*|saca\w*|bifurca\w*)\b/.test(n)||/^(git )?branch\s+\S+/.test(n))
+     &&!/\b(cambia\w*|checkout|switch|muev\w*|pasa\w*|ir a|ve a|vamos a|salta\w*)\b/.test(n)){
+    let rest=raw.replace(/^.*?\b(rama|branch)\b/i,'');
+    rest=stripLead(rest,'nueva|nuevo|new|llamada|llamado|nombrada|nombrado|de nombre|con nombre|con el nombre|que se llame|se llame|que se llama|el nombre|nombre|para|con|de|la|el|una?|que|sea|se|llame|llama|como|por|a|:');
+    const name=slugBranch(rest.split(/[,.;]/)[0]);
+    if(!name){say('¿Cómo quieres llamar la rama? Ej: "crea una rama para pagos".');return true;}
+    setBranch(name,'Rama creada');
+    say(`🌿 Rama "${name}" creada y activada.`);return true;
+  }
+
+  // --- 5. Cambiar de rama ---
+  const coVerb=/\b(checkout|switch|cambia\w*|cambiate|muevete|mueve\w*|pasa\w*|pasate|ir|ve|vete|vamos|salta\w*|entra\w*|usa\w*|selecciona\w*|trabaja\w*|activa\w*)\b/;
+  if(/^(git )?(checkout|switch)\s+\S+/.test(n)||(coVerb.test(n)&&/\b(rama|branch)\b/.test(n))
+     ||/^(cambia\w*|cambiate|ve|vete|ir|vamos|pasa\w*|muevete)\s+(a|hacia)\s+\S+$/.test(n)){
+    let rest=raw.replace(/^.*?\b(checkout|switch|cambia\w*|cámbiate|cambiate|muévete|muevete|mueve\w*|pasa\w*|pásate|ir|ve|vete|vamos|salta\w*|entra\w*|usa\w*|selecciona\w*|trabaja\w*|activa\w*)\b/i,'');
+    rest=stripLead(rest,'a|hacia|en|la|el|rama|branch|llamada|llamado|de nombre|nombre|-b|:');
+    const name=slugBranch(rest.split(/[,.;]/)[0]);
+    if(!name){say('¿A qué rama quieres cambiar? Ej: "cámbiate a main".');return true;}
+    setBranch(name,'Cambiado a rama');
+    say(`🔀 Cambiado a rama "${name}".`);return true;
+  }
+
+  // --- 6. Commit (guardar cambios) ---
+  if(/\b(commit\w*|comit\w*|confirma\w* (los )?cambios|guarda\w* (los |mis |todos los )?(cambios|avances|progreso|trabajo)|registra\w* (los )?cambios|sube\w* (los )?cambios|salva\w* (los )?cambios|git commit)\b/.test(n)){
+    let msg=raw.replace(/^.*?\b(commit\w*|comit\w*|confirma\w*|guarda\w*|registra\w*|sube\w*|salva\w*)\b/i,'');
+    msg=stripLead(msg,'los|mis|todos|todo|el|la|un|una|nuevo|nueva|cambios|avances|progreso|trabajo|con|mensaje|texto|nombre|titulo|título|descripcion|descripción|que diga|que dice|diciendo|llamado|como|de|para|poniendo|:');
+    msg=msg.replace(/^['"´`“”]+|['"´`“”]+$/g,'').replace(/\s*(por favor|porfa)\s*$/i,'').trim();
+    const auto=!msg;
+    if(auto)msg='Actualización del proyecto';
     const sha=randSha();
     gitHistory.unshift({sha,msg,branch:activeBranch});
     logEvent('ok',`Commit ${sha} · ${msg}`);
     if(stage<seq.length){
       const m=seq[stage];
       setStage(stage+1);
-      say(`✅ Commit ${sha} en "${activeBranch}":\n"${msg}"\n→ Se construyó ${m.tech} (${m.role}) en el mapa.`);
+      say(`✅ Commit ${sha} en "${activeBranch}":\n"${msg}"${auto?' (mensaje automático)':''}\n→ Se construyó ${m.tech} (${m.role}) en el mapa.`);
     } else {
-      say(`✅ Commit ${sha} en "${activeBranch}":\n"${msg}"\n(El stack demo ya está completo en el mapa)`);
+      say(`✅ Commit ${sha} en "${activeBranch}":\n"${msg}"${auto?' (mensaje automático)':''}\n(El stack demo ya está completo en el mapa)`);
     }
     renderGitChips([
       {label:`↩ Rollback · ${sha}`, cmd:`rollback al commit ${sha}`},
       {label:`⏮ Reset al ${sha}`,   cmd:`reset al commit ${sha}`},
     ]);
-    return true;
-  }
-
-  // ROLLBACK / REVERT: "rollback", "rollback al commit <sha>", "revert <sha>", "deshacer commit <sha>"
-  const revertMatch=t.match(/^(?:(?:rollback|revert(?:ir)?)(?:\s+(?:al?|el?|del?)\s+commit)?\s*|deshacer?\s+(?:el\s+)?commit\s*)([0-9a-f]{4,40})?$/i);
-  if(revertMatch){
-    const sha=revertMatch[1]||randSha();
-    const target=gitHistory.find(c=>c.sha.startsWith(sha))||{sha,msg:'commit anterior'};
-    const newSha=randSha();
-    gitHistory.unshift({sha:newSha,msg:`Revert "${target.msg}"`,branch:activeBranch});
-    if(stage>0){
-      setStage(stage-1);
-      logEvent('wr',`Revert del commit ${sha.slice(0,7)} → nuevo commit ${newSha}`);
-      say(`↩️ Revert aplicado al commit ${sha.slice(0,7)}.\nSe creó el commit ${newSha} que deshace esos cambios.\nAhora en Commit ${stage}/${seq.length}.`);
-    } else {
-      logEvent('wr',`Revert del commit ${sha.slice(0,7)} → nuevo commit ${newSha}`);
-      say(`↩️ Revert del commit ${sha.slice(0,7)} aplicado.\nSe creó el commit ${newSha} que deshace esos cambios.`);
-    }
-    return true;
-  }
-
-  // RESET: "reset", "reset al commit <sha>", "reset --hard <sha>"
-  const resetMatch=t.match(/^reset(?:\s+--hard)?(?:\s+(?:al?|el?)\s+commit)?\s*([0-9a-f]{4,40})?$/i);
-  if(resetMatch){
-    const sha=resetMatch[1];
-    setStage(0);
-    logEvent('er','Reset --hard: HEAD vuelto al inicio');
-    say(`⏮ Reset${sha?' al commit '+sha.slice(0,7):''} ejecutado.\nEl mapa volvió al estado inicial (Commit 0/${seq.length}).\n⚠ Los cambios posteriores fueron descartados.`);
-    return true;
-  }
-
-  // CREAR RAMA: "crear rama <n>", "crea rama <n>", "crea la rama <n>", "nueva rama <n>", "branch <n>"
-  const branchMatch=t.match(/^(?:crea(?:r)?\s+(?:(?:una?|la)\s+)?rama|nueva\s+rama|branch)\s+([\w./-]+)$/i);
-  if(branchMatch){
-    activeBranch=branchMatch[1].trim();
-    const bb=$('branch-badge');if(bb)bb.textContent='🌿 '+activeBranch;
-    logEvent('inf',`Rama creada: ${activeBranch}`);
-    say(`🌿 Rama "${activeBranch}" creada y activada.`);
-    return true;
-  }
-
-  // CHECKOUT: "checkout <rama>", "cambia a <rama>", "cambia a la rama <rama>", "cambiar a la rama <rama>"
-  const coMatch=t.match(/^(?:cambia(?:r)?\s+(?:a\s+)?(?:(?:la\s+)?rama\s+)?|checkout\s+)([\w./-]+)$/i);
-  if(coMatch){
-    activeBranch=coMatch[1].trim();
-    const bb=$('branch-badge');if(bb)bb.textContent='🌿 '+activeBranch;
-    logEvent('inf',`Cambiado a rama: ${activeBranch}`);
-    say(`🔀 Cambiado a rama "${activeBranch}".`);
     return true;
   }
 
@@ -595,7 +656,7 @@ const faq=[
  [/nivel|principiante|experto|guiad/,'El selector de nivel cambia el detalle: guiado explica con palabras simples, experto muestra datos tecnicos directos.'],
  [/mover|rotar|girar|zoom|control/,'Arrastra para mover, clic derecho o Shift para rotar e inclinar, rueda para zoom, Q/E para girar.'],
  [/hola|buenas/,'Hola. ¿Que quieres revisar?'],
- [/git|commit|rollback|reset|rama|branch|checkout|revert/,'Comandos git disponibles:\n• commit <mensaje>\n• rollback al commit <sha>\n• reset al commit <sha>\n• crear rama <nombre>\n• checkout <rama>'],
+ [/git|commit|rollback|reset|rama|branch|checkout|revert/,()=>GIT_HELP],
 ];
 
 function ask(q){
@@ -604,7 +665,7 @@ function ask(q){
   const l=q.toLowerCase();
   let r=null;
   for(const[re,a]of faq)if(re.test(l)){r=typeof a=='function'?a():a;break}
-  if(!r)r='Puedo explicar tu stack o ejecutar comandos git: "commit <mensaje>", "rollback", "reset", "crear rama <nombre>", "checkout <rama>".';
+  if(!r)r='No estoy seguro de qué quieres. Puedo explicar tu stack o ejecutar git en lenguaje natural.\n'+GIT_HELP;
   setTimeout(()=>say(r),300);
 }
 

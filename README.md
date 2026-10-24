@@ -101,3 +101,7 @@ Congelar funciones en la hora 26. Desde ahí, solo arreglar errores y ensayar la
 - [ ] Completar `platanus-hack-project.jsonc` (nombre, oneliner, descripción y URL de descarga de la app)
 - [ ] Reemplazar `project-description.md` con la descripción del proyecto
 - [ ] Logo PNG de 1000x1000, máximo 500 KB (`project-logo.png`)
+
+## Chat con comandos git (rama feature/chat-git-commands)
+
+El chat de la guia entiende git en lenguaje natural (commit, rollback, reset, ramas) y lo refleja en el mapa. Detalles, ejemplos y como extenderlo: [docs/GIT-CHAT.md](docs/GIT-CHAT.md).
