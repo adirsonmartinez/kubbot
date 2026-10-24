@@ -1,7 +1,8 @@
 // Agent picker inside the chat composer (as in Obra): a pill with the agent and effort in use; it opens
 // a small menu to switch agent, model and effort, or to go to "Conecta tu agente".
 import { strings } from '../../i18n/es.js';
-import { CATALOG } from '../../models/agentConnectionModel.js';
+import { CATALOG, modelLabel } from '../../models/agentConnectionModel.js';
+import { createEffortSlider } from './effortSlider.js';
 
 const C = strings.connect;
 
@@ -40,15 +41,36 @@ export function createAgentPickerView({ container, connection, onMore }) {
     return b;
   }
 
-  function render(state) {
-    const agent = state.agents.find((a) => a.id === state.selected);
-    // As in Obra: "● El de tu plan  Rápido ⌄"
+  let slider = null;
+  let menuKey = '';
+
+  function renderPill(state, agent) {
+    // As in Obra: "● Opus 5.5  Profundo ▮▮▮ ⌄"
     pill.replaceChildren();
-    if (agent) pill.append(el('i', 'picker-live'), el('span', 'picker-model', state.model || C.planDefault), el('span', 'picker-effort', C.efforts[state.effort]));
-    else pill.append(el('span', 'picker-model', strings.chat.demo));
+    if (agent) {
+      const catalog = CATALOG[state.selected];
+      const index = catalog.efforts.indexOf(state.effort);
+      const meter = el('span', 'picker-meter');
+      meter.style.setProperty('--level', String(index / Math.max(1, catalog.efforts.length - 1)));
+      catalog.efforts.forEach((_, i) => {
+        const bar = el('i', i <= index ? 'on' : '');
+        bar.style.height = `${4 + i * 1.5}px`;
+        meter.appendChild(bar);
+      });
+      pill.append(el('i', 'picker-live'), el('span', 'picker-model', modelLabel(state.selected, state.model) ?? C.planDefault), el('span', 'picker-effort', C.efforts[state.effort]), meter);
+    } else pill.append(el('span', 'picker-model', strings.chat.demo));
     pill.appendChild(el('span', 'picker-chevron', '⌄'));
     pill.title = agent ? agent.label : C.scripted;
     pill.classList.toggle('live', Boolean(agent));
+  }
+
+  function render(state) {
+    const agent = state.agents.find((a) => a.id === state.selected);
+    renderPill(state, agent);
+    // Changing only the effort updates the slider in place (rebuilding would drop the thumb mid-drag)
+    const key = JSON.stringify([state.selected, state.model, state.agents.map((a) => [a.id, a.loggedIn])]);
+    if (key === menuKey && slider) return slider.set(state.effort);
+    menuKey = key;
 
     const parts = [el('p', 'picker-label', strings.chat.pickerTitle)];
     parts.push(option(C.scripted, '', !state.selected, false, () => connection.select(null)));
@@ -60,25 +82,19 @@ export function createAgentPickerView({ container, connection, onMore }) {
     if (catalog) {
       if (catalog.models.length > 1) {
         parts.push(el('p', 'picker-label', C.model));
-        const row = el('div', 'chip-row');
+        const row = el('div', 'model-grid');
         for (const m of catalog.models) {
-          const b = el('button', `chip${state.model === m ? ' active' : ''}`, m || C.planDefault);
+          const b = el('button', `model-option${state.model === m.id ? ' active' : ''}`);
           b.type = 'button';
-          b.addEventListener('click', () => connection.setModel(m));
+          b.append(el('strong', '', m.label ?? C.planDefault), el('small', '', m.note ?? C.modelNotes[m.tier] ?? ''));
+          b.addEventListener('click', () => connection.setModel(m.id));
           row.appendChild(b);
         }
         parts.push(row);
       }
-      parts.push(el('p', 'picker-label', C.effort));
-      const seg = el('div', 'segmented');
-      for (const e of catalog.efforts) {
-        const b = el('button', state.effort === e ? 'active' : '', C.efforts[e]);
-        b.type = 'button';
-        b.addEventListener('click', () => connection.setEffort(e));
-        seg.appendChild(b);
-      }
-      parts.push(seg);
-    }
+      slider = createEffortSlider({ efforts: catalog.efforts, value: state.effort, onChange: (e) => connection.setEffort(e) });
+      parts.push(slider.el);
+    } else slider = null;
     const more = el('button', 'picker-more', strings.chat.pickerMore);
     more.type = 'button';
     more.addEventListener('click', () => { close(); onMore(); });

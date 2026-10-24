@@ -39,6 +39,7 @@ import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu, chatMenuItems } from './views/ui/chatMenuView.js';
 import { createCracksCardView } from './views/ui/cracksCardView.js';
+import { createCrackMenuView } from './views/ui/crackMenuView.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { createRemiView } from './views/scene/remiView.js';
@@ -83,6 +84,12 @@ const actions = {
   showRisks: () => shellViewModel.store.state.side === 'risks' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('risks'),
   showGraph: () => shellViewModel.setStage('graph'),
   showProject: () => shellViewModel.setStage('project'),
+  // Send a file to the chat so the agent checks whether its risk is real
+  audit(path, reason) {
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+    chatViewModel.send(strings.chat.auditPrompt(path, reason));
+  },
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
@@ -97,6 +104,7 @@ const towerView = createTowerView({ sceneView, labels, towerViewModel, cameraVie
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
 createRemiView({ sceneView, labels, repairViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
+const crackMenu = createCrackMenuView({ menu: document.getElementById('crack-menu'), stage, shellViewModel, mapViewModel, modeModel, actions });
 const hoverCard = createHoverCardView({ card: document.getElementById('hover-card'), stage, mapViewModel, modeModel });
 
 createInputController({
@@ -105,6 +113,7 @@ createInputController({
   mapViewModel,
   pickTargets: () => [...supabaseView.pickTargets(), ...mapView.pickTargets(), ...towerView.pickTargets()],
   onHover: (pick, x, y) => hoverCard.show(pick, x, y),
+  onCrack: (pick, x, y) => crackMenu.open(pick, x, y),
 });
 createControlsView({ cameraViewModel });
 createPanelsView({ mapViewModel, towerViewModel, supabaseViewModel });

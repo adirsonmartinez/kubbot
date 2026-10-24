@@ -5,6 +5,7 @@
 const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 
 const PROTOCOL_VERSION = '2025-06-18';
 const MAX_BODY = 256 * 1024;
@@ -172,15 +173,22 @@ function isAllowedRequest(req, port) {
   return okHost && !req.headers.origin;
 }
 
-function startMcpServer({ port = 7811, handlers, onCall }) {
+// `token`: private key in the address (/mcp/<token>), so other programs or users on this computer
+// cannot use the server. Compared in constant time.
+function startMcpServer({ port = 7811, handlers, onCall, token }) {
   const respond = createMcpHandler({ handlers, onCall });
+  const expected = Buffer.from(`/mcp/${token ?? ''}`);
+  const isOurPath = (url) => {
+    const got = Buffer.from(String(url));
+    return Boolean(token) && got.length === expected.length && crypto.timingSafeEqual(got, expected);
+  };
   const server = http.createServer((req, res) => {
     const actualPort = server.address()?.port;
     if (!isAllowedRequest(req, actualPort)) {
       res.writeHead(403).end();
       return;
     }
-    if (req.url !== '/mcp') return void res.writeHead(404).end();
+    if (!isOurPath(req.url)) return void res.writeHead(404).end();
     if (req.method === 'GET') return void res.writeHead(405, { Allow: 'POST' }).end(); // no server stream
     if (req.method !== 'POST') return void res.writeHead(405).end();
 

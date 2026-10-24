@@ -254,13 +254,27 @@ ipcMain.handle('agent:undo', async (_e, { path: rel, backup } = {}) => {
   }
 });
 
+// Private key of the local MCP server: created once, readable only by this user (0600)
+async function mcpToken() {
+  const file = path.join(app.getPath('userData'), 'mcp-token');
+  try {
+    const saved = (await fs.readFile(file, 'utf8')).trim();
+    if (/^[a-f0-9]{48}$/.test(saved)) return saved;
+  } catch { /* first run */ }
+  const token = require('node:crypto').randomBytes(24).toString('hex');
+  await fs.writeFile(file, token, { mode: 0o600 });
+  return token;
+}
+
 async function startMcp() {
+  const token = await mcpToken();
   const server = await startMcpServer({
     port: Number(process.env.PLATANUS_MCP_PORT) || 7811,
+    token,
     handlers: mcpHandlers,
     onCall: ({ tool, args, ok, error }) => log(`mcp:${tool}`, args?.path ?? '', ok, error),
   });
-  mcp = { url: `http://127.0.0.1:${server.address().port}/mcp`, running: true };
+  mcp = { url: `http://127.0.0.1:${server.address().port}/mcp/${token}`, running: true };
   send('mcp:status', mcp);
 }
 

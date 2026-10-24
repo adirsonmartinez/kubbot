@@ -1,7 +1,7 @@
 // Draws the project map from MapViewModel: main building, folder buildings, roads and their labels.
 // New buildings rise from the ground; buildings already seen in this session just appear.
 import * as THREE from 'three';
-import { groundLink, materials as M } from './materials.js';
+import { groundLink, materials as M, warningSign } from './materials.js';
 import { buildHeadquarters, HQ_BASE, HQ_TOWER } from './builders/headquartersBuilder.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { escapeHtml } from '../../core/format.js';
@@ -27,6 +27,21 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
   let session = null;
   const seen = new Set();       // folders already shown this session (they do not animate again)
   const risers = [];            // { group, k }
+  const signs = [];             // floating "!" over cracked buildings: { sign, baseY, phase }
+
+  // Cracks and the "!" sign are clickable on their own: they open the crack menu (see, repair, audit)
+  function markCracks(group, path, level, top, x, z) {
+    group.traverse((o) => { if (o.userData.crack) o.userData.pick = { type: 'crack', path }; });
+    if (level !== 'red') return null;
+    // Floating at the front corner, half-way up next to the cracks (the label sits on top of the roof)
+    const sign = warningSign(1.2);
+    const y = Math.max(top * 0.55, 2.2);
+    sign.position.set(x + 2.6, y, z + 2.6);
+    sign.userData.pick = { type: 'crack', path };
+    group.parent.add(sign);
+    signs.push({ sign, baseY: y, phase: signs.length * 0.7 });
+    return sign;
+  }
   const hidden = new Set();     // buildings replaced by an open building
 
   function clear() {
@@ -34,6 +49,7 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     entries.forEach((e) => e.label.remove());
     entries = new Map();
     risers.length = 0;
+    signs.length = 0;
     group = null;
   }
 
@@ -58,7 +74,8 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
       anchor: { x: HQ_TOWER.x, y: HQ_BASE + state.root.height + 5.6, z: HQ_TOWER.z },
       className: 'root',
     });
-    entries.set('', { group: hq, label: rootLabel });
+    const hqSign = markCracks(hq, '', state.root.level, HQ_BASE + state.root.height + 1, HQ_TOWER.x, HQ_TOWER.z);
+    entries.set('', { group: hq, label: rootLabel, sign: hqSign });
 
     // First-level folders around it
     state.buildings.forEach((b) => {
@@ -72,7 +89,8 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
         className: b.level === 'red' ? 'cracked' : '',
         anchor: { x: b.x, y: building.top + 0.9, z: b.z },
       });
-      entries.set(b.path, { group: building.group, label });
+      const sign = markCracks(building.group, b.path, b.level, building.top + 1.2, b.x, b.z);
+      entries.set(b.path, { group: building.group, label, sign });
       if (!seen.has(b.path)) {
         seen.add(b.path);
         building.group.scale.y = 0.001;
@@ -88,6 +106,7 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     if (!entry) return;
     entry.group.visible = !isHidden;
     entry.label.el.hidden = isHidden;
+    if (entry.sign) entry.sign.visible = !isHidden;
   }
 
   mapViewModel.store.subscribe((state, previous) => {
@@ -101,6 +120,10 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
   sceneView.onFrame((t, dt) => {
     // Cracks breathe: the red glow pulses (shared material, so every crack at once)
     if (!still) M.crackGlow.emissiveIntensity = 0.55 + 0.45 * Math.sin(t * 4);
+    for (const s of signs) {
+      s.sign.position.y = s.baseY + (still ? 0 : Math.sin(t * 2.4 + s.phase) * 0.25);
+      if (!still) s.sign.rotation.y = Math.sin(t * 1.2 + s.phase) * 0.5;
+    }
     for (let i = risers.length - 1; i >= 0; i--) {
       const r = risers[i];
       r.k = Math.min(r.k + dt * RISE_SPEED, 1);
