@@ -12,6 +12,8 @@
 - Buttons can inherit padding (the launcher had `1px 6px`): reset it where an icon must sit exactly in the middle.
 - Logo SVGs: color logos carry their own fills. Single-color ones need `fill: currentColor` and `stroke: none` (`svg.icon.agent-logo`).
 - Liquid glass on small tiles (the header's agent mark): gradient glass fill, a `::before` light on the top half, a `::after` masked gradient rim, inset depth, and a radial glow in the agent's color (`--agent-tint` on `#chat[data-agent]`).
+- `#stage canvas { width: 100% !important }` (the 3D canvas rule) also stretches any canvas inside the map's labels, such as a thinking orb in the robot's bubble. Give `#stage .map-label canvas.orb` a fixed size.
+- Map bubbles need to be opaque (labels behind show through glass) and compact (short button labels, full wording as a tooltip).
 - thinking-orbs only has the 20, 32 and 64 px presets. The `thinkingOrb()` wrapper maps any size to the nearest one; never pass another size straight to the package.
 - Chat scroll: the newest question stays anchored at the top while its answer streams, until the person scrolls (`anchorId` in `chatView.js`).
 

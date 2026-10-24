@@ -35,7 +35,8 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - escenario `obra` del Simulador.
 - **Robot, precisión y opciones:**
   - al llevarlo queda bajo el cursor (`grip` y `liftShift` en `robotView.js`) y un anillo marca la carpeta destino (`overAt`), incluidas las de la rama abierta;
-  - al llegar, su globo tiene botones (`chatViewModel.placeActions`, los mismos que la tarjeta).
+  - al llegar, su globo (compacto, opaco, con colita) tiene botones cortos (`robot.short`, `chatViewModel.placeActions`);
+  - mientras el agente trabaja, el globo muestra una cápsula con el orbe a 20 px.
 - **Logos reales de los agentes**: `renderer/icons/brands.js`, generado con `npm run icons` desde `@lobehub/icons-static-svg` (MIT). La clase es `svg.icon.agent-logo`, no `brand`, porque esa choca con la barra de título. En el encabezado del chat, el logo va en un marco de vidrio líquido con el color del agente (`--agent-tint`).
 - **Video del producto**: `video/` (Remotion) y `scripts/demo/` (grabación por CDP + proyecto de ejemplo «Feria Online»).
 

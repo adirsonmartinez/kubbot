@@ -357,6 +357,8 @@ export const strings = {
     nowhere: 'Aquí no hay nada. Suéltame sobre una carpeta y te cuento qué hay.',
     at: (name) => `Estoy en ${name}`,
     ask: '¿Te explico qué hay aquí o quieres cambiar algo?',
+    // its choices on the map, short (the chat card has the full wording)
+    short: { ask: 'Explícame', edit: 'Cambiar algo', locate: 'Riesgos', tour: 'Recorrido' },
     chat: {
       here: 'El robot está aquí',
       where: (name, n) => `${name} · ${n === 1 ? '1 archivo' : `${n} archivos`}`,

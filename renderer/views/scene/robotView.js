@@ -47,7 +47,8 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
 
   // The choices where it landed, as buttons in its bubble (the same as its chat card)
   const placeButtons = (place) => (chatViewModel?.placeActions(place.event) ?? []).map((action) => ({
-    label: action.label,
+    label: R.short[action.kind] ?? action.label, // short on the map; the full wording on hover
+    title: action.label,
     icon: CHIP_ICON[action.kind],
     run: () => { openChat(); chatViewModel.choose(action); robotViewModel.quiet(); },
   }));
@@ -173,7 +174,7 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
     const orbState = orbStateOf(message);
     const label = strings.chat.orbLabels[orbKeyOf(message)] ?? strings.chat.orbLabels.working;
     if (activity?.state === orbState && activity.label === label) return;
-    activity = { state: orbState, label, orb: thinkingOrb(orbState, { size: 22, label }) };
+    activity = { state: orbState, label, orb: thinkingOrb(orbState, { size: 20, label }) };
     if (job === 'companion') robot.say(companionWords());
     else if (job === 'build') apply();
   }, { immediate: true });

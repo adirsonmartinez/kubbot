@@ -117,6 +117,7 @@ export function createGuideRobot({ sceneView, labels }) {
           b.className = 'robot-action';
           if (a.icon) b.appendChild(icon(a.icon, { size: 14 }));
           b.appendChild(document.createTextNode(a.label));
+          if (a.title) b.title = a.title;
           b.addEventListener('click', (e) => { e.stopPropagation(); a.run(); });
           return b;
         }));
