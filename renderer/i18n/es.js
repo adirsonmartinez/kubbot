@@ -386,6 +386,26 @@ export const strings = {
     placeholder: 'Pregúntale al agente… (Enter envía, Shift+Enter salta línea)',
     thinking: 'Pensando…',
     reasoning: 'Cómo lo pensó',
+    run: {
+      tools: {
+        get_project: 'Ver el proyecto',
+        list_risks: 'Revisar los riesgos',
+        read_file: 'Leer un archivo',
+        write_file: 'Guardar un arreglo',
+        set_file_score: 'Cambiar el semáforo',
+        show_folder: 'Mostrar en el mapa',
+      },
+      tool: 'Usar una herramienta',
+      subagent: (kind) => (kind ? `Subagente · ${kind}` : 'Subagente'),
+      summary: (steps, subagents) => `${steps === 1 ? '1 paso' : `${steps} pasos`}${subagents ? ` · ${subagents === 1 ? '1 subagente' : `${subagents} subagentes`}` : ''}`,
+      working: 'Trabajando…',
+      done: 'Listo',
+      failed: 'Con error',
+      seconds: (ms) => (ms < 1000 ? `${ms} ms` : ms < 60000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.floor(ms / 60000)} min ${Math.round((ms % 60000) / 1000)} s`),
+      foot: ({ durationMs, turns, inputTokens, outputTokens }, format) =>
+        `${format(durationMs)} · ${turns === 1 ? '1 turno' : `${turns} turnos`} · ${(inputTokens + outputTokens).toLocaleString('es')} tokens`,
+      output: 'Lo que respondió',
+    },
     welcomeTitle: (project) => `¿Qué hacemos con ${project}?`,
     welcomeNoProject: '¿Qué hacemos hoy?',
     welcomeBody: 'Cuéntame tu idea o pídeme que revise el edificio. Te explico cada problema con palabras simples.',
@@ -499,6 +519,49 @@ export const strings = {
       codex: 'Codex (~/.codex/config.toml)',
       gemini: 'Gemini CLI (~/.gemini/settings.json)',
     },
+  },
+
+  // "Conecta tu agente" panel: agents, comparing answers, the local MCP server and its activity
+  hub: {
+    agents: 'Tus agentes',
+    version: (v) => (v ? `v${v.replace(/^v/, '')}` : ''),
+    path: 'Ruta',
+    test: 'Probar',
+    testing: 'Probando…',
+    testOk: (ms) => `Responde en ${(ms / 1000).toFixed(1)} s`,
+    testFailed: 'No respondió',
+    testHint: 'Envía un mensaje mínimo (usa unos pocos tokens de tu plan).',
+    stats: ({ runs, tokens, lastUsedAt }) => {
+      const t = tokens >= 1000 ? `${Math.round(tokens / 1000)} mil tokens` : `${tokens} tokens`;
+      const when = lastUsedAt ? ` · ${strings.hub.ago(Date.now() - lastUsedAt)}` : '';
+      return `${runs === 1 ? '1 respuesta' : `${runs} respuestas`} · ${t}${when}`;
+    },
+    never: 'Todavía no lo usaste',
+    lastError: 'Último error',
+    current: (model, effort) => `${model} · ${effort}`,
+    compare: 'Comparar respuestas',
+    compareIntro: 'Pregunta a dos agentes a la vez y compara lo que responden.',
+    compareNone: 'Solo uno',
+    server: 'Servidor local (MCP)',
+    running: 'Encendido',
+    stopped: 'Apagado',
+    tools: 'Herramientas que ofrece',
+    toolInfo: {
+      get_project: 'Ve las carpetas y archivos del proyecto abierto.',
+      list_risks: 'Lista los archivos en rojo o amarillo y por qué.',
+      read_file: 'Lee un archivo (nunca secretos ni archivos de más de 200 KB).',
+      write_file: 'Guarda un arreglo: siempre te pide permiso y guarda copia.',
+      set_file_score: 'Cambia el semáforo de un archivo en el mapa.',
+      show_folder: 'Te muestra una carpeta en el mapa.',
+    },
+    activity: 'Actividad reciente',
+    activityEmpty: 'Todavía ningún agente usó Platanus.',
+    ago: (ms) => {
+      const s = Math.max(1, Math.round(ms / 1000));
+      return s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : s < 86400 ? `hace ${Math.round(s / 3600)} h` : `hace ${Math.round(s / 86400)} d`;
+    },
+    testPrompt: 'Responde solo con la palabra: listo',
+    compareLabel: (a, b) => `Comparando ${a} y ${b}`,
   },
 
   agent: {

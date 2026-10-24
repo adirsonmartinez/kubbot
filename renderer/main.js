@@ -98,7 +98,7 @@ const actions = {
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
-const chatViewModel = new ChatViewModel({ agentModel, bus, actions });
+const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection });
 
 // The stage tab drives which 3D view is on screen: the git tab shows the branches, the rest the map
 shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 'git' ? 'git' : 'map'), { immediate: true });
@@ -161,7 +161,7 @@ const openChat = () => {
 attachMenu($id('chat-more'), $id('chat-more-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel }));
 attachMenu($id('chat-launcher-button'), $id('chat-launcher-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, openChat }));
 createGraphView({ graphViewModel, shellViewModel, mapViewModel });
-createAgentConnectView({ container: document.getElementById('agent-connect'), connection });
+createAgentConnectView({ container: document.getElementById('agent-connect'), connection, modeModel });
 connectMcpBridge({ agentService, securityModel, shellViewModel });
 connection.refresh();
 

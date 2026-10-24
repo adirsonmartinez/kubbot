@@ -13,6 +13,7 @@ const WORKDIR = path.join(os.homedir(), ".platanus", "agent-workdir"); // empty 
 fs.mkdirSync(WORKDIR, { recursive: true });
 
 const t = require("./strings");
+const { parseAgentLine } = require("./agentEvents");
 
 const AGENTS = {
   claude: { label: t.agents.claude, bin: "claude", login: "claude auth login" },
@@ -20,32 +21,44 @@ const AGENTS = {
   codex: { label: t.agents.codex, bin: "codex", login: "codex login" },
 };
 
-function which(bin) {
-  const r = spawnSync("/bin/sh", ["-c", `command -v ${bin}`], { env: ENV, encoding: "utf8" });
-  return r.status === 0 ? r.stdout.trim() : null;
+// Runs a quick CLI command without blocking the app (the old spawnSync froze the window for seconds)
+function quick(bin, args, timeout = 6000) {
+  return new Promise((resolve) => {
+    execFile(bin, args, { env: ENV, timeout, encoding: "utf8" }, (err, stdout, stderr) =>
+      resolve({ ok: !err, code: err?.code ?? 0, out: `${stdout ?? ""}${stderr ?? ""}`, stdout: stdout ?? "" }));
+  });
 }
 
-function loginStatus(id) {
-  try {
-    if (id === "claude") {
-      const r = spawnSync("claude", ["auth", "status"], { env: ENV, encoding: "utf8", timeout: 8000 });
-      return JSON.parse(r.stdout).loggedIn === true;
-    }
-    if (id === "codex") {
-      const r = spawnSync("codex", ["login", "status"], { env: ENV, encoding: "utf8", timeout: 8000 });
-      return !/not logged in/i.test(`${r.stdout}${r.stderr}`) && r.status === 0;
-    }
-  } catch {
-    return false;
+async function which(bin) {
+  const r = await quick("/bin/sh", ["-c", `command -v ${bin}`]);
+  return r.ok ? r.stdout.trim() : null;
+}
+
+async function loginStatus(id) {
+  if (id === "claude") {
+    const r = await quick("claude", ["auth", "status"], 8000);
+    try { return JSON.parse(r.stdout).loggedIn === true; } catch { return false; }
+  }
+  if (id === "codex") {
+    const r = await quick("codex", ["login", "status"], 8000);
+    return r.ok && !/not logged in/i.test(r.out);
   }
   return null; // Grok exposes no login status: known on first use
 }
 
+async function version(bin) {
+  const r = await quick(bin, ["--version"], 5000);
+  return (/\d+\.\d+(\.\d+)?/.exec(r.out) ?? [""])[0];
+}
+
+// [{ id, label, installed, loggedIn, version, path }], checked in parallel
 function detect() {
-  return Object.entries(AGENTS).map(([id, a]) => {
-    const installed = Boolean(which(a.bin));
-    return { id, label: a.label, installed, loggedIn: installed ? loginStatus(id) : false };
-  });
+  return Promise.all(Object.entries(AGENTS).map(async ([id, a]) => {
+    const path_ = await which(a.bin);
+    if (!path_) return { id, label: a.label, installed: false, loggedIn: false, version: "", path: "" };
+    const [loggedIn, v] = await Promise.all([loginStatus(id), version(a.bin)]);
+    return { id, label: a.label, installed: true, loggedIn, version: v, path: path_ };
+  }));
 }
 
 // Opens Terminal with the CLI's OAuth login (finished in the browser).
@@ -137,40 +150,13 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, s
   ];
 }
 
-// Turns each CLI's JSON output into simple events for the chat.
+// Each CLI line -> chat events (agentEvents.js); the session id is kept to continue the conversation
 function parseLine(id, session, line, emit) {
-  let e;
-  try {
-    e = JSON.parse(line);
-  } catch {
-    return;
+  for (const e of parseAgentLine(id, line)) {
+    if (e.type === "session") resumeIds[`${id}:${session}`] = e.id;
+    else if (e.type === "error") emit({ type: "error", message: e.message || t.agents.failed });
+    else emit(e);
   }
-  // Claude Code and Grok Build emit the same format: system / assistant / result.
-  if (id === "claude" || id === "grok") {
-    if (e.type === "system" && e.session_id) resumeIds[`${id}:${session}`] = e.session_id;
-    if (e.type === "assistant") {
-      for (const b of e.message?.content ?? []) {
-        if (b.type === "text" && b.text) emit({ type: "text", delta: b.text });
-        if (b.type === "thinking" && b.thinking) emit({ type: "thinking", delta: b.thinking });
-        // Only Platanus tools are shown, not the agent's internal ones.
-        // Grok wraps MCP tools in use_tool { tool_name: "platanus__x" }.
-        const name = b.type === "tool_use" ? (b.name === "use_tool" ? b.input?.tool_name : b.name) : "";
-        const m = /^(?:mcp__)?platanus(?:__|\.|_|:)(.+)$/.exec(String(name ?? ""));
-        if (m) emit({ type: "tool", name: m[1], status: "start" });
-      }
-    }
-    if (e.type === "result" && e.is_error) emit({ type: "error", message: String(e.result || t.agents.failed) });
-    return;
-  }
-  // codex (JSONL events of `codex exec --json`)
-  const item = e.item ?? e.msg;
-  if (!item) return;
-  if (item.type === "reasoning" && (item.text || item.summary)) emit({ type: "thinking", delta: String(item.text || item.summary) });
-  if ((item.type === "agent_message" || item.type === "assistant_message") && (item.text || item.message)) {
-    emit({ type: "text", delta: item.text || item.message });
-  }
-  if (item.type === "mcp_tool_call" && e.type !== "item.completed") emit({ type: "tool", name: String(item.tool || item.name || ""), status: "start" });
-  if (item.type === "error") emit({ type: "error", message: item.message || t.agents.failed });
 }
 
 const running = new Map();
