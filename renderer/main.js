@@ -228,7 +228,7 @@ if (isDemo) {
   createDemoCursor(); // recording the product video (scripts/demo/)
   // the recorder (and checks) can drive the robot and find 3D things on screen
   window.__platanus = {
-    robotViewModel, robotDialogViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel,
+    robotViewModel, robotDialogViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel, cameraViewModel,
     screenOf: (point) => { const r = stage.getBoundingClientRect(); const s = sceneView.toScreen(point); return { x: r.left + s.x, y: r.top + s.y }; },
   };
 }
