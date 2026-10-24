@@ -1105,3 +1105,30 @@ body.chat-moved { --shift-r: 0px; }
 body.chat-moved:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 14px; }
 body.chat-moved:not(.chat-closed):not(.chat-min) .remi-layer { right: 14px; }
 body.chat-moved:not(.chat-closed):not(.chat-min) { --shift-r: 0px; }
+
+/* ---------- Pinned chat: a column on the right, information above, adjustable width ---------- */
+body.chat-docked #workspace { grid-template-columns: minmax(0, 1fr) var(--chat-w, 372px); gap: 8px; }
+body.chat-docked:not(.chat-closed):not(.chat-min) { --shift-r: 0px; }
+#chat-dock { grid-column: 2; display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; padding-bottom: 8px; }
+#chat-dock-info:empty { display: none; }
+#chat-dock-info .floater { position: static; display: flex; flex-direction: column; }
+#chat-dock-info .floater-bar { align-self: flex-end; opacity: 1; }
+#chat-dock-info #hud { flex-wrap: wrap; justify-content: space-between; row-gap: 10px; width: auto; box-sizing: border-box; }
+#chat-dock-info .floater:not(.min) #hud { margin: 0; }
+body.chat-docked #chat-dock > #chat.card {
+  position: relative; inset: auto; width: auto; flex: 1; min-height: 0; transform: none; opacity: 1; visibility: visible;
+  left: auto !important; top: auto !important; right: auto !important; bottom: auto !important; height: auto !important;
+}
+body.chat-docked #chat .chat-head { cursor: default; }
+.chat-pin.active { color: var(--accent) !important; background: color-mix(in srgb, var(--accent) 16%, transparent) !important; }
+.chat-pin svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+/* Width handle on the chat's left edge */
+.chat-resize { position: absolute; left: -4px; top: 14px; bottom: 14px; width: 8px; cursor: ew-resize; z-index: 3; border-radius: 4px; }
+.chat-resize:hover, body.chat-resizing .chat-resize { background: color-mix(in srgb, var(--accent) 45%, transparent); }
+body.chat-resizing, body.chat-resizing * { cursor: ew-resize !important; user-select: none; }
+body.chat-resizing #workspace { transition: none; }
+/* Floating chat follows the width too */
+#workspace > #chat.card { width: var(--chat-w, 372px); }
+/* The HUD is positioned for the map; inside the pinned column it flows in the layout */
+#chat-dock-info #hud { position: static !important; inset: auto !important; transform: none !important; margin: 0; }
+#chat-dock-info .floater { margin: 0; }

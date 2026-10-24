@@ -3,7 +3,7 @@
 // While moved, the body gets the class `${key}-moved` (so the rest of the layout stops making room for it).
 const KEY = (key) => `platanus.drag.v1:${key}`;
 
-export function makeDraggable({ el, handle, key, area }) {
+export function makeDraggable({ el, handle, key, area, disabled = () => false }) {
   let state = { x: null, y: null, h: null };
   try { state = { ...state, ...JSON.parse(localStorage.getItem(KEY(key)) ?? '{}') }; } catch { /* nothing saved */ }
   const save = () => { try { localStorage.setItem(KEY(key), JSON.stringify(state)); } catch { /* private mode */ } };
@@ -28,7 +28,7 @@ export function makeDraggable({ el, handle, key, area }) {
   let drag = null;
   handle.classList.add('drag-handle');
   handle.addEventListener('pointerdown', (e) => {
-    if (e.button !== 0 || e.target.closest('button, input, textarea, select, a')) return;
+    if (disabled() || e.button !== 0 || e.target.closest('button, input, textarea, select, a')) return;
     const box = area.getBoundingClientRect();
     const r = el.getBoundingClientRect();
     drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, box };

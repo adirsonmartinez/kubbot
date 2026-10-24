@@ -378,6 +378,9 @@ export const strings = {
     placeholder: 'Pregúntale al agente… (Enter envía, Shift+Enter salta línea)',
     thinking: 'Pensando…',
     reasoning: 'Cómo lo pensó',
+    pin: 'Fijar el chat: el mapa le deja su espacio',
+    unpin: 'Soltar el chat: vuelve a flotar sobre el mapa',
+    resize: 'Arrastra para cambiar el ancho del chat',
     run: {
       tools: {
         get_project: 'Ver el proyecto',

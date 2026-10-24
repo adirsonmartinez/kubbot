@@ -45,6 +45,7 @@ import { attachMenu, chatMenuItems } from './views/ui/chatMenuView.js';
 import { createIconBarView } from './views/ui/iconBarView.js';
 import { makeFloating } from './views/ui/floater.js';
 import { makeDraggable } from './views/ui/draggable.js';
+import { createChatDockView } from './views/ui/chatDockView.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { remiJump } from './views/ui/remiJump.js';
@@ -147,11 +148,16 @@ createIconBarView({ bar: document.getElementById('stage-tabs') });
 // The side panel and the chat can be dragged by their header (double click: back in place)
 const workspaceEl = document.getElementById('workspace');
 makeDraggable({ el: document.getElementById('sidebar'), handle: document.querySelector('#sidebar .card-head'), key: 'sidebar', area: workspaceEl });
-makeDraggable({ el: document.getElementById('chat'), handle: document.querySelector('#chat .chat-head'), key: 'chat', area: workspaceEl });
+makeDraggable({ el: document.getElementById('chat'), handle: document.querySelector('#chat .chat-head'), key: 'chat', area: workspaceEl, disabled: () => document.body.classList.contains('chat-docked') });
 // Cards on the map can be dragged anywhere and minimized
 for (const [id, title] of [['hud', strings.floater.hud]]) {
   makeFloating({ el: document.getElementById(id), key: id, stage, title, labels: strings.floater });
 }
+// Pin for the chat: a column on the right with the security HUD above it
+createChatDockView({
+  workspace: workspaceEl, stage, chat: document.getElementById('chat'), pinButton: document.getElementById('chat-pin'),
+  info: () => document.getElementById('hud-float'),
+});
 
 // Chat options: the "+" in the composer, and the floating button when the chat is minimized or closed
 const $id = (id) => document.getElementById(id);
