@@ -44,7 +44,7 @@ body::after {
 }
 
 /* Shared glass surface */
-#controls .group, #schema-panel, #git-panel, #hud, #chat, .empty-card {
+#controls .group, #schema-panel, #git-panel, #hud, #chat {
   background: var(--glass);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -142,32 +142,7 @@ body::after {
 /* --- Empty state --- */
 #empty-state { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; z-index: 1; }
 #empty-state[hidden] { display: none; }
-.empty-card { pointer-events: auto; width: min(340px, 100%); padding: 28px 24px; text-align: center; font: 14px/1.5 var(--sans); }
-/* Isometric folder standing on a map slab, with a few ghost tiles */
-.iso-empty { width: 160px; height: 120px; display: block; margin: -6px auto 22px; overflow: visible; }
-.iso-empty * { stroke-linejoin: round; stroke-linecap: round; stroke-width: 1; }
-.iso-slab { fill: rgba(255, 255, 255, 0.03); stroke: var(--line-strong); }
-.iso-slab-side { fill: rgba(255, 255, 255, 0.05); stroke: var(--line-strong); }
-.iso-slab-side.dark { fill: rgba(255, 255, 255, 0.025); }
-.iso-grid { stroke: var(--line); }
-.iso-ghost { fill: rgba(255, 255, 255, 0.03); stroke: rgba(255, 255, 255, 0.1); }
-.iso-folder { stroke: var(--accent); stroke-width: 1.4; }
-.iso-folder.back { fill: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
-.iso-folder.side { fill: color-mix(in srgb, var(--accent) 24%, var(--bg)); }
-.iso-folder.front { fill: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
-.iso-folder-line { stroke: var(--accent); stroke-width: 1.4; opacity: 0.6; }
-.empty-card strong { display: block; font-size: 16px; font-weight: 600; }
-.empty-card p { margin: 6px 0 18px; color: var(--muted); }
-/* Empty state actions: new project (primary) and open project (secondary). Scoped by id because
-   the recent-project rows are buttons too and keep their own style. */
-.empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-#new-project, #open-project {
-  padding: 10px 18px; border-radius: 10px; font: 700 13px var(--sans); cursor: pointer;
-}
-#new-project { border: 1px solid transparent; background: var(--accent); color: #0b0a1f; }
-#new-project:hover { filter: brightness(1.08); }
-#open-project { border: 1px solid var(--line-strong); background: transparent; color: var(--text); }
-#open-project:hover { border-color: rgba(139, 131, 255, 0.5); color: var(--accent); }
+/* The card itself: styles/start.css */
 
 /* --- Labels that follow objects on the map: small glass cards --- */
 #map-labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }

@@ -54,10 +54,13 @@ export const strings = {
   },
 
   emptyState: {
-    title: 'Ningún proyecto abierto',
-    body: 'Crea un proyecto nuevo o abre la carpeta de uno que ya tengas para verlo en el mapa.',
+    title: '¿Qué construimos hoy?',
+    body: 'Crea un proyecto o abre uno que ya tengas para verlo en el mapa.',
     newAction: 'Nuevo proyecto',
-    action: 'Abrir proyecto',
+    action: 'Abrir carpeta…',
+    recentNone: 'Aquí verás los proyectos que abras.',
+    // When a recent project was last opened (calendar days ago)
+    when: (days) => (days === 0 ? 'hoy' : days === 1 ? 'ayer' : days < 7 ? `${days} d` : days < 30 ? `${Math.floor(days / 7)} sem` : `${Math.floor(days / 30)} m`),
   },
 
   floater: {

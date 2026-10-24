@@ -18,3 +18,6 @@ id_ed25519*
 .npmrc
 credentials.json
 *service-account*.json
+
+# Brainstorming mockups (local only)
+.superpowers/

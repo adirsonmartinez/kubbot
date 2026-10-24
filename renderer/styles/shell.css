@@ -481,21 +481,6 @@ body.mode-tech .side-name { font-family: var(--mono); }
 .floating-menu-item.primary .mi-label { color: var(--accent); font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .floating-menu.enter { animation: none; } }
 
-/* ---------- Empty state: recent projects ---------- */
-.empty-recent { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; min-width: 260px; text-align: left; }
-.empty-recent .side-label { margin: 0 2px 4px; }
-/* Folder icon on the left, name and path stacked on the right */
-.recent-row {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 10px; row-gap: 1px; align-items: center;
-  padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px;
-  background: var(--panel); color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: border-color .15s, background .15s;
-}
-.recent-row:hover { border-color: rgba(139, 131, 255, 0.45); background: var(--panel-2); }
-.recent-row .icon { grid-row: span 2; width: 18px; height: 18px; color: var(--muted); transition: color .15s; }
-.recent-row:hover .icon { color: var(--accent); }
-.recent-row strong { font-size: 13px; }
-.recent-row span { font: 11px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
 /* ---------- Map labels: tags and cracks ---------- */
 .map-label .tags { display: flex; gap: 3px; margin-top: 3px; }
 .map-label .tags em {
