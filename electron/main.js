@@ -328,6 +328,9 @@ const openArg = process.argv.find((a) => a.startsWith('--open='))?.slice('--open
 
 // The app's own menus (Archivo, Ver, Agente…) live inside the window. The native bar keeps only what the
 // system needs: the app menu, Edición (so Cmd+C / Cmd+V / Cmd+Z work in the chat) and Ventana.
+// Keep the data folder where it always was (choices, stats, repair history, recent projects, MCP key):
+// renaming the app would otherwise move it and the app would start as new.
+app.setPath('userData', path.join(app.getPath('appData'), 'platanus-ide'));
 app.setName('Platanus');
 function nativeMenu() {
   const m = t.menu;
