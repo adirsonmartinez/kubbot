@@ -133,6 +133,7 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
     // The integrations' nodes (Supabase draws itself), turned like it
     state.integrations.forEach((integration) => {
       const node = buildIntegration(integration.key, integration.status);
+      node.group.traverse((o) => { o.userData.pick = { type: 'integration', key: integration.key }; });
       node.group.position.set(integration.x, 0, integration.z);
       node.group.rotation.y = INTEGRATIONS.rotation;
       group.add(node.group);

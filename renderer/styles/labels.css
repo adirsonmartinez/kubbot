@@ -52,3 +52,6 @@
 #map-labels .map-label.robot-bubble .robot-action:hover { background: var(--lg-chip-hover); }
 #map-labels .map-label.robot-bubble .robot-action:first-child { background: #fff; box-shadow: none; color: #121212; }
 #map-labels .map-label.robot-bubble .robot-action:first-child:hover { background: rgba(255, 255, 255, .88); }
+
+/* An integration waiting for the person's account ("Por conectar"): a hollow white dot, still and neutral */
+#map-labels .map-label.sb-label .dot.pending { background: transparent; box-shadow: inset 0 0 0 1.5px var(--lg-text); animation: none; }

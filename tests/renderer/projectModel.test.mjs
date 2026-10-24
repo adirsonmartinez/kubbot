@@ -99,3 +99,22 @@ test('demo: the Platanus project shows all the demo integrations, Supabase inclu
   assert.equal(status.clerk, 'incident');
   assert.equal(status.posthog, 'disconnected');
 });
+
+test('integrations the welcome set up wait as pending until connected; Supabase is then not drawn as a live database', async () => {
+  const setup = { pendingOf: (root) => (root === '/tmp/tienda' ? ['vercel', 'supabase'] : []) };
+  const model = new ProjectModel(diskWorkspace('tienda', [f('vercel.json'), f('package.json')], {
+    'package.json': JSON.stringify({ dependencies: { '@supabase/supabase-js': '2', '@clerk/nextjs': '5' } }),
+  }), setup);
+  await model.choose();
+  assert.equal(model.store.state.root, '/tmp/tienda');
+  assert.deepEqual(model.store.state.integrations, ['supabase', 'vercel', 'clerk']);
+  assert.deepEqual(model.store.state.integrationStatus, { supabase: 'pending', vercel: 'pending', clerk: 'connected' });
+  assert.equal(model.store.state.usesSupabase, false);
+});
+
+test('a pending integration only shows once its files are there', async () => {
+  const setup = { pendingOf: () => ['vercel', 'supabase'] };
+  const model = new ProjectModel(diskWorkspace('tienda', [f('README.md')]), setup);
+  await model.choose();
+  assert.deepEqual(model.store.state.integrations, []);
+});

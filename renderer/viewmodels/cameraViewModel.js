@@ -26,6 +26,7 @@ export class CameraViewModel {
   zoomGoal = 1;
   target = { x: 0, z: 0 };
   targetGoal = null; // only set while flying somewhere
+  manual = 0;        // counts the person's own moves (pan, zoom, turn, tilt): who follows something stops then
 
   // Camera position relative to its target
   offset(azimuth = this.azimuth) {
@@ -45,42 +46,50 @@ export class CameraViewModel {
   }
 
   rotateQuarter(direction) {
+    this.manual++;
     this.azimuthGoal += direction * QUARTER_TURN;
   }
 
   // Eased rotation (hand gestures: smooths the jumps between camera frames)
   turnBy(radians) {
+    this.manual++;
     this.azimuthGoal += radians;
   }
 
   // Free rotation while dragging: applied immediately
   rotateBy(radians) {
+    this.manual++;
     this.azimuthGoal += radians;
     this.azimuth = this.azimuthGoal;
   }
 
   // Dragging up/down tilts the view (applied immediately)
   tiltBy(radians) {
+    this.manual++;
     this.elevation = clamp(this.elevation + radians, CAMERA.elevationMin, CAMERA.elevationMax);
   }
 
   zoomBy(factor) {
+    this.manual++;
     this.zoomGoal = clamp(this.zoomGoal * factor, CAMERA.zoomMin, CAMERA.zoomMax);
   }
 
   // Wheel zoom: applied immediately (the view keeps the point under the cursor fixed)
   setZoomNow(zoom) {
+    this.manual++;
     this.zoom = this.zoomGoal = clamp(zoom, CAMERA.zoomMin, CAMERA.zoomMax);
     this.targetGoal = null;
   }
 
   panBy(dx, dz) {
+    this.manual++;
     this.target = { x: this.target.x + dx, z: this.target.z + dz };
     this.targetGoal = null;
   }
 
   // Pan that eases in, like a short flight (hand gestures: smooths the jumps between camera frames)
   glideBy(dx, dz) {
+    this.manual++;
     const from = this.targetGoal ?? this.target;
     this.targetGoal = { x: from.x + dx, z: from.z + dz };
   }

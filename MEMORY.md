@@ -17,6 +17,14 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
 `vercel.json` está modificado por una reparación aprobada: **no se sube** hasta que el usuario decida.
 
 ## Funciones y dónde viven
+- **Bienvenida con tecnologías (proyecto A, 2026-10-24)** (`docs/features/welcome-robot/README.md`, diseño en `docs/superpowers/specs/2026-10-24-welcome-stack-picker-design.md`):
+  - primero la experiencia: «Ya programo» → despedida, el robot se va, chat abierto y modo Dev; «Estoy empezando» → tarjetas con logo (Next.js base, Vercel, Supabase) de `models/stackCatalog.js`;
+  - «¡Empecemos!» registra lo que queda por conectar (`models/setupModel.js`, por ruta) y pide al agente el proyecto base sin claves;
+  - estado de integración nuevo `pending` («por conectar»): punteado, translúcido, sin línea; clic → mensaje en el chat (`EVENTS.integrationPicked`);
+  - logos de Simple Icons (CC0, `STACK_LOGOS`, `npm run icons`).
+- **Carpetas de confianza (como VS Code)** (`electron/trust.js`, `models/trustModel.js`): al crear o abrir un proyecto, diálogo nativo «¿Confías…?»; confiada = el agente guarda sin preguntar (`trustedNow` en `platanus_write_file`, `approvedBy: 'trusted'`), secretos bloqueados y respaldo igual. «Sí» se recuerda (`userData/trusted-folders.json`), «No» vuelve a preguntar. Menú ⋯ del chat: confiar / dejar de confiar. **Sin probar en la app real todavía.**
+- **Espera de la obra inicial:** tras «¡Empecemos!» con agente, el globo muestra «Preparando tu proyecto…» con barra (`building` en `robotDialogViewModel`); `actions.askAgent` devuelve si el agente lo recibió.
+- **La cámara sigue al robot en la obra** (`buildViewModel.js`, `FOLLOW_ZOOM`): se aleja, vuela a cada carpeta, deja de seguir si la persona mueve la cámara (`camera.manual`) y al final vuelve a `mapViewModel.home()`.
 - **Chat natural** (`renderer/viewmodels/chatViewModel.js`, `views/ui/runCardView.js`, `styles/chat-glass.css`): una tarjeta por ejecución, orbes por actividad, diffs en vivo, modos Vibe/Dev, «Mejorar mi mensaje» (`models/promptSpec.js`), permisos manual/auto/sin preguntar (`electron/approval.js`).
 - **Recorrido** (`docs/features/recorrido/README.md`): el analizador decide los hechos y las paradas, el agente solo narra; usa la ruta MCP de solo lectura `/mcp/<token>/ro`.
 - **Robot del mapa** (`docs/features/robot/README.md`):
@@ -47,7 +55,7 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - fijos: chat abajo a la derecha, panel lateral, tarjeta de seguridad (compacta, arriba a la izquierda; reemplazó al semáforo) y selector Mapa/Git. Solo el editor se arrastra. Se quitó `floater.js`.
 
 ## Cómo comprobar
-- `npm test` (448 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
+- `npm test` (472 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
 - **App real:** `npx electron . --remote-debugging-port=9223 --open=<proyecto>` y scripts CDP (`scripts/demo/cdp.mjs`).
 - **Banderas:**
   - `PLATANUS_SIM=1`: agente «Simulador», escenarios en `scripts/sim/scenarios.js`;
@@ -72,6 +80,8 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - Delegar tareas acotadas a Pi (gentle-shell) cuando convenga, no a opencode.
 
 ## Pendiente o ideas acordadas
+- **Proyecto B: «Conectar mi cuenta»** en el clic de una integración por conectar: iniciar sesión en Vercel/Supabase, el agente crea el proyecto y guarda las claves por los MCP oficiales, a través de Platanus y con su confirmación. Antes de diseñarlo, revisar qué permite hoy cada MCP. Al conectar: `setupModel.markConnected(root, key)`.
+- A futuro, más tarjetas en el catálogo (React Native/Expo, Clerk, AWS) con sus reglas.
 - Guion único del video (`video/src/guion.js`) con sonidos (clics desde `cursor-path.json`), música, `@remotion/transitions` y el lanzamiento del robot. Propuesto, falta el «sí».
 - Informe del otro agente (8 funciones de seguridad, competidores, demo de 3 min): sin actuar, hay que preguntar.
 - Blender para una toma hero: después.
@@ -87,4 +97,7 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - No editar el repo team-12 mientras el usuario lo tiene abierto en la app: cada guardado aparecía como «Se guardaron cambios» en su chat (ahora solo en Dev).
 - El robot y la tarjeta `place`: la pregunta queda anclada arriba hasta que la persona mueve el scroll (`anchorId` en `chatView.js`).
 - Sin Chrome en esta Mac: para ver un CSS sin tocar la app abierta del usuario, una página de prueba + `npx electron capture.cjs` (`BrowserWindow` oculto y `capturePage`).
+- Para ver la bienvenida sin tocar la app abierta: `renderer/index.html?demo=1` en un `BrowserWindow` oculto con `backgroundThrottling: false` (sin eso no corren los cuadros y el globo no aparece) y `__platanus.mapViewModel.createProject()` (no `projectModel.create()`: solo el primero activa `welcome`). `__platanus.projectModel` sirve para simular integraciones.
+- En el globo del robot, toda regla sobre un `span` necesita el prefijo `#map-labels .map-label.robot-speech`: si no, `labels.css` le gana (le pasó al ✓ de las tarjetas).
+- Para simular una obra en la demo web: un mensaje con `run: { status: 'running', steps: [{ name: 'write_file', target, status }] }` en `chatViewModel.store`; sin `diff` (un `diff` a medias rompe la tarjeta del chat: le faltan `hunks`).
 - La UI nueva llega pronto. Los selectores de la grabación viven en `scripts/demo/timeline.mjs`: si cambian, se ajustan solo ahí.

@@ -11,6 +11,13 @@ module.exports = {
   notRecent: 'Esa carpeta no está en tus proyectos recientes.',
   cancel: 'Cancelar',
   allow: 'Permitir',
+  // Trusted folders (electron/trust.js): asked when a project is created or opened
+  trust: {
+    question: (name) => `¿Confías en la carpeta «${name}»?`,
+    detail: 'Si confías, tu agente podrá crear y cambiar archivos en esta carpeta sin pedirte permiso cada vez. Igual se guarda una copia de cada cambio para deshacerlo, y nunca podrá tocar claves ni contraseñas.\n\nSi no, te preguntaré antes de guardar cada cambio.',
+    yes: 'Sí, confío',
+    no: 'No, pregúntame',
+  },
   confirmOverwrite: (path) => `¿Sobrescribir "${path}"?`,
   confirmOverwriteDetail: 'El archivo ya existe y se reemplazará su contenido.',
   confirmDelete: (path) => `¿Borrar "${path}"?`,

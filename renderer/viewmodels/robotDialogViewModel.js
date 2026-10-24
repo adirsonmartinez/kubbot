@@ -1,39 +1,35 @@
-// The welcome robot's speech bubble, for people who do not program. It starts on a new, empty project
-// (MapViewModel.welcome) and has two phases:
-//   interview: questions about the idea, never about technology (strings.map.welcome.steps); the last step
-//              recommends a stack in plain words (with an analogy on demand) and hands it to the agent.
-//              Answers can be undone with "back"
+// The welcome robot's speech bubble. It starts on a new, empty project (MapViewModel.welcome) and has two phases:
+//   interview: first how much the person programs. "Ya programo" -> a goodbye, then the robot steps aside, the
+//              chat opens and the app switches to Dev. "Estoy empezando" -> cards with the technologies to start
+//              with (models/stackCatalog.js, all chosen by default); "¡Empecemos!" records the integrations
+//              left to connect and hands the agent a request for a base project. "back" undoes the answer
 //   coach:     tips that react to the project while it grows (first file, risky files, .gitignore, README),
 //              until everything basic is in place and the person says goodbye
-// The view only renders `bubble` and calls press(id) with the id of the clicked button.
+// The view only renders `bubble` and calls press(id) with the id of the clicked button or card.
 import { Observable } from '../core/observable.js';
 import { allFiles, baseName } from '../models/fileTree.js';
 import { LEVEL_RANK } from '../models/securityModel.js';
+import { STACK_CATALOG, defaultSelection, toggleStack, integrationsOf } from '../models/stackCatalog.js';
 import { strings } from '../i18n/es.js';
 
 const W = strings.map.welcome;
 const TIPS = W.tips;
-const byId = Object.fromEntries(W.steps.map((s) => [s.id, s]));
-
-// Questions on any path from the first step to the last one (every branch has the same depth)
-const INTERVIEW_LENGTH = (() => {
-  let n = 0;
-  for (let step = W.steps[0]; step; step = byId[step.options[0].next]) n++;
-  return n;
-})();
+const INTERVIEW_LENGTH = 2; // experience, technologies
+const FAREWELL_MS = 2600;   // the goodbye stays this long before the robot steps aside
 
 const isRisk = (level) => level === 'red' || level === 'yellow';
-// The stack the answers lead to (the last answer that names one)
-const stackOf = (history) => W.stacks[history.findLast((a) => a.stack)?.stack] ?? W.stacks.site;
-const OFF = { phase: 'off', stepId: 'start', history: [], explained: false, seen: [], collapsed: false, unread: false, bubble: null };
+const OFF = { phase: 'off', stepId: 'experience', history: [], selection: defaultSelection(), building: false, seen: [], collapsed: false, unread: false, bubble: null };
 
 export class RobotDialogViewModel {
   #project;
   #security;
   #actions;
   #session = null;
+  #farewellTimer = null;
 
   // `seq` changes every time the bubble shows something new (the view replays its entrance);
+  // `history`: the answers so far (chips); `selection`: the chosen technologies (catalog ids);
+  // `building`: the base project went to an agent and its first file has not arrived yet;
   // `seen`: coach tips already dismissed; `unread`: a new tip arrived while the bubble was collapsed
   store = new Observable({ ...OFF, seq: 0 });
 
@@ -44,7 +40,8 @@ export class RobotDialogViewModel {
 
     mapViewModel.store.subscribe(({ status, session, welcome }) => {
       if (status !== 'ready') return this.#turnOff();
-      if (welcome && (this.store.state.phase === 'off' || session !== this.#session)) {
+      // Once per new project: after the goodbye or ×, the robot does not come back on the map's next change
+      if (welcome && session !== this.#session) {
         this.#session = session;
         return this.#show({ ...OFF, phase: 'interview' });
       }
@@ -56,7 +53,7 @@ export class RobotDialogViewModel {
 
   press(id) {
     const state = this.store.state;
-    if (state.phase === 'off') return;
+    if (state.phase === 'off' || state.phase === 'farewell') return;
     if (id === 'close') return this.#turnOff();
     if (id === 'collapse') return this.store.set({ collapsed: true });
     if (id === 'expand') return this.store.set({ collapsed: false, unread: false });
@@ -65,28 +62,31 @@ export class RobotDialogViewModel {
   }
 
   #pressInterview(id) {
-    const { history, stepId } = this.store.state;
+    const { history, stepId, selection } = this.store.state;
     if (id === 'skip') return this.#show({ phase: 'coach' });
-    // Undo: "back" drops the last answer; tapping an answer chip ("rewind:i") goes back to that question
-    const rewindTo = id === 'back' ? history.length - 1 : id.startsWith('rewind:') ? Number(id.slice(7)) : -1;
-    if (rewindTo >= 0 && rewindTo < history.length) {
-      return this.#show({ stepId: history[rewindTo].stepId, history: history.slice(0, rewindTo), explained: false });
+    if (id === 'back' || id.startsWith('rewind:')) {
+      if (stepId === 'stack') this.#show({ stepId: 'experience', history: [] });
+      return;
     }
-    if (id === 'back' || id.startsWith('rewind:')) return;
-    const step = byId[stepId];
-    const option = step.options[Number(id.replace('opt:', ''))];
-    if (!option) return;
-    if (option.next) {
-      const answer = { stepId, question: step.question, chosen: option.label, stack: option.stack };
-      return this.#show({ stepId: option.next, history: [...history, answer], explained: false });
+    if (id === 'exp:dev') {
+      this.#show({ phase: 'farewell' });
+      this.#actions.devMode?.();
+      this.#actions.openChat?.();
+      clearTimeout(this.#farewellTimer);
+      this.#farewellTimer = setTimeout(() => this.#turnOff(), FAREWELL_MS);
+      return;
     }
-
-    // The recommendation step
-    const stack = stackOf(history);
-    if (option.action === 'explain') return this.#show({ explained: true });
-    if (option.action === 'createFiles') this.#actions.askAgent?.(W.scaffoldPrompt(history, stack));
-    if (option.action === 'talk') this.#actions.askAgent?.(W.talkPrompt(history, stack));
-    this.#show({ phase: 'coach', collapsed: option.action === 'dismiss' });
+    if (id === 'exp:beginner') return this.#show({ stepId: 'stack', history: [W.experience.beginner], selection: defaultSelection() });
+    if (stepId !== 'stack') return;
+    if (id.startsWith('pick:')) return this.#show({ selection: toggleStack(selection, id.slice(5)) });
+    if (id === 'start') {
+      this.#actions.prepareSetup?.(integrationsOf(selection));
+      const names = selection.map((key) => W.catalog[key]?.name ?? key);
+      // askAgent says whether an agent got it (false: none yet, it waits until the person picks one)
+      const sent = this.#actions.askAgent?.(W.scaffoldPrompt(selection, names)) === true;
+      return this.#show({ phase: 'coach', building: sent });
+    }
+    if (id === 'dismiss') this.#show({ phase: 'coach', collapsed: true });
   }
 
   #pressCoach(id) {
@@ -96,8 +96,8 @@ export class RobotDialogViewModel {
     if (id === 'openChat') return this.#actions.openChat?.();
     if (id === 'repair') return this.#actions.repair?.(tip.path);
     if (id === 'locate') return this.#actions.locate?.(tip.path);
-    // Back to the recommendation with the same answers, to change them
-    if (id === 'reopen') return this.#show({ phase: 'interview', stepId: 'recommend', explained: false, collapsed: false });
+    // Back to the technology cards with the same choice, to change it
+    if (id === 'reopen') return this.#show({ phase: 'interview', stepId: 'stack', collapsed: false });
     if (id === 'save') {
       this.#actions.saveProgress?.();
       return this.#show({ seen: [...this.store.state.seen, tip.id] });
@@ -109,13 +109,16 @@ export class RobotDialogViewModel {
   }
 
   #turnOff() {
+    clearTimeout(this.#farewellTimer);
     if (this.store.state.phase !== 'off') this.store.set({ ...OFF, seq: this.store.state.seq + 1 });
   }
 
   // Applies the patch and recomputes the bubble; only a different bubble bumps seq
   #show(patch) {
     const next = { ...this.store.state, ...patch };
-    const bubble = next.phase === 'interview' ? this.#question(next) : this.#tip(next);
+    const bubble = next.phase === 'interview' ? this.#question(next)
+      : next.phase === 'farewell' ? { id: 'farewell', kind: 'tip', tone: 'success', title: W.farewell.title, text: W.farewell.text, buttons: [] }
+      : this.#tip(next);
     const previous = this.store.state.bubble;
     const changed = previous?.id !== bubble.id;
     // A new problem always opens the bubble; calmer news just lights the pill
@@ -130,45 +133,52 @@ export class RobotDialogViewModel {
     });
   }
 
-  #question({ stepId, history, explained }) {
-    const step = byId[stepId];
+  #question({ stepId, history, selection }) {
     const base = {
       kind: 'question',
       tone: 'info',
-      progress: { step: history.length + 1, of: INTERVIEW_LENGTH },
-      answers: history.map((a) => a.chosen),
+      progress: { step: stepId === 'stack' ? 2 : 1, of: INTERVIEW_LENGTH },
+      answers: history,
       canBack: history.length > 0,
     };
-    const KIND = { createFiles: 'primary', dismiss: 'ghost' };
-    const buttons = step.options
-      .map((o, i) => ({ id: `opt:${i}`, label: o.label, kind: KIND[o.action] ?? 'option', action: o.action }))
-      .filter((b) => !(explained && b.action === 'explain'))
-      .map(({ action, ...b }) => b);
-
-    if (stepId === 'recommend') {
-      const stack = stackOf(history);
+    if (stepId === 'stack') {
       return {
         ...base,
-        id: `q:recommend:${stack.tech}${explained ? ':explained' : ''}`,
-        kind: 'recommend',
-        title: explained ? W.recommend.explainedTitle : W.recommend.title,
-        text: explained ? stack.analogy : W.recommend.text(stack),
-        stack: { inside: W.recommend.inside, tech: stack.tech, perks: stack.perks },
-        buttons,
+        id: 'q:stack',
+        kind: 'stack',
+        title: W.stack.title,
+        text: W.stack.question,
+        cards: STACK_CATALOG.map((item) => ({
+          id: item.id,
+          logo: item.logo,
+          name: W.catalog[item.id]?.name ?? item.id,
+          text: W.catalog[item.id]?.text ?? '',
+          chosen: selection.includes(item.id),
+          locked: Boolean(item.base),
+        })),
+        buttons: [
+          { id: 'start', label: W.stack.start, kind: 'primary' },
+          { id: 'dismiss', label: W.stack.dismiss, kind: 'ghost' },
+        ],
       };
     }
+    const E = W.experience;
     return {
       ...base,
-      id: `q:${stepId}`,
-      title: step.title,
-      text: step.question,
-      hint: step.hint,
-      buttons: [...buttons, ...(history.length ? [] : [{ id: 'skip', label: W.ui.skip, kind: 'ghost' }])],
+      id: 'q:experience',
+      title: E.title,
+      text: E.question,
+      hint: E.hint,
+      buttons: [
+        { id: 'exp:beginner', label: E.beginner, kind: 'option' },
+        { id: 'exp:dev', label: E.dev, kind: 'option' },
+        { id: 'skip', label: W.ui.skip, kind: 'ghost' },
+      ],
     };
   }
 
   // The most useful tip for the project as it is now: risks first, then the basics
-  #tip({ seen, history }) {
+  #tip({ seen, history, building }) {
     const files = allFiles(this.#project.store.state.tree ?? []);
     const has = (re) => files.some((f) => !f.path.includes('/') && re.test(f.path));
     const tip = (id, tone, title, text, buttons, extra = {}) => ({ id, kind: 'tip', tone, title, text, buttons, ...extra });
@@ -188,6 +198,11 @@ export class RobotDialogViewModel {
         ], { path: risk.path });
     }
 
+    if (!files.length && building) {
+      return tip('building', 'info', TIPS.building.title, TIPS.building.text, [
+        { id: 'openChat', label: TIPS.building.watch, kind: 'option' },
+      ], { loading: true });
+    }
     if (!files.length) {
       return tip('waiting', 'info', TIPS.waiting.title, TIPS.waiting.text, [
         { id: 'openChat', label: TIPS.waiting.ask, kind: 'option' },

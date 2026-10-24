@@ -47,9 +47,8 @@ test('with an agent connected, everyday requests that only sound like git go to 
 
 test('the robot\'s requests to the agent are never mistaken for git commands', async () => {
   const { model, asked, commits } = setup();
-  const answers = [{ question: '¿Qué te gustaría crear?', chosen: '🛍️ Vender algo' }];
   for (const text of [
-    W.scaffoldPrompt(answers, W.stacks.shop), W.talkPrompt(answers, W.stacks.shop),
+    W.scaffoldPrompt(['nextjs', 'vercel', 'supabase'], ['Next.js', 'Vercel', 'Supabase']), W.scaffoldPrompt(['nextjs'], ['Next.js']),
     W.tips.gitignore.prompt, W.tips.readme.prompt,
   ]) await model.reply(text);
   assert.deepEqual(commits, []);

@@ -12,6 +12,7 @@ const t = require('./strings');
 const agents = require('./agents');
 const { loadVoice, composePrompt, composeRefinePrompt, composeTourPrompt } = require('./agentVoice');
 const { approvalMode, needsApproval } = require('./approval');
+const { createTrustStore } = require('./trust');
 const { canOpen } = require('./fileOpen');
 const { lineDiff } = require('./lineDiff');
 const { createKeyStore } = require('./keyStore');
@@ -133,8 +134,14 @@ ipcMain.handle('workspace:create', async () => {
   return openWorkspace(dir);
 });
 
+// Trusted folders: in the open folder, if the person trusts it, the agent's changes are saved without asking
+// (secrets are still refused and every change is backed up). Read again each time a folder opens.
+const trustStore = createTrustStore(path.join(app.getPath('userData'), 'trusted-folders.json'));
+let trustedNow = false;
+
 async function openWorkspace(dir) {
   const root = await workspace.open(dir);
+  trustedNow = await trustStore.has(root);
   workspace.watch((paths) => send('fs:changed', paths));
   log('workspace:open', root, true);
   await rememberRecent(root);
@@ -179,7 +186,38 @@ ipcMain.handle('workspace:openRecent', async (_e, root) => {
   }
 });
 
+// The window asks right after a project opens; the answer comes from a native dialog, never from the page.
+// "Sí" is remembered for that folder; "No" asks again next time.
+ipcMain.handle('workspace:trust', async (_e, ask = false) => {
+  if (!workspace.root) return { ok: false, error: t.mcp.noProject };
+  if (trustedNow || !ask) return { ok: true, data: trustedNow };
+  const root = workspace.root;
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'question',
+    buttons: [t.trust.no, t.trust.yes],
+    defaultId: 1,
+    cancelId: 0,
+    message: t.trust.question(path.basename(root)),
+    detail: t.trust.detail,
+  });
+  if (response !== 1 || workspace.root !== root) return { ok: true, data: trustedNow };
+  await trustStore.set(root, true);
+  trustedNow = true;
+  log('workspace:trust', root, true);
+  return { ok: true, data: true };
+});
+
+// Stop trusting the open folder: every change asks again (per the permission mode)
+ipcMain.handle('workspace:untrust', async () => {
+  if (!workspace.root) return { ok: false, error: t.mcp.noProject };
+  await trustStore.set(workspace.root, false);
+  trustedNow = false;
+  log('workspace:untrust', workspace.root, true);
+  return { ok: true, data: false };
+});
+
 ipcMain.handle('workspace:close', () => {
+  trustedNow = false;
   if (workspace.root) log('workspace:close', workspace.root, true);
   workspace.close();
   refreshMenu();
@@ -542,8 +580,8 @@ const mcpHandlers = {
     if (size > MAX_READ_BYTES) throw new Error(t.mcp.tooLarge(Math.round(MAX_READ_BYTES / 1024)));
     return workspace.readFile(rel);
   },
-  // Writes are approved per the agent permission mode (approval.js); the previous version is always
-  // backed up and can be undone
+  // Writes are approved per the agent permission mode (approval.js), or saved on their own in a folder
+  // the person trusts (trust.js); the previous version is always backed up and can be undone
   platanus_write_file: async ({ path: rel, content, reason }) => {
     const requestedAt = new Date().toISOString(); // before the dialog: tells which agent run asked
     if (!workspace.root) throw new Error(t.mcp.noProject);
@@ -556,7 +594,7 @@ const mcpHandlers = {
     // What changes, line by line (lineDiff.js): the chat shows it while asking and once saved
     const before = exists && oldBytes <= MAX_READ_BYTES ? await fs.readFile(abs, 'utf8').catch(() => null) : null;
     const diff = exists && before == null ? null : lineDiff(exists ? before : null, content);
-    const ask = needsApproval(approvalModeNow, { path: rel, exists, oldBytes, newBytes: Buffer.byteLength(content) });
+    const ask = !trustedNow && needsApproval(approvalModeNow, { path: rel, exists, oldBytes, newBytes: Buffer.byteLength(content) });
     if (ask) {
       send('agent:awaiting', { path: rel, waiting: true, diff, reason: why }); // "Esperando tu aprobación…" + the proposed change
       const ok = await confirm(t.mcp.confirmWrite(rel), t.mcp.confirmWriteDetail(why, exists)).finally(() => send('agent:awaiting', { path: rel, waiting: false }));
@@ -564,8 +602,8 @@ const mcpHandlers = {
     }
     const backup = await backupFile(rel, abs, exists);
     await workspace.writeFile(rel, content);
-    // approvedBy: 'you' (the dialog) or the mode that saved it on its own
-    const change = { path: rel, reason: why, created: !exists, backup, requestedAt, at: new Date().toISOString(), approvedBy: ask ? 'you' : approvalModeNow, diff };
+    // approvedBy: 'you' (the dialog), 'trusted' (a trusted folder) or the mode that saved it on its own
+    const change = { path: rel, reason: why, created: !exists, backup, requestedAt, at: new Date().toISOString(), approvedBy: ask ? 'you' : trustedNow ? 'trusted' : approvalModeNow, diff };
     send('agent:changed', change);
     return t.mcp.written(rel);
   },

@@ -14,6 +14,8 @@ import { createGitService } from './services/gitService.js';
 import { createHandTrackingService } from './services/handTrackingService.js';
 
 import { ProjectModel } from './models/projectModel.js';
+import { SetupModel } from './models/setupModel.js';
+import { TrustModel } from './models/trustModel.js';
 import { SecurityModel } from './models/securityModel.js';
 import { SupabaseModel } from './models/supabaseModel.js';
 import { AgentModel } from './models/agentModel.js';
@@ -74,7 +76,11 @@ import { applyIcons } from './views/icons.js';
 // --- Models ---
 const bus = createEventBus();
 const workspace = createWorkspaceService();
-const projectModel = new ProjectModel(workspace);
+// What the welcome robot set up in a new project and still waits for the person's account ("Por conectar")
+const setupModel = new SetupModel();
+const projectModel = new ProjectModel(workspace, setupModel);
+// Trusted folder (like VS Code): asked each time a project opens; trusted, the agent saves without asking each time
+const trustModel = new TrustModel({ workspace, projectModel });
 const securityModel = new SecurityModel();
 const supabaseModel = new SupabaseModel();
 const gitModel = new GitModel(workspace);
@@ -171,19 +177,39 @@ const actions = {
   // The welcome robot hands a ready-made request to the agent (scaffold, .gitignore, README). With no agent
   // connected (none logged in, so none picked automatically) the scripted demo would answer, so the request
   // waits until the person picks one
+  // Returns true when an agent got the request now, false when it waits for one
   askAgent(prompt) {
     actions.openChat();
-    if (connection.live) return chatViewModel.send(prompt);
+    if (connection.live) {
+      chatViewModel.send(prompt);
+      return true;
+    }
     pendingAgentPrompt = prompt;
     actions.showConnect();
     chatViewModel.sayFromMap({ text: strings.map.welcome.pickAgent });
+    return false;
   },
   // The robot's "save my progress": a commit understood by the chat itself (git asks before writing)
   saveProgress() {
     actions.openChat();
     chatViewModel.send(strings.map.welcome.saveProgressPhrase);
   },
+  trustFolder: () => trustModel.ask(),
+  untrustFolder: () => trustModel.revoke(),
+  // Someone who already programs: the app talks in Dev mode
+  devMode: () => modeModel.set('tech'),
+  // The integrations the welcome robot is setting up: "Por conectar" on the map once their files arrive
+  prepareSetup(integrations) {
+    setupModel.prepare(projectModel.store.state.root, integrations);
+    projectModel.reload();
+  },
 };
+// A click on an integration of the map: one still waiting for the person's account explains what is missing
+bus.on(EVENTS.integrationPicked, ({ key, status }) => {
+  if (status !== 'pending') return;
+  actions.openChat();
+  chatViewModel.sayFromMap({ text: strings.integrations.pendingInfo(strings.integrations.names[key] ?? key) });
+});
 let pendingAgentPrompt = null;
 connection.store.subscribe(() => {
   if (!connection.live || !pendingAgentPrompt) return;
@@ -195,7 +221,7 @@ const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection, 
 // The welcome robot interviews the person on a new project (Desire's dialog, welcomeRobotView.js)
 const robotDialogViewModel = new RobotDialogViewModel({ mapViewModel, projectModel, securityModel, actions });
 // Building live: the robot carries each file an agent saves to its folder (it reads the chat's run cards)
-const buildViewModel = new BuildViewModel({ chatViewModel, mapViewModel, projectModel, tourViewModel, bus });
+const buildViewModel = new BuildViewModel({ chatViewModel, mapViewModel, projectModel, tourViewModel, camera: cameraViewModel, bus });
 // The robot companion: drag or throw it onto a folder and it asks what to do there
 const robotViewModel = new RobotViewModel({ projectModel, mapViewModel, tourViewModel, buildViewModel, bus });
 // The agent waits for the person to approve a change (main process dialog): the chat says so
@@ -228,7 +254,7 @@ if (isDemo) {
   createDemoCursor(); // recording the product video (scripts/demo/)
   // the recorder (and checks) can drive the robot and find 3D things on screen
   window.__platanus = {
-    robotViewModel, robotDialogViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel, cameraViewModel,
+    robotViewModel, robotDialogViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel, cameraViewModel, projectModel,
     screenOf: (point) => { const r = stage.getBoundingClientRect(); const s = sceneView.toScreen(point); return { x: r.left + s.x, y: r.top + s.y }; },
   };
 }
@@ -299,6 +325,7 @@ const menuInfo = () => {
     pending: repairHistory.store.state.entries.filter((e) => e.status === 'fixed' || e.status === 'planned').length,
     projectOpen: projectModel.store.state.open,
     empty: !projectModel.store.state.tree.length,
+    trust: trustModel.store.state.available ? trustModel.store.state.trusted : undefined,
   };
 };
 attachMenu($id('chat-more'), $id('chat-more-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, info: menuInfo }));

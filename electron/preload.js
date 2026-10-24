@@ -20,6 +20,9 @@ contextBridge.exposeInMainWorld('platanus', {
   createWorkspace: () => ipcRenderer.invoke('workspace:create'),
   currentWorkspace: () => ipcRenderer.invoke('workspace:current'),
   closeWorkspace: () => ipcRenderer.invoke('workspace:close'),
+  // Trusted folder: trust(false) tells whether the open one is; trust(true) asks the person (native dialog)
+  trustWorkspace: (ask) => ipcRenderer.invoke('workspace:trust', Boolean(ask)),
+  untrustWorkspace: () => ipcRenderer.invoke('workspace:untrust'),
   recentWorkspaces: () => ipcRenderer.invoke('workspace:recent'),
   openRecentWorkspace: (root) => ipcRenderer.invoke('workspace:openRecent', root),
 

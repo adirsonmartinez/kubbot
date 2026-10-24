@@ -6,13 +6,22 @@ import { Observable } from '../../renderer/core/observable.js';
 import { createEventBus, EVENTS } from '../../renderer/core/eventBus.js';
 import { BuildViewModel, TIMING } from '../../renderer/viewmodels/buildViewModel.js';
 
-function setup({ buildings = [], tree = [], tour = 'idle' } = {}) {
+// A camera that records flights; `manual` counts the person's own moves (pan, zoom, turn)
+function fakeCamera(zoom = 1.9) {
+  return {
+    zoomGoal: zoom, manual: 0, flights: [],
+    flyTo(point, z = this.zoomGoal) { this.flights.push({ x: point.x, z: point.z, zoom: z }); this.zoomGoal = z; },
+  };
+}
+
+function setup({ buildings = [], tree = [], tour = 'idle', camera = null } = {}) {
   const bus = createEventBus();
   const chatViewModel = { store: new Observable({ messages: [] }) };
-  const mapViewModel = { store: new Observable({ plaza: { size: 5, name: 'tienda' }, buildings, version: 1 }) };
+  const homes = [];
+  const mapViewModel = { store: new Observable({ plaza: { size: 5, name: 'tienda' }, buildings, version: 1 }), home: () => homes.push(1) };
   const projectModel = { store: new Observable({ open: true, tree, session: 1, usesSupabase: false }) };
   const tourViewModel = { store: new Observable({ status: tour }) };
-  const vm = new BuildViewModel({ chatViewModel, mapViewModel, projectModel, tourViewModel, bus });
+  const vm = new BuildViewModel({ chatViewModel, mapViewModel, projectModel, tourViewModel, camera, bus });
   let seq = 0;
   // a chat run with write steps; returns helpers to change a step's status
   const run = (steps, extra = {}) => {
@@ -26,7 +35,7 @@ function setup({ buildings = [], tree = [], tour = 'idle' } = {}) {
     };
   };
   const write = (id, target, status = 'running') => ({ id, kind: 'tool', name: 'write_file', target, status });
-  return { vm, bus, run, write, chatViewModel, mapViewModel, tourViewModel };
+  return { vm, bus, run, write, chatViewModel, mapViewModel, tourViewModel, homes };
 }
 
 test('an agent starts saving a file: the robot carries it to its folder, which rises as a site', () => {
@@ -202,5 +211,52 @@ test('review: starting the tour stops the work on the map at once; explaining ru
     const second = setup();
     second.run([second.write('w1', 'src/a.js')], { intent: 'explain' });
     assert.equal(second.vm.store.state.active, false);
+  } finally { mock.timers.reset(); }
+});
+
+test('the camera steps back and follows the robot to each folder, then shows the whole project at the end', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const camera = fakeCamera(1.9);
+    const { vm, run, write, homes } = setup({ camera });
+    const r = run([write('w1', 'src/a.js'), write('w2', 'README.md')]);
+    const first = camera.flights.at(-1);
+    assert.ok(first.zoom < 1.9, 'it zooms out');
+    assert.deepEqual({ x: first.x, z: first.z }, vm.store.state.guide.to, 'it heads where the robot walks');
+    r.set('w1', 'done');
+    mock.timers.tick(TIMING.walkMaxMs); mock.timers.tick(TIMING.dropMs);
+    assert.deepEqual({ x: camera.flights.at(-1).x, z: camera.flights.at(-1).z }, vm.store.state.guide.to, 'next folder, next flight');
+    r.set('w2', 'done');
+    mock.timers.tick(TIMING.walkMaxMs); mock.timers.tick(TIMING.dropMs);
+    mock.timers.tick(TIMING.lingerMs);
+    assert.equal(vm.store.state.active, false);
+    assert.equal(homes.length, 1, 'back to the initial view: the project as it grew');
+  } finally { mock.timers.reset(); }
+});
+
+test('a camera already far away is not zoomed in', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const camera = fakeCamera(0.6);
+    const { run, write } = setup({ camera });
+    run([write('w1', 'src/a.js')]);
+    assert.equal(camera.flights.at(-1).zoom, 0.6);
+  } finally { mock.timers.reset(); }
+});
+
+test('once the person moves the camera, it stops following (and stays where they left it)', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const camera = fakeCamera();
+    const { run, write, homes } = setup({ camera });
+    const r = run([write('w1', 'src/a.js'), write('w2', 'lib/b.js')]);
+    const flights = camera.flights.length;
+    camera.manual++; // the person drags the map
+    r.set('w1', 'done');
+    mock.timers.tick(TIMING.walkMaxMs); mock.timers.tick(TIMING.dropMs);
+    assert.equal(camera.flights.length, flights);
+    r.set('w2', 'done');
+    mock.timers.tick(TIMING.walkMaxMs); mock.timers.tick(TIMING.dropMs); mock.timers.tick(TIMING.lingerMs);
+    assert.equal(homes.length, 0);
   } finally { mock.timers.reset(); }
 });

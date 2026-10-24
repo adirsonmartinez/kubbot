@@ -276,3 +276,11 @@ MCP, solo legible por tu usuario). Las copias de los cambios del agente van a `~
   escriben, tampoco a través de enlaces simbólicos.
 - El servidor MCP escucha solo en 127.0.0.1, rechaza navegadores y exige su llave privada.
 - `npm test` revisa cada archivo del repo y falla si alguien intenta subir una credencial.
+
+## Integraciones «por conectar»
+
+Cuando la bienvenida arma un proyecto con Vercel o Supabase, esas integraciones aparecen en la banda de arriba como «por conectar»: punteadas, translúcidas, sin luz ni línea encendida. Un clic abre el chat y explica que solo falta conectar la cuenta (la conexión llega con «Conectar mi cuenta»). Detalles en `docs/features/welcome-robot/README.md`.
+
+## Carpetas de confianza
+
+Al crear o abrir un proyecto, Platanus pregunta en un diálogo del sistema: «¿Confías en la carpeta…?». Si la persona confía, el agente guarda sus cambios en esa carpeta sin pedir permiso cada vez (igual se guarda una copia para deshacer y nunca puede tocar claves). «No» pregunta antes de cada cambio, según el modo de permisos, y vuelve a preguntar la próxima vez. En el menú ⋯ del chat: «Confiar en esta carpeta» o «Dejar de confiar en esta carpeta». La lista vive en el proceso principal (`electron/trust.js`).

@@ -74,3 +74,11 @@ export const BRAND_NAMES = {
   gemini: 'gemini-color',
   qwen: 'qwen-color',
 };
+
+// Logos of the technologies a new project can start with (models/stackCatalog.js): our name -> file in
+// simple-icons (CC0). One color, the text color, so they stay neutral on the glass. `npm run icons` copies them.
+export const STACK_LOGOS = {
+  nextjs: 'nextdotjs',
+  vercel: 'vercel',
+  supabase: 'supabase',
+};

@@ -74,6 +74,7 @@ export class MapViewModel {
       case 'file': return this.selectFile(pick.path);
       case 'supabase': return this.toggleSchema();
       case 'table': return this.#supabase.selectTable(pick.name);
+      case 'integration': return this.#bus.emit(EVENTS.integrationPicked, { key: pick.key, status: this.#project.store.state.integrationStatus?.[pick.key] ?? 'connected' });
       default: return undefined;
     }
   }
@@ -303,30 +304,31 @@ export class MapViewModel {
       more: rootList.length - rootShown.length,
     };
 
-    // Integrations other than Supabase (it draws itself at u = 0): a row along the band, on a road
-    const others = integrations.filter((key) => key !== 'supabase');
-    const firstU = integrations.includes('supabase') ? INTEGRATION_ROW.firstU : 0;
+    // Integrations other than a live Supabase (it draws itself at u = 0): a row along the band, on a road.
+    // A pending Supabase (no database yet) is drawn in the row like the others
+    const statusOf = (key) => integrationStatus[key] ?? 'connected';
+    const withSupabase = integrations.includes('supabase') && statusOf('supabase') !== 'pending';
+    const others = integrations.filter((key) => !(key === 'supabase' && withSupabase));
+    const firstU = withSupabase ? INTEGRATION_ROW.firstU : 0;
     const nodes = others.map((key, i) => ({ key, u: firstU + i * INTEGRATION_ROW.pitch }));
-    const withSupabase = integrations.includes('supabase');
     // Supabase's node sits on the trunk's line: its road drops straight to the integrations' road
     if (withSupabase) addLinks({ links: [[0, integrationV, 0, INTEGRATION_ROW.busV]] }, 'top');
     if (nodes.length) {
       const last = nodes.at(-1).u;
       addLinks({ links: [[0, INTEGRATION_ROW.busV, last, INTEGRATION_ROW.busV], ...nodes.map((n) => [n.u, INTEGRATION_ROW.busV, n.u, integrationV])] }, 'top');
     }
-    const statusOf = (key) => integrationStatus[key] ?? 'connected';
     const integrationNodes = nodes.map((n) => ({ key: n.key, status: statusOf(n.key), ...toWorld(n.u, integrationV) }));
 
     // Lit lines: each live integration lights its way to the folders (down to the road, along it, down
     // the trunk). A stretch shared by several is purple if any of them is connected, amber if they only
-    // have incidents; nothing lights a disconnected one's way.
+    // have incidents; nothing lights the way of a disconnected or pending one.
     const trunkEnd = dirs.length ? topBlock.slots[0].v - TREE.top.rowGap / 2 : 0;
     const strongest = (list) => (list.includes('connected') ? 'connected' : list.includes('incident') ? 'incident' : null);
     const line = (u1, v1, u2, v2, status) => ({ from: toWorld(u1, v1), to: toWorld(u2, v2), status });
     const integrationLines = [];
     nodes.forEach((n, i) => {
       const status = statusOf(n.key);
-      if (status !== 'disconnected') integrationLines.push(line(n.u, integrationV, n.u, INTEGRATION_ROW.busV, status));
+      if (status !== 'disconnected' && status !== 'pending') integrationLines.push(line(n.u, integrationV, n.u, INTEGRATION_ROW.busV, status));
       // The road from the previous node (or the trunk) to this one carries this one and every one after it
       const along = strongest(nodes.slice(i).map((m) => statusOf(m.key)));
       if (along) integrationLines.push(line(i ? nodes[i - 1].u : 0, INTEGRATION_ROW.busV, n.u, INTEGRATION_ROW.busV, along));

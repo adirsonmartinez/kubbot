@@ -4,6 +4,8 @@
 // new. Explaining runs (read-only) build nothing; a card that disappears lets its work go. A folder the map does not draw (the map only shows problems) appears as a temporary "site"
 // while the work lasts (views/scene/buildSiteView.js); the robot is driven through `guide`
 // (views/scene/robotView.js), like the tour. One file at a time, in the order the agent wrote them.
+// The camera steps back and follows the robot to each folder (so it never walks out of sight), until the
+// person moves the camera themselves; when the work ends it shows the whole project as it grew.
 import { Observable } from '../core/observable.js';
 import { clamp } from '../core/format.js';
 import { strings } from '../i18n/es.js';
@@ -12,6 +14,7 @@ import { placesFor } from './tourPlaces.js';
 
 export const TIMING = { walkPerUnitMs: 80, walkMinMs: 500, walkMaxMs: 1500, dropMs: 700, editMs: 600, failMs: 900, lingerMs: 6000 };
 const HOME = { x: 1.1, z: 1.1 };
+const FOLLOW_ZOOM = 1.05; // far enough to see the robot and the folders around it (never zooms in)
 const B = strings.build;
 const nameOf = (path) => path.split('/').filter(Boolean).pop() ?? path;
 const folderOf = (path) => (path.includes('/') ? path.split('/')[0] : '');
@@ -21,6 +24,8 @@ export class BuildViewModel {
   #map;
   #project;
   #tour;
+  #camera;
+  #follow = null;        // while the camera follows the robot: the camera's manual-move count when it started
   #timing;
   #jobs = new Map();     // key -> { key, path, folder, status, created, done }
   #queue = [];           // keys waiting, in order
@@ -35,14 +40,15 @@ export class BuildViewModel {
   // drop: the last sheet going into a folder { key, folder, from, x, z } (the view animates it)
   store = new Observable({ active: false, sites: [], guide: null, drop: null });
 
-  constructor({ chatViewModel, mapViewModel, projectModel, tourViewModel = null, timing = {} }) {
+  constructor({ chatViewModel, mapViewModel, projectModel, tourViewModel = null, camera = null, timing = {} }) {
     this.#chat = chatViewModel;
+    this.#camera = camera;
     this.#map = mapViewModel;
     this.#project = projectModel;
     this.#tour = tourViewModel;
     this.#timing = { ...TIMING, ...timing };
     chatViewModel.store.subscribe((state) => this.#watch(state));
-    mapViewModel.store.subscribe(() => { if (this.store.state.active) { this.#publish(); this.#follow(); } }); // folders may move
+    mapViewModel.store.subscribe(() => { if (this.store.state.active) { this.#publish(); this.#retarget(); } }); // folders may move
     // the tour takes the robot and the map: the work on the map stops at once
     tourViewModel?.store.subscribe(({ status }) => { if (status !== 'idle' && this.store.state.active) this.#reset(); });
     let session = projectModel.store.state.session;
@@ -109,7 +115,11 @@ export class BuildViewModel {
         const totals = [...this.#sites.values()].reduce((t, s) => ({ papers: t.papers + s.papers, edits: t.edits + s.edits }), { papers: 0, edits: 0 });
         this.store.set({ guide: { ...guide, stepId: `${guide.stepId.split(':').slice(0, -1).join(':')}:done`, pose: 'wave', carrying: false, title: B.finished, text: B.done(totals.papers, totals.edits) } });
       }
-      this.#timer = setTimeout(() => this.#reset(), this.#timing.lingerMs);
+      this.#timer = setTimeout(() => {
+        const following = this.#following();
+        this.#reset();
+        if (following) this.#map.home?.(); // the project as it grew
+      }, this.#timing.lingerMs);
       return;
     }
     const job = this.#jobs.get(key);
@@ -119,6 +129,8 @@ export class BuildViewModel {
     const from = this.store.state.guide?.to ?? HOME;
     const t = this.#timing;
     const walkMs = Math.round(clamp(Math.hypot(place.stand.x - from.x, place.stand.z - from.z) * t.walkPerUnitMs, t.walkMinMs, t.walkMaxMs));
+    if (!this.store.state.active && this.#camera) this.#follow = this.#camera.manual ?? 0;
+    this.#watchWith(place.stand);
     this.store.set({
       active: true,
       guide: { from, to: place.stand, center: { x: place.x, z: place.z }, walkMs, stepId: `${key}:carry`, title: B.title, text: B.saving(nameOf(job.path)), pose: 'carry', carrying: true },
@@ -166,14 +178,26 @@ export class BuildViewModel {
     this.#jobs.set(key, job);
   }
 
+  // The camera goes where the robot walks, zoomed out (never in), unless the person took the camera
+  #watchWith(point) {
+    if (this.#following()) this.#camera.flyTo(point, Math.min(this.#camera.zoomGoal, FOLLOW_ZOOM));
+  }
+
+  #following() {
+    if (this.#follow === null || !this.#camera) return false;
+    if ((this.#camera.manual ?? 0) !== this.#follow) this.#follow = null; // the person moved it: theirs now
+    return this.#follow !== null;
+  }
+
   // The map rearranged (a new folder appeared): if the folder the robot carries to moved, it follows
-  #follow() {
+  #retarget() {
     const job = this.#current && this.#jobs.get(this.#current);
     const { guide } = this.store.state;
     if (!job || !guide?.carrying) return;
     const place = this.#places().get(job.folder);
     if (Math.hypot(place.x - guide.center.x, place.z - guide.center.z) < 0.5) return;
     this.store.set({ guide: { ...guide, from: guide.to, to: place.stand, center: { x: place.x, z: place.z }, walkMs: this.#timing.walkMinMs, stepId: `${job.key}:carry~${++this.#moves}` } });
+    this.#watchWith(place.stand);
   }
 
   // Where each site is: the folder's building, the plaza for root files, or a temporary place
@@ -194,6 +218,7 @@ export class BuildViewModel {
 
   #reset() {
     clearTimeout(this.#timer);
+    this.#follow = null;
     this.#queue = [];
     this.#current = null;
     this.#sites.clear();

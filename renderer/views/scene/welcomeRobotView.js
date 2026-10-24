@@ -42,12 +42,10 @@ function bubbleHtml(b) {
   const back = b.canBack
     ? `<button type="button" class="rb-back" data-press="back" title="${escapeHtml(UI.back)}">${icon('arrowRight')}${escapeHtml(UI.back)}</button>` : '';
   const hint = b.hint ? `<p class="rb-hint">${escapeHtml(b.hint)}</p>` : '';
-  // The recommendation: why it is a good choice first, the real tech in small print
-  const card = b.stack ? `
-      <div class="rb-card">
-        <ul>${b.stack.perks.map((p, i) => `<li style="--i:${i}">${icon('ok')}${escapeHtml(p)}</li>`).join('')}</ul>
-        <span class="rb-tech">${escapeHtml(b.stack.inside)} <code>${escapeHtml(b.stack.tech)}</code></span>
-      </div>` : '';
+  // The agent is getting ready: a bar that keeps moving until the first file shows up
+  const progress = b.loading ? '<div class="rb-progress" role="progressbar" aria-busy="true"><i></i></div>' : '';
+  // The technologies to start with: a card each (logo, name, what it does); tapping one chooses or removes it
+  const cards = b.cards ? `<div class="rb-stack">${b.cards.map(cardHtml).join('')}</div>` : '';
   return `
     <div class="rb-bubble tone-${b.tone} kind-${b.kind}" role="dialog" aria-live="polite" aria-label="${escapeHtml(b.title)}">
       <div class="rb-head">
@@ -59,9 +57,31 @@ function bubbleHtml(b) {
       ${answers}
       <strong class="rb-title">${escapeHtml(b.title)}</strong>
       <p class="rb-text" title="${escapeHtml(UI.skipTyping)}"><span class="rb-typed"></span><span class="rb-caret"></span><span class="rb-dots"><i></i><i></i><i></i></span></p>
-      ${hint}${card}
+      ${hint}${progress}${cards}
       <div class="rb-buttons">${buttons}</div>
     </div>`;
+}
+
+function cardHtml(c, i) {
+  const mark = c.locked
+    ? `<span class="rb-pick-mark">${escapeHtml(UI.base)}</span>`
+    : `<span class="rb-pick-check">${icon('ok')}</span>`;
+  return `
+    <button type="button" class="rb-pick${c.chosen ? ' chosen' : ''}${c.locked ? ' locked' : ''}" data-press="pick:${c.id}" data-card="${c.id}"
+      aria-pressed="${c.chosen}"${c.locked ? ' aria-disabled="true"' : ''} style="--i:${i}">
+      <span class="rb-pick-logo">${icon(c.logo)}</span>
+      <span class="rb-pick-body"><b>${escapeHtml(c.name)}</b><small>${escapeHtml(c.text)}</small></span>
+      ${mark}
+    </button>`;
+}
+
+// The chosen cards changed without a new message: only their state is updated (no typing, no hop)
+function updateCards(el, cards) {
+  cards.forEach((c) => {
+    const card = el.querySelector(`[data-card="${c.id}"]`);
+    card?.classList.toggle('chosen', c.chosen);
+    card?.setAttribute('aria-pressed', String(c.chosen));
+  });
 }
 
 function pillHtml(unread) {
@@ -99,7 +119,7 @@ export function createWelcomeRobotView({ sceneView, labels, mapViewModel, robotD
   let shake = 0;       // 1 -> 0 after a risk
   let worried = false; // a risk is on screen: tilted eyes and a frown
   let typing = null;   // { el, full, chars, start } while the text is being typed
-  let rendered = { seq: -1, collapsed: null, unread: null };
+  let rendered = { seq: -1, collapsed: null, unread: null, picks: '' };
 
   // The label layer puts the bubble's bottom center on the anchor; margins move it to the robot's right,
   // vertically centered on its head but always whole on screen, and the tail follows the head
@@ -122,8 +142,13 @@ export function createWelcomeRobotView({ sceneView, labels, mapViewModel, robotD
 
   function render(state) {
     const fresh = state.seq !== rendered.seq;
-    if (!fresh && state.collapsed === rendered.collapsed && state.unread === rendered.unread) return;
-    rendered = { seq: state.seq, collapsed: state.collapsed, unread: state.unread };
+    const picks = state.bubble?.cards?.map((c) => c.chosen).join() ?? '';
+    if (!fresh && state.collapsed === rendered.collapsed && state.unread === rendered.unread) {
+      if (picks !== rendered.picks && !state.collapsed) updateCards(label.el, state.bubble.cards);
+      rendered.picks = picks;
+      return;
+    }
+    rendered = { seq: state.seq, collapsed: state.collapsed, unread: state.unread, picks };
     typing = null;
     label.el.classList.toggle('collapsed', state.collapsed);
     if (state.collapsed) {
@@ -174,7 +199,7 @@ export function createWelcomeRobotView({ sceneView, labels, mapViewModel, robotD
     if (!on && shown === 0) {
       robot.root.visible = shadow.visible = false;
       label.el.hidden = true;
-      rendered = { seq: -1, collapsed: null, unread: null };
+      rendered = { seq: -1, collapsed: null, unread: null, picks: '' };
       return;
     }
     const pop = 1 - (1 - shown) ** 3;

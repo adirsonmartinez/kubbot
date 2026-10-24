@@ -100,20 +100,50 @@
 }
 .typed .rb-hint { opacity: 1; }
 
-/* The recommendation card: perks with checks, the real tech in small print */
-.rb-bubble.kind-recommend { width: 316px; }
-.rb-card {
-  margin-top: 10px; padding: 10px 12px; border-radius: var(--lg-r-block);
-  background: var(--lg-stage); box-shadow: inset 0 0 0 1px var(--lg-code-ring);
-  opacity: 0; transform: translateY(6px); transition: opacity .3s, transform .4s var(--lg-ease);
+/* The technology cards: logo, name and what it does; chosen ones are lit glass with a white check, the others
+   dim with an empty ring. The base (Next.js) carries a "Base" tag instead of the check. */
+.rb-bubble.kind-stack { width: 320px; }
+.rb-stack { display: grid; gap: 6px; margin-top: 12px; }
+.rb-pick {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px 8px 8px; border: 0;
+  border-radius: var(--lg-r-block); cursor: pointer; text-align: left; color: var(--lg-text);
+  background: rgba(255, 255, 255, .025); box-shadow: inset 0 0 0 1px var(--lg-line);
+  opacity: 0; transform: translateY(6px); pointer-events: none;
+  transition: opacity .25s, transform .3s var(--lg-ease), background .15s, box-shadow .15s;
 }
-.typed .rb-card { opacity: 1; transform: none; }
-.rb-card ul { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 5px; }
-.rb-card li { display: flex; align-items: center; gap: 7px; font: 500 12.5px var(--lg-font); color: var(--lg-text); opacity: 0; transform: translateX(-6px); transition: opacity .3s, transform .3s; }
-.typed .rb-card li { opacity: 1; transform: none; transition-delay: calc(120ms + var(--i) * 90ms); }
-.rb-card li svg { width: 15px; height: 15px; flex: none; color: var(--ok, #3ddc97); }
-#map-labels .map-label.robot-speech .rb-tech { font-size: 11px; color: var(--lg-muted); }
-.rb-tech code { font: 11px var(--lg-mono); color: var(--lg-icon); padding: 1px 6px; border-radius: var(--lg-r-xs); background: var(--lg-code); box-shadow: inset 0 0 0 1px var(--lg-code-ring); }
+.typed .rb-pick { opacity: .62; transform: none; pointer-events: auto; transition-delay: calc(var(--i) * 70ms), calc(var(--i) * 70ms), 0s, 0s; }
+.typed .rb-pick.chosen { opacity: 1; background: var(--lg-chip); box-shadow: var(--lg-rim), inset 0 0 0 1px rgba(255, 255, 255, .14); }
+.typed .rb-pick:hover { opacity: 1; background: var(--lg-chip-hover); transition-delay: 0s; }
+.rb-pick.locked { cursor: default; }
+.typed .rb-pick.locked:hover { background: var(--lg-chip); }
+#map-labels .map-label.robot-speech .rb-pick-logo {
+  flex: none; width: 32px; height: 32px; border-radius: var(--lg-r-sm); display: grid; place-items: center;
+  background: var(--lg-stage); box-shadow: inset 0 0 0 1px var(--lg-code-ring); color: var(--lg-icon);
+}
+.rb-pick-logo svg { width: 17px; height: 17px; }
+#map-labels .map-label.robot-speech .rb-pick-body { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.rb-pick-body b { font: 600 13px/1.25 var(--lg-font); color: var(--lg-text); }
+.rb-pick-body small { font: 12px/1.35 var(--lg-font); color: var(--lg-muted); }
+/* The check: an empty ring when not chosen, a white disc with a dark tick when chosen */
+#map-labels .map-label.robot-speech .rb-pick-check {
+  flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, .28); color: transparent; transition: background .15s, color .15s, box-shadow .15s;
+}
+.rb-pick-check svg { width: 13px; height: 13px; }
+#map-labels .map-label.robot-speech .rb-pick.chosen .rb-pick-check { background: #fff; box-shadow: none; color: #121212; }
+#map-labels .map-label.robot-speech .rb-pick-mark {
+  flex: none; padding: 2px 8px; border-radius: 999px; background: var(--lg-chip); box-shadow: var(--lg-rim);
+  font: 500 10.5px var(--lg-font); color: var(--lg-text-2);
+}
+
+/* The agent is getting ready: a thin track with a light that sweeps across, until the first file shows up */
+.rb-progress { position: relative; height: 3px; margin-top: 12px; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, .08); }
+.rb-progress i {
+  position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .85), transparent);
+  animation: rb-sweep 1.4s var(--lg-ease) infinite;
+}
+@keyframes rb-sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 
 /* Buttons slide in one by one once the text is typed: the chat's glass chips */
 .rb-buttons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
@@ -127,7 +157,7 @@
 .typed .rb-btn { opacity: 1; transform: none; pointer-events: auto; transition-delay: calc(var(--i) * 55ms), calc(var(--i) * 55ms), 0s; }
 .rb-btn:hover { background: var(--lg-chip-hover); transition-delay: 0s; }
 .rb-btn:active { background: var(--lg-chip-press); transform: scale(.98); }
-.rb-btn:focus-visible, .rb-icon:focus-visible, .rb-back:focus-visible, .rb-pill:focus-visible, .rb-answers button:focus-visible { outline: 2px solid rgba(255, 255, 255, .5); outline-offset: 2px; }
+.rb-btn:focus-visible, .rb-pick:focus-visible, .rb-icon:focus-visible, .rb-back:focus-visible, .rb-pill:focus-visible, .rb-answers button:focus-visible { outline: 2px solid rgba(255, 255, 255, .5); outline-offset: 2px; }
 /* The main choice: the chat's white pill */
 .rb-btn.primary { flex-basis: 100%; text-align: center; font-weight: 600; color: #121212; background: #fff; box-shadow: none; }
 .rb-btn.primary:hover { background: rgba(255, 255, 255, .88); }
@@ -171,5 +201,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .rb-bubble, .rb-bubble.pop, .rb-bubble.tone-danger.pop, .rb-bubble::before, .rb-pill, .rb-pill.unread, .rb-answers button { animation: none; }
-  .rb-btn, .typed .rb-btn, .rb-hint, .rb-card, .rb-card li { transition: none; }
+  .rb-progress i { animation: none; width: 100%; opacity: .35; }
+  .rb-btn, .typed .rb-btn, .rb-hint, .rb-pick, .typed .rb-pick, .rb-pick-check { transition: none; }
 }

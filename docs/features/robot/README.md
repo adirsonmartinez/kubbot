@@ -31,6 +31,7 @@ Mientras un agente (en el chat o en una reparación) guarda archivos, el robot *
 - **Si hay que aprobar:** si el cambio espera tu permiso, el robot espera con la hoja en las manos y lo dice.
 - **Al guardar:** mete la hoja en la carpeta, que gana una hoja más. Si el archivo ya existía, lo señala; si no se guardó, lo dice.
 - **Varios archivos:** van de a uno y en orden. Los de la raíz van a la plaza («Archivos sueltos»).
+- **La cámara lo sigue:** al empezar la obra se aleja (nunca se acerca) y en cada viaje va hacia la carpeta a la que camina el robot, para que no se pierda de vista. Si mueves la cámara tú (arrastrar, rueda, girar, botones), deja de seguirlo y queda donde la dejaste. Si no la tocaste, al terminar vuelve a la vista inicial para mostrar el proyecto completo. La cámara cuenta los movimientos de la persona en `CameraViewModel.manual`.
 - **Al terminar:** saluda con «Obra terminada · Listo: N archivos nuevos». Las obras temporales se van a los pocos segundos y el robot vuelve a la plaza.
 - **En el chat:** un archivo nuevo se cuenta como «Creé index.js» y el resumen como «Creé 4 archivos», no como arreglo.
 

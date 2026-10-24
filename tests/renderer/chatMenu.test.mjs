@@ -48,3 +48,15 @@ test('"Recorrido" is offered when a project with files is open', () => {
   chatMenuItems(ctx({ ...base, projectOpen: true })).find((i) => i.id === 'tour').run();
   assert.deepEqual(calls.at(-1), ['startTour']);
 });
+
+test('with a project open on the desktop, the foot offers to trust the folder, or to stop trusting it', () => {
+  const untrusted = chatMenuItems(ctx({ ...base, projectOpen: true, trust: false })).find((i) => i.id === 'trust');
+  assert.equal(untrusted.label, 'Confiar en esta carpeta');
+  untrusted.run();
+  assert.deepEqual(calls.at(-1), ['trustFolder']);
+  const trusted = chatMenuItems(ctx({ ...base, projectOpen: true, trust: true })).find((i) => i.id === 'trust');
+  assert.equal(trusted.label, 'Dejar de confiar en esta carpeta');
+  trusted.run();
+  assert.deepEqual(calls.at(-1), ['untrustFolder']);
+  assert.ok(!chatMenuItems(ctx({ ...base, projectOpen: true })).some((i) => i.id === 'trust'), 'the web demo has nothing to trust');
+});
