@@ -42,24 +42,16 @@
 
     <main id="stage" class="card">
   <!-- Floating bar: side panels | views | chat -->
-  <div id="stage-tabs" class="stage-tabs">
-    <div id="side-tabs" class="tab-group icons" role="toolbar">
-  <button type="button" data-side="explorer"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
-  <button type="button" data-side="risks"><svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z"/><path d="M12 10v4M12 17v.5"/></svg></button>
-  <button type="button" data-side="repairs"><svg viewBox="0 0 24 24"><path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"/></svg><em class="rail-badge" id="rail-repairs-badge" hidden></em></button>
-  <button type="button" data-side="agent"><svg viewBox="0 0 24 24"><path d="M9 7V4M15 7V4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v4"/></svg></button>
-    </div>
-    <span class="tab-sep" aria-hidden="true"></span>
-    <div class="tab-group" role="tablist">
-    <button type="button" role="tab" data-stage="map"><svg viewBox="0 0 24 24"><path d="M4 20V9l8-5 8 5v11"/><path d="M4 20h16M9 20v-5h6v5"/></svg><span data-i18n="graph.tabMap"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" role="tab" data-stage="git"><svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-11 7"/></svg><span data-i18n="graph.tabGit"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" role="tab" data-stage="project"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span data-i18n="graph.tabProject"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" role="tab" data-stage="graph"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><circle cx="19" cy="12" r="2.2"/><path d="M7 11l3-3.5M7 13l3 3.5M14 7l3 3.5M14 17l3-3.5"/></svg><span data-i18n="graph.tabGraph"></span><em class="tab-badge"></em><span class="tip"></span></button>
-  </div>
-    <span class="tab-sep" aria-hidden="true"></span>
-    <div class="tab-group icons">
-      <button type="button" id="rail-chat" class="chat-tab"><svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01"/></svg></button>
-    </div>
+  <!-- Floating icon bar: drag the icons to reorder them (the order is remembered) -->
+  <div id="stage-tabs" class="stage-tabs icon-bar" role="toolbar">
+    <button type="button" draggable="true" data-side="explorer"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></button>
+    <button type="button" draggable="true" data-side="risks"><svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z"/><path d="M12 10v4M12 17v.5"/></svg></button>
+    <button type="button" draggable="true" data-side="repairs"><svg viewBox="0 0 24 24"><path d="M14.5 5.5a4 4 0 0 0-5 5L4 16l4 4 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z"/></svg><em class="rail-badge" id="rail-repairs-badge" hidden></em></button>
+    <button type="button" draggable="true" data-side="agent"><svg viewBox="0 0 24 24"><path d="M9 7V4M15 7V4M7 7h10v4a5 5 0 0 1-10 0z"/><path d="M12 16v4"/></svg></button>
+    <button type="button" draggable="true" role="tab" data-stage="map"><svg viewBox="0 0 24 24"><path d="M4 20V9l8-5 8 5v11"/><path d="M4 20h16M9 20v-5h6v5"/></svg><span data-i18n="graph.tabMap"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="git"><svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-11 7"/></svg><span data-i18n="graph.tabGit"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="project"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg><span data-i18n="graph.tabProject"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="graph"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="6" r="2.2"/><circle cx="12" cy="18" r="2.2"/><circle cx="19" cy="12" r="2.2"/><path d="M7 11l3-3.5M7 13l3 3.5M14 7l3 3.5M14 17l3-3.5"/></svg><span data-i18n="graph.tabGraph"></span><em class="tab-badge"></em><span class="tip"></span></button>
   </div>
   <section id="project-panel" class="project-panel" hidden></section>
   <div id="hover-card" class="hover-card" hidden></div>

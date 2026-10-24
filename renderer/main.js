@@ -43,6 +43,8 @@ import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu, chatMenuItems } from './views/ui/chatMenuView.js';
 import { createCracksCardView } from './views/ui/cracksCardView.js';
+import { createIconBarView } from './views/ui/iconBarView.js';
+import { makeFloating } from './views/ui/floater.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { remiJump } from './views/ui/remiJump.js';
@@ -141,6 +143,11 @@ createHudView({ appViewModel, mapViewModel, gitViewModel });
 createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, onMore: actions.showConnect });
+createIconBarView({ bar: document.getElementById('stage-tabs') });
+// Cards on the map can be dragged anywhere and minimized
+for (const [id, title] of [['cracks-card', strings.floater.risks], ['hud', strings.floater.hud]]) {
+  makeFloating({ el: document.getElementById(id), key: id, stage, title, labels: strings.floater });
+}
 createCracksCardView({
   container: document.getElementById('cracks-card'),
   shellViewModel,

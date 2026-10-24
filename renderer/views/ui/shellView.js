@@ -157,7 +157,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   $('sidebar-actions').appendChild(explorerToggle);
 
   // --- Rail (icons with a hover card: name + what it is for) ---
-  for (const button of document.querySelectorAll('#side-tabs [data-side]')) {
+  for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
     const side = button.dataset.side;
     addTip(button, S.rail[side], S.railInfo[side]);
     button.addEventListener('click', () => vm.setSide(side));
@@ -175,9 +175,12 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   const panelToggle = $('sidebar-toggle');
   panelToggle.addEventListener('click', () => vm.toggleSidebar());
 
+  // The chat opens from its own floating button (bottom-right), so the bar has no chat icon
   const chatButton = $('rail-chat');
-  addTip(chatButton, S.rail.chat, S.railInfo.chat);
-  chatButton.addEventListener('click', () => vm.toggleChat());
+  if (chatButton) {
+    addTip(chatButton, S.rail.chat, S.railInfo.chat);
+    chatButton.addEventListener('click', () => vm.toggleChat());
+  }
 
   // --- Sidebar ---
   const sidebarTitle = $('sidebar-title');
@@ -464,10 +467,10 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     panelToggle.querySelector('.tip').replaceChildren(el('strong', '', toggleText), el('small', '', S.panelToggle.info));
     body.classList.toggle('chat-closed', !state.chatOpen);
     body.classList.toggle('mode-tech', modeModel.tech);
-    for (const button of document.querySelectorAll('#side-tabs [data-side]')) {
+    for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
       button.classList.toggle('active', state.sidebarOpen && button.dataset.side === state.side);
     }
-    chatButton.classList.toggle('active', state.chatOpen);
+    chatButton?.classList.toggle('active', state.chatOpen);
     for (const button of stageButtons) button.classList.toggle('active', button.dataset.stageButton === state.stage);
     for (const b of document.querySelectorAll('.mode-toggle button')) b.classList.toggle('active', b.dataset.mode === modeModel.store.state.mode);
     body.classList.toggle('stage-graph', state.stage === 'graph');
