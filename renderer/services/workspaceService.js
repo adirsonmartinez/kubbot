@@ -20,6 +20,7 @@ export function createWorkspaceService(bridge = window.platanus) {
         return { ok: true, data: { name: 'nuevo-proyecto', root: null } };
       },
       current: async () => ({ ok: true, data: null }),
+      close: async () => ({ ok: true }),
       recent: async () => ({ ok: true, data: [] }),
       openRecent: async () => DESKTOP_ONLY,
       tree: async () => ({ ok: true, data: demo.tree }),
@@ -37,6 +38,7 @@ export function createWorkspaceService(bridge = window.platanus) {
     choose: () => bridge.chooseWorkspace(),
     create: () => bridge.createWorkspace(),
     current: () => bridge.currentWorkspace(),
+    close: () => bridge.closeWorkspace(),
     recent: () => bridge.recentWorkspaces(),
     openRecent: (root) => bridge.openRecentWorkspace(root),
     tree: (path = '.') => bridge.tree(path),

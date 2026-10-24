@@ -62,6 +62,8 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
         ...(vm.store.state.recent.length
           ? vm.store.state.recent.map((r) => ({ label: r.name, hint: r.root, run: () => vm.openRecent(r.root) }))
           : [{ label: S.actions.noRecent, disabled: true }]),
+        { separator: true },
+        { label: S.actions.closeProject, disabled: !vm.store.state.open, run: () => vm.closeProject() },
       ],
     },
     {

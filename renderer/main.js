@@ -174,6 +174,11 @@ connection.refresh();
 projectModel.store.subscribe((state, previous) => {
   if (state.session === previous.session) return;
   repairViewModel.reset(); // nothing from the previous project keeps running
+  if (!state.open) { // closed: back to the start screen
+    gitModel.clear();
+    bus.emit(EVENTS.projectClosed, { name: previous.name ?? strings.map.defaultProjectName });
+    return;
+  }
   repairHistory.load(state.name ?? strings.map.defaultProjectName); // each project keeps its own history
   bus.emit(EVENTS.projectOpened, { name: state.name ?? strings.map.defaultProjectName });
   // Fresh git history and cameras for the new project

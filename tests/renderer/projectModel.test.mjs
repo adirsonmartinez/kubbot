@@ -4,9 +4,10 @@ import { ProjectModel } from '../../renderer/models/projectModel.js';
 import { createWorkspaceService } from '../../renderer/services/workspaceService.js';
 
 // Fake bridge: only what ProjectModel uses
-function fakeWorkspace({ create }) {
+function fakeWorkspace({ create, onClose = () => {} }) {
   return {
     create: async () => create,
+    close: async () => { onClose(); return { ok: true }; },
     tree: async () => ({ ok: true, data: [] }),
     read: async () => ({ ok: false }),
   };
@@ -26,6 +27,27 @@ test('a cancelled or refused creation leaves the current state as it was', async
   const response = await model.create();
   assert.equal(response.ok, false);
   assert.equal(model.store.state.open, false);
+});
+
+test('closing a project empties the state, starts a new session and releases the folder', async () => {
+  let released = false;
+  const model = new ProjectModel(fakeWorkspace({ create: { ok: true, data: { name: 'mi-proyecto', root: '/tmp/mi-proyecto' } }, onClose: () => { released = true; } }));
+  await model.create();
+  const { session } = model.store.state;
+  await model.close();
+  assert.equal(released, true);
+  assert.equal(model.store.state.open, false);
+  assert.equal(model.store.state.name, null);
+  assert.deepEqual(model.store.state.tree, []);
+  assert.equal(model.store.state.session, session + 1);
+});
+
+test('closing when nothing is open does nothing', async () => {
+  let released = false;
+  const model = new ProjectModel(fakeWorkspace({ create: null, onClose: () => { released = true; } }));
+  await model.close();
+  assert.equal(released, false);
+  assert.equal(model.store.state.session, 0);
 });
 
 test('browser demo: a new project is empty and has no git, opening one shows the demo again', async () => {

@@ -54,6 +54,15 @@ export class ProjectModel {
     this.store.set({ open: true, name: name || null, ...loaded, session: session + 1, version: version + 1 });
   }
 
+  // Back to the start screen: the main process stops watching the folder and the agent loses access
+  async close() {
+    if (!this.store.state.open) return;
+    clearTimeout(this.#reloadTimer);
+    await this.#workspace.close();
+    const { session, version } = this.store.state;
+    this.store.set({ open: false, name: null, tree: [], usesSupabase: false, session: session + 1, version: version + 1 });
+  }
+
   async reload() {
     if (!this.store.state.open) return;
     const loaded = await this.#load();

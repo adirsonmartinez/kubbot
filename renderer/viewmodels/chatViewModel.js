@@ -35,6 +35,11 @@ export class ChatViewModel {
       this.store.set({ chips: this.suggestions() });
     });
 
+    bus.on(EVENTS.projectClosed, ({ name }) => {
+      this.store.set({ chips: null, projectName: '' });
+      this.#push({ role: 'sys', text: CHAT.projectClosed(name) });
+    });
+
     // Repairs: the agent's explanation streams into its own bubble, then a summary closes the task
     const RC = strings.repair.chat;
     let repairBubble = null;

@@ -140,6 +140,12 @@ ipcMain.handle('workspace:openRecent', async (_e, root) => {
   }
 });
 
+ipcMain.handle('workspace:close', () => {
+  if (workspace.root) log('workspace:close', workspace.root, true);
+  workspace.close();
+  return { ok: true };
+});
+
 ipcMain.handle('workspace:current', () => ({
   ok: true,
   data: workspace.root ? { root: workspace.root, name: path.basename(workspace.root) } : null,

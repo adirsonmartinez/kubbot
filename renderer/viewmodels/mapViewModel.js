@@ -41,6 +41,10 @@ export class MapViewModel {
     return this.#project.choose();
   }
 
+  closeProject() {
+    return this.#project.close();
+  }
+
   async createProject() {
     const response = await this.#project.create();
     if (response.ok) this.#bus.emit(EVENTS.projectCreated, { name: response.data.name });
