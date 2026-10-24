@@ -88,3 +88,9 @@
 #sidebar .devtree-risk:hover { background: var(--lg-chip-hover); }
 #sidebar .devtree-risk.active { background: rgba(255, 90, 106, .14); color: var(--danger); box-shadow: inset 0 0 0 1px rgba(255, 90, 106, .35); }
 #sidebar .devtree-matches[hidden] { display: none; }
+
+/* Toolbar actions as round icon buttons (expand all, collapse all; risks only on the right) */
+#sidebar .devtree-action { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border-radius: 50%; color: var(--lg-icon-muted); }
+#sidebar .devtree-action svg { width: 16px; height: 16px; }
+#sidebar .devtree-action:hover { color: var(--lg-icon); }
+#sidebar .devtree-risk.active svg { color: var(--danger); }

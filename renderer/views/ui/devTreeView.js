@@ -1,6 +1,5 @@
 // Dev tree sidebar view: expandable folders + files with search, risk filter and keyboard nav.
 import { strings } from '../../i18n/es.js';
-import { TAG_COLOR } from '../../models/folderTags.js';
 import { icon } from '../icons.js';
 
 const S = strings.devTree;
@@ -103,16 +102,6 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
     }
   }
 
-  /** Count visible (matching) files within a node and all descendants. */
-  function countVisibleFiles(node) {
-    let c = 0;
-    for (const n of node.children || []) {
-      if (n.type === 'file' && matchFile(n)) c++;
-      if (n.type === 'dir') c += countVisibleFiles(n);
-    }
-    return c;
-  }
-
   /** Count visible red / yellow files within a node and all descendants. */
   function countRY(node) {
     let r = 0, y = 0;
@@ -153,16 +142,23 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
 
     matchesEl = h('span', 'devtree-matches', S.matches(0));
 
-    const expandBtn = h('button', 'devtree-action', S.expandAll);
-    expandBtn.type = 'button';
+    // Icon buttons; the name is in the tooltip and for screen readers
+    const iconButton = (className, name, label) => {
+      const b = h('button', className);
+      b.type = 'button';
+      b.title = label;
+      b.setAttribute('aria-label', label);
+      b.innerHTML = icon(name); // static icon
+      return b;
+    };
+
+    const expandBtn = iconButton('devtree-action', 'unfoldMore', S.expandAll);
     expandBtn.addEventListener('click', () => { expandAll(lastTree); render(lastTree); });
 
-    const collapseBtn = h('button', 'devtree-action', S.collapseAll);
-    collapseBtn.type = 'button';
+    const collapseBtn = iconButton('devtree-action', 'unfoldLess', S.collapseAll);
     collapseBtn.addEventListener('click', () => { collapseAll(lastTree); render(lastTree); });
 
-    riskBtnEl = h('button', 'devtree-action devtree-risk', S.onlyRisks);
-    riskBtnEl.type = 'button';
+    riskBtnEl = iconButton('devtree-action devtree-risk', 'alert', S.onlyRisks);
     riskBtnEl.addEventListener('click', () => { onlyRisks = !onlyRisks; render(lastTree); });
 
     searchEl = search;
@@ -197,7 +193,6 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
       row.setAttribute('aria-expanded', String(opened));
       row.classList.toggle('open', opened);
 
-      const cntAll = countVisibleFiles(node);
       const { r: redC, y: yellowC } = countRY(node);
 
       row.append(
@@ -206,7 +201,7 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
         h('span', 'devtree-name', `${node.name}/`),
       );
 
-      row.appendChild(h('span', 'devtree-count', String(cntAll)));
+      // Only what is at risk inside (the total is noise here)
       if (redC > 0) row.appendChild(h('span', 'devtree-count red', String(redC)));
       if (yellowC > 0) row.appendChild(h('span', 'devtree-count yellow', String(yellowC)));
 
@@ -231,22 +226,7 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
         h('span', 'devtree-name', node.name),
       );
 
-      // tag chip
-      if (node.tags?.[0]) {
-        const chip = h('span', 'tag-chip', strings.tags[node.tags[0]] ?? node.tags[0]);
-        chip.style.setProperty('--c', TAG_COLOR[node.tags[0]] ?? '#8c909c');
-        row.appendChild(chip);
-      }
-
-      // size
-      if (node.size != null) {
-        row.appendChild(h('span', 'devtree-size', S.size(node.size)));
-      }
-
-      // agent / remi badge
-      if (node.by === 'agent' || node.by === 'remi') {
-        row.appendChild(h('span', `devtree-badge ${node.by}`, S.by[node.by]));
-      }
+      // Just the name with its extension: the icon's color already says its traffic light
 
       // title with technical reason
       row.title = node.reasonKey
@@ -420,6 +400,7 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
 
       // Issue 3: update toolbar elements (not rebuild)
       riskBtnEl.className = `devtree-action devtree-risk${onlyRisks ? ' active' : ''}`;
+      riskBtnEl.setAttribute('aria-pressed', String(onlyRisks));
 
       // Collect items
       const items = [];

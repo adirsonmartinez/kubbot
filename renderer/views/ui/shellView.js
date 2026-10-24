@@ -3,7 +3,6 @@
 // Only draws ShellViewModel and forwards clicks to view model actions.
 import { strings } from '../../i18n/es.js';
 import { daysAgo } from '../../core/format.js';
-import { TAG_COLOR } from '../../models/folderTags.js';
 import { createDevTree } from './devTreeView.js';
 import { icon } from '../icons.js';
 import { createFloatingMenu } from './floatingMenu.js';
@@ -20,17 +19,6 @@ const el = (tag, className, text) => {
   if (className) node.className = className;
   if (text != null) node.textContent = text;
   return node;
-};
-
-const tagChip = (tag, { active = false, onClick = null } = {}) => {
-  const chip = el(onClick ? 'button' : 'span', `tag-chip${active ? ' active' : ''}`, strings.tags[tag] ?? tag);
-  chip.style.setProperty('--c', TAG_COLOR[tag] ?? '#8c909c');
-  if (onClick) {
-    chip.type = 'button';
-    chip.setAttribute('aria-pressed', String(active));
-    chip.addEventListener('click', onClick);
-  }
-  return chip;
 };
 
 // Hover card for icon buttons: name + one line of what it is for
@@ -179,9 +167,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
       card.type = 'button';
       const head = el('div', 'guide-head');
       head.append(entryIcon('folder', g.red ? 'red' : g.yellow ? 'yellow' : 'green'), el('strong', '', g.name), counters(g.red, g.yellow));
-      const tags = el('div', 'tag-row');
-      g.tags.forEach((t) => tags.appendChild(tagChip(t)));
-      card.append(head, el('span', 'guide-folder', `${g.folder}/`), el('p', 'guide-summary', g.summary), tags);
+      card.append(head, el('span', 'guide-folder', `${g.folder}/`), el('p', 'guide-summary', g.summary));
       card.addEventListener('click', () => vm.showFolder(g.path));
       parts.push(card);
       const subs = state.guide.filter((x) => x.depth === 1 && x.path.startsWith(`${g.path}/`));
@@ -211,7 +197,6 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     row.type = 'button';
     row.style.paddingLeft = `${8 + depth * 12}px`;
     row.append(entryIcon('file', file.level), el('span', 'side-name', file.name));
-    if (file.tags?.[0] && modeModel.tech) row.appendChild(tagChip(file.tags[0]));
     row.title = file.path;
     row.addEventListener('click', () => vm.showFile(file.path));
     return row;
