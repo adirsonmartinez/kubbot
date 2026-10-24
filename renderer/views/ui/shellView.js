@@ -458,7 +458,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   }
 
   // --- Status bar ---
-  const status = $('statusbar');
+  const status = $('status-items'); // the breadcrumb (panelsView) sits before these items
 
   function render(state) {
     body.classList.toggle('sidebar-closed', !state.sidebarOpen);
@@ -511,7 +511,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     $('project-chip').classList.toggle('danger', red > 0);
     const job = repairViewModel.store.state.job;
     status.replaceChildren(
-      el('span', 'status-strong', state.open ? state.projectName || strings.map.defaultProjectName : S.status.noProject),
+      ...(state.open ? [] : [el('span', 'status-strong', S.status.noProject)]), // when open, the breadcrumb names it
       ...(job ? [el('span', 'status-remi', `${strings.repair.name}: ${(job.source === 'agent' ? strings.repair.stepsAgent(job.agentLabel) : strings.repair.steps)[job.step]}`)] : []),
       el('span', 'status-mode', `${strings.mode.title}: ${strings.mode[modeModel.store.state.mode]}`),
       el('span', 'status-agent', S.status.agent),

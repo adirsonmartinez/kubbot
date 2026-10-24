@@ -215,7 +215,7 @@ html.is-mac #titlebar { padding-left: 84px; } /* room for the window buttons */
 #stage #empty-state { position: absolute; z-index: 5; }
 #stage #controls { position: absolute; left: 14px; bottom: 14px; z-index: 5; }
 /* Below the stage tabs, so long paths never run into them */
-#stage #breadcrumb, #stage #schema-panel, #stage #git-panel { position: absolute; top: 58px; left: 14px; z-index: 5; }
+#stage #schema-panel, #stage #git-panel { position: absolute; top: 58px; left: 14px; z-index: 5; }
 /* The HUD sits at the bottom right, clear of the stage tabs and the cracks card */
 #stage #hud { position: absolute; top: auto; left: auto; right: 14px; bottom: 14px; z-index: 5; }
 
@@ -233,7 +233,7 @@ html.is-mac #titlebar { padding-left: 84px; } /* room for the window buttons */
 .stage-tabs button.active { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
 body.stage-graph #stage { background: #11141b; }
 body.stage-graph #stage > canvas, body.stage-graph #map-labels, body.stage-graph #controls,
-body.stage-graph #breadcrumb, body.stage-graph #hud, body.stage-graph #git-panel,
+body.stage-graph #hud, body.stage-graph #git-panel,
 body.stage-graph #schema-panel, body.stage-graph #empty-state { visibility: hidden; }
 .graph-panel { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; padding: 56px 24px 18px; }
 .graph-panel[hidden] { display: none; }
@@ -313,6 +313,16 @@ body.stage-graph #schema-panel, body.stage-graph #empty-state { visibility: hidd
   color: var(--faint); font-size: 11px;
 }
 #statusbar .status-strong { color: var(--muted); }
+#status-items { display: contents; }
+/* Breadcrumb: where you are + the folder's traffic-light counts, flat in the bar */
+#statusbar #breadcrumb { display: flex; align-items: center; gap: 12px; min-width: 0; }
+#statusbar #breadcrumb[hidden] { display: none; }
+#statusbar #breadcrumb::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
+#statusbar .crumbs { flex-wrap: nowrap; gap: 2px; font: 600 11px var(--mono); overflow: hidden; white-space: nowrap; }
+#statusbar #breadcrumb .crumbs button { padding: 1px 4px; }
+#statusbar .fp-legend { gap: 10px; }
+#statusbar .fp-legend span { gap: 5px; font-size: 11px; color: var(--muted); cursor: help; }
+#statusbar .lvl { width: 6px; height: 6px; }
 #statusbar .status-agent::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--ok); }
 
 /* ---------- Narrow screens: the map first, panels as overlays ---------- */
@@ -465,7 +475,7 @@ body.mode-tech .side-name { font-family: var(--mono); }
 /* ---------- Project map (stage) ---------- */
 body.stage-project #stage { background: #11141b; }
 body.stage-project #stage > canvas, body.stage-project #map-labels, body.stage-project #controls,
-body.stage-project #breadcrumb, body.stage-project #hud, body.stage-project #git-panel,
+body.stage-project #hud, body.stage-project #git-panel,
 body.stage-project #schema-panel, body.stage-project #empty-state,
 body.stage-project #hover-card { visibility: hidden; }
 .project-panel { position: absolute; inset: 0; z-index: 4; overflow-y: auto; padding: 60px 24px 24px; }
@@ -1062,9 +1072,6 @@ body.chat-closed #stage #hud, body.chat-min #stage #hud { right: 76px; }
 #stage .sidebar-toggle { top: 14px; width: 40px; height: 40px; }
 #sidebar.card { top: 62px; }
 
-/* ---------- Breadcrumb (where you are + counts) next to the panel toggle ---------- */
-#stage #breadcrumb { top: 14px; left: 62px; min-height: 40px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 6px 14px; }
-#stage #breadcrumb .fp-legend span { cursor: help; }
 body:not(.sidebar-closed) #stage #git-panel { left: 318px; }
 
 /* ---------- Floating windows on the map (drag by the bar, minimize to the bar) ---------- */

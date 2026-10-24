@@ -122,11 +122,6 @@
 
   <div id="map-labels"></div>
 
-  <nav id="breadcrumb" hidden data-i18n-aria="panels.breadcrumbLabel">
-    <div class="crumbs" id="crumbs"></div>
-    <div class="fp-legend" id="level-legend"></div>
-  </nav>
-
   <div id="schema-panel" hidden>
     <div>
       <strong data-i18n="panels.schemaTitle"></strong>
@@ -181,7 +176,13 @@
     </button>
   </div>
 
-  <footer id="statusbar"></footer>
+  <footer id="statusbar">
+    <nav id="breadcrumb" hidden data-i18n-aria="panels.breadcrumbLabel">
+      <div class="crumbs" id="crumbs"></div>
+      <div class="fp-legend" id="level-legend"></div>
+    </nav>
+    <div id="status-items"></div>
+  </footer>
 
   <script type="module" src="main.js"></script>
 </body>

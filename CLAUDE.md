@@ -77,7 +77,7 @@ docs/INTERFAZ.md  the interface: layout, chat and agents, repairs, where each pi
 
 ## Map navigation
 
-The map shows one folder at a time: a plaza in the middle with the folder's own files (cubes with their traffic light, riskiest at the front) and its subfolders as blocks around it. Clicking a block enters that folder; the breadcrumb or Esc go back up. `MapViewModel.path` is the folder on screen (`''` = root). The Supabase node only appears at the root. Folders are plain blocks for now (`BUILDING_STYLE` in `mapView.js`).
+The map shows one folder at a time: a plaza in the middle with the folder's own files (cubes with their traffic light, riskiest at the front) and its subfolders as blocks around it. Clicking a block enters that folder; the breadcrumb (in the status bar at the bottom) or Esc go back up. `MapViewModel.path` is the folder on screen (`''` = root). The Supabase node only appears at the root. Folders are plain blocks for now (`BUILDING_STYLE` in `mapView.js`).
 
 ## Views
 

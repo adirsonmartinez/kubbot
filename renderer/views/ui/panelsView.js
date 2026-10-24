@@ -1,4 +1,5 @@
-// Panels over the scene: empty state, breadcrumb and Supabase schema (map view), git summary (git view).
+// Panels over the scene: empty state and Supabase schema (map view), git summary (git view).
+// The breadcrumb lives in the status bar and stays visible in every tab while a project is open.
 import { strings } from '../../i18n/es.js';
 import { LEVEL_STYLE } from '../theme.js';
 import { escapeHtml } from '../../core/format.js';
@@ -19,7 +20,7 @@ export function createPanelsView({ appViewModel, mapViewModel, supabaseViewModel
   });
   const renderBreadcrumb = () => {
     const { status, crumbs, plaza } = mapViewModel.store.state;
-    $('breadcrumb').hidden = status !== 'ready' || !onMap();
+    $('breadcrumb').hidden = status !== 'ready';
     if (status !== 'ready') return;
     $('crumbs').innerHTML = crumbs.map((c, i) => (i === crumbs.length - 1
       ? `<strong>${escapeHtml(c.name)}</strong>`
