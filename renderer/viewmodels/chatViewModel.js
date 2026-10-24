@@ -96,10 +96,10 @@ export class ChatViewModel {
       const laneText = commit.laneLive ? lane : `${lane} (${strings.git.deleted})`;
       const text = strings.git.commitSelected({ ...commit, lane: laneText }) + (commit.risk ? strings.git.riskWarning(commit.risk.files) : '');
       const GIT_STR = strings.agent.git;
-      // Actionable chips: clicking them pre-fills the chat input with a ready-to-send git command
+      // Actionable chips: clicking them runs the git command directly in one click
       const chips = GIT_STR ? [
-        { label: GIT_STR.chipRevert(commit.short), run: () => this.#prefillGitCommand(`rollback al commit ${commit.short}`) },
-        { label: GIT_STR.chipReset(commit.short),  run: () => this.#prefillGitCommand(`reset al commit ${commit.short}`) },
+        { label: GIT_STR.chipRevert(commit.short), directCommand: `rollback al commit ${commit.short}` },
+        { label: GIT_STR.chipReset(commit.short),  directCommand: `reset al commit ${commit.short}` },
       ] : undefined;
       this.sayFromMap({ text, tone: commit.risk ? 'alert' : '', chips });
     });
@@ -219,6 +219,7 @@ export class ChatViewModel {
   // `source`: the clicked button (Remi jumps from there to the map)
   choose(chip, source = null) {
     if (typeof chip === 'string') return this.send(chip);
+    if (chip.directCommand) return this.send(chip.directCommand);
     chip.run(source); // first, while the button is still on screen
     this.store.set({ chips: null, welcome: false });
     this.#push({ role: 'user', text: chip.label });
