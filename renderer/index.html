@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <!-- Only local code is loaded: no remote scripts inside the app ('unsafe-inline' is for the import map) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Platanus</title>
+  <link rel="stylesheet" href="styles/main.css" />
+  <script type="importmap">
+    { "imports": { "three": "../node_modules/three/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div id="controls">
+    <div class="group">
+      <button id="zoom-in" data-i18n-title="controls.zoomIn" data-i18n-aria="controls.zoomIn">
+        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <button id="zoom-out" data-i18n-title="controls.zoomOut" data-i18n-aria="controls.zoomOut">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg>
+      </button>
+    </div>
+    <div class="group">
+      <button id="rotate-left" data-i18n-title="controls.rotateLeft" data-i18n-aria="controls.rotateLeft">
+        <svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4.5h4.5"/></svg>
+      </button>
+      <button id="rotate-right" data-i18n-title="controls.rotateRight" data-i18n-aria="controls.rotateRight">
+        <svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4v4.5h-4.5"/></svg>
+      </button>
+    </div>
+    <div class="group">
+      <button id="reset-view" data-i18n-title="controls.reset" data-i18n-aria="controls.reset">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="empty-state">
+    <div class="empty-card">
+      <div class="empty-icon">
+        <svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      </div>
+      <strong data-i18n="emptyState.title"></strong>
+      <p data-i18n="emptyState.body"></p>
+      <button id="open-project" type="button" data-i18n="emptyState.action"></button>
+    </div>
+  </div>
+
+  <div id="map-labels"></div>
+
+  <div id="folder-panel" hidden>
+    <div>
+      <strong id="folder-title"></strong>
+      <span class="sub" id="folder-summary"></span>
+    </div>
+    <div class="fp-legend" id="folder-legend"></div>
+    <button id="folder-close" type="button" data-i18n="panels.backToMap"></button>
+  </div>
+
+  <div id="schema-panel" hidden>
+    <div>
+      <strong data-i18n="panels.schemaTitle"></strong>
+      <span id="schema-summary"></span>
+    </div>
+    <button id="schema-close" type="button" data-i18n="panels.backToMap"></button>
+  </div>
+
+  <aside id="chat" data-i18n-aria="chat.ariaLabel">
+    <header class="chat-head">
+      <div class="chat-avatar">
+        <svg viewBox="0 0 24 24"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 16.5h5"/></svg>
+      </div>
+      <div class="chat-title">
+        <strong data-i18n="chat.agentName"></strong>
+        <span data-i18n="chat.online"></span>
+      </div>
+      <button class="chat-toggle" id="chat-toggle" data-i18n-aria="chat.minimize" aria-expanded="true">
+        <svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>
+      </button>
+    </header>
+    <div class="chat-body" id="chat-body" aria-live="polite"></div>
+    <form class="chat-input" id="chat-form">
+      <input id="chat-text" type="text" autocomplete="off" data-i18n-placeholder="chat.placeholder" data-i18n-aria="chat.inputLabel" />
+      <button type="submit" id="chat-send" data-i18n-aria="chat.send">
+        <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </form>
+  </aside>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

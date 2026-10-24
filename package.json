@@ -1,0 +1,18 @@
+{
+  "name": "platanus-ide",
+  "version": "0.1.0",
+  "private": true,
+  "description": "IDE visual: tu sistema como un mapa isométrico, con un agente de IA que crea y protege tu código.",
+  "main": "electron/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  }
+}
