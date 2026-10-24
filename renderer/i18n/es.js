@@ -12,6 +12,20 @@ export const strings = {
     rotateLeft: 'Girar a la izquierda (Q)',
     rotateRight: 'Girar a la derecha (E)',
     reset: 'Centrar vista',
+    hands: 'Mover el mapa con la mano (cámara)',
+  },
+
+  // Moving the map with a hand in front of the camera (the image never leaves the computer)
+  hands: {
+    starting: 'Encendiendo la cámara…',
+    noHand: 'Muestra tu mano a la cámara',
+    open: 'Junta pulgar e índice para agarrar el mapa',
+    pinching: { grab: 'Agarrado: mueve o gira la mano', pan: 'Moviendo el mapa', rotate: 'Girando el mapa' },
+    errors: {
+      denied: 'No hay permiso para usar la cámara. Actívalo en la configuración del sistema.',
+      noCamera: 'No encontré una cámara.',
+      failed: 'No pude iniciar el seguimiento de la mano.',
+    },
   },
 
   git: {
@@ -85,6 +99,8 @@ export const strings = {
     allClear: 'Todo en orden',
     emptyFolder: 'vacía',
     defaultProjectName: 'proyecto',
+    // The robot on the plaza of a new, empty project
+    welcome: { title: '¡Hola! Soy tu robot', question: '¿Qué quieres construir hoy?' },
   },
 
   supabase: {
@@ -299,7 +315,7 @@ export const strings = {
       openRecent: 'Abrir reciente',
       noRecent: 'Sin proyectos recientes',
     },
-    rail: { explorer: 'Explorador', risks: 'Riesgos', repairs: 'Reparaciones', servers: 'Servidores', agent: 'Conecta tu agente', map: 'Mapa 3D', project: 'Mapa del proyecto', graph: 'Grafo de amenazas', git: 'Ramas de git', chat: 'Agente' },
+    rail: { explorer: 'Explorador', risks: 'Riesgos', repairs: 'Reparaciones', servers: 'Servidores', agent: 'Conecta tu agente', map: 'Mapa 3D', git: 'Ramas de git', chat: 'Agente' },
     // Shown when hovering a rail button or a tab
     railInfo: {
       explorer: 'Las partes de tu proyecto con etiquetas y su semáforo.',
@@ -307,27 +323,14 @@ export const strings = {
       repairs: 'Historial de lo que se reparó, lo que falta verificar y lo que falló.',
       servers: 'Lo que está escuchando en un puerto de tu computadora, y si tu red lo puede ver.',
       agent: 'Elige qué IA responde y conéctala desde tu editor.',
-      map: 'Tu proyecto como una ciudad: cada carpeta es un edificio.',
-      graph: 'El camino que seguiría un atacante hasta tus datos.',
+      map: 'Tu proyecto en 3D: solo aparecen las carpetas y archivos con problemas.',
       git: 'Tus ramas y commits, y si algún commit subió un secreto.',
-      project: 'Cómo está repartido el código, con etiquetas por carpeta.',
       chat: 'Habla con el agente en palabras sencillas.',
     },
     tabInfo: {
       map: (folders, atRisk) => `${folders} carpetas · ${atRisk ? `${atRisk} en riesgo` : 'sin riesgos'}`,
-      graph: (red) => (red ? `${red} archivos en riesgo en el camino` : 'Sin caminos abiertos'),
     },
     recent: 'Recientes',
-    project: {
-      title: 'Mapa del proyecto',
-      summary: (folders, files) => `Cómo está repartido el código · ${folders} carpetas · ${files} archivos`,
-      filter: 'Filtrar:',
-      clear: 'Quitar filtro',
-      none: 'Ninguna carpeta tiene esa etiqueta.',
-      showOnMap: 'Ver en el mapa',
-      empty: 'Abre un proyecto para ver cómo está repartido.',
-      inside: (name) => `dentro de ${name}`,
-    },
     explorerGuide: 'Guía de tu proyecto: qué hay en cada parte.',
     allFiles: 'Archivos sueltos',
     sidebar: {
@@ -403,27 +406,8 @@ export const strings = {
     },
   },
 
-  graph: {
-    tabMap: 'Mapa',
-    tabGraph: 'Grafo',
-    tabGit: 'Git',
-    tabProject: 'Proyecto',
-    title: 'Grafo de amenazas',
-    description: 'Cada caja es una parte de tu proyecto. La línea roja es el camino que haría un atacante desde internet; las naranjas son datos que llegan sin revisar. Arrastra para moverte y usa la rueda para acercar.',
-    fit: 'Encuadrar',
-    animateAttack: 'Animar ataque',
-    stopAttack: 'Detener ataque',
-    noProject: 'Abre un proyecto para ver su grafo.',
-    noRoute: 'No hay un camino abierto desde internet hasta tus datos.',
-    route: (steps) => `Camino más corto desde internet: ${steps} pasos.`,
-    sub: (n) => ({
-      internet: 'entrada del atacante',
-      app: 'tu app',
-      folder: `${n.count ?? 0} archivos${n.level === 'red' ? ' · riesgo' : n.level === 'yellow' ? ' · revisar' : ''}`,
-      database: n.level === 'red' ? 'datos · expuesta' : 'base de datos',
-      table: 'tabla expuesta',
-    })[n.kind] ?? '',
-  },
+  // View switcher on the map
+  stageTabs: { map: 'Mapa', git: 'Git' },
 
   chat: {
     agentName: 'Agente Platanus',
@@ -669,8 +653,6 @@ export const strings = {
       editor: 'Conectar tu editor (MCP)',
       repairWorst: 'Reparar el riesgo más grave',
       history: 'Historial de reparaciones',
-      graph: 'Ver el grafo de amenazas',
-      project: 'Ver el mapa del proyecto',
       mode: (tech) => (tech ? 'Hablar en modo Vibe' : 'Hablar en modo Dev'),
       newChat: 'Nueva conversación',
       // The redesigned menu: a header with the state, tiles with an icon, a foot
@@ -681,8 +663,6 @@ export const strings = {
       agentless: 'Agente de demostración',
       repairFile: (name) => `Reparar ${name}`,
       historyShort: 'Reparaciones',
-      projectShort: 'Mapa del proyecto',
-      graphShort: 'Grafo de amenazas',
       connectAgents: 'Conectar agentes',
       openShort: 'Abrir',
       modeShort: (tech) => (tech ? 'Modo Vibe' : 'Modo Dev'),

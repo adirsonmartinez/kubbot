@@ -47,6 +47,8 @@ export const materials = {
   // Solid status colors for small pieces (file cubes): a faint glow below the bloom threshold
   get warnSolid()  { return material('warnSolid', PALETTE.warn, { emissive: PALETTE.warn, emissiveIntensity: 0.3, roughness: 0.45, metalness: 0 }); },
   get dangerSolid(){ return material('dangerSolid', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 0.4, roughness: 0.45, metalness: 0 }); },
+  // Small purple pieces (the welcome robot's eyes and lights): like warnSolid, it does not blob
+  get accentSolid(){ return material('accentSolid', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 0.5, roughness: 0.4, metalness: 0 }); },
   get dangerLit()  { return material('dangerLit', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 1.0, roughness: 0.3, metalness: 0 }); },
   // Remi (same palette as his pixel-art sprite)
   get remiHelmet()       { return material('remiHelmet', 0xf5c542, { roughness: 0.45, metalness: 0 }); },

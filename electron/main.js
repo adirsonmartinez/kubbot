@@ -1,8 +1,9 @@
 // Electron main process: creates the window and is the only part that touches the disk.
 // The window (renderer) asks for things over IPC and they are validated here before running.
 
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, safeStorage, systemPreferences } = require('electron');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const fs = require('node:fs/promises');
 const { existsSync } = require('node:fs');
 const { Workspace } = require('./workspace');
@@ -52,6 +53,21 @@ function createWindow() {
 
   // External links never open new windows inside the app
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.session.setPermissionRequestHandler(allowPermission);
+}
+
+// The page only gets the copy button's clipboard and the camera (video only, never the microphone) for the
+// hand gestures, and only for the app's own page; everything else is denied. macOS asks the person first.
+const RENDERER_URL = `${pathToFileURL(path.join(__dirname, '..', 'renderer')).href}/`;
+async function allowPermission(contents, permission, callback, details) {
+  const own = contents === win?.webContents && (details.requestingUrl ?? '').startsWith(RENDERER_URL);
+  if (own && permission === 'clipboard-sanitized-write') return callback(true);
+  const videoOnly = permission === 'media' && details.mediaTypes?.length && details.mediaTypes.every((type) => type === 'video');
+  if (!own || !videoOnly) return callback(false);
+  if (process.platform === 'darwin' && systemPreferences.getMediaAccessStatus('camera') !== 'granted') {
+    return callback(await systemPreferences.askForMediaAccess('camera').catch(() => false));
+  }
+  callback(true);
 }
 
 function send(channel, payload) {

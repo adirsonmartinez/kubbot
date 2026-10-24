@@ -21,8 +21,6 @@ export function chatMenuItems({ actions, modeModel, chatViewModel, openChat, inf
     i.worst && { kind: 'tile', id: 'repair', icon: 'wrench', label: M.repairFile(name(i.worst.path)), accent: i.worst.level, run: (b) => actions.repairWorst(b) },
     { kind: 'tile', id: 'new', icon: 'plus', label: M.newChat, run: () => chatViewModel.newChat() },
     { kind: 'tile', id: 'history', icon: 'shieldOk', label: M.historyShort, badge: i.pending ?? 0, run: () => actions.showRepairs() },
-    { kind: 'tile', id: 'project', icon: 'layers', label: M.projectShort, run: () => actions.showProject() },
-    { kind: 'tile', id: 'graph', icon: 'graph', label: M.graphShort, run: () => actions.showGraph() },
     { kind: 'foot', id: 'connect', icon: 'plug', label: M.connectAgents, run: () => actions.showConnect() },
     { kind: 'foot', id: 'mode', icon: modeModel.tech ? 'vibe' : 'dev', label: M.modeShort(modeModel.tech), run: () => modeModel.toggle() },
   ].filter(Boolean);

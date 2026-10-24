@@ -24,7 +24,8 @@ renderer/
   core/           Observable (reactive state), event bus (EVENTS), formatting helpers
   i18n/es.js      every user-facing string (also tag labels, folder names, repair texts)
   services/       bridges to Electron (no logic): workspaceService (disk), agentService (agents + MCP),
-                  mcpBridge (answers the MCP tools that need the window), serverService (listening servers)
+                  mcpBridge (answers the MCP tools that need the window), serverService (listening servers),
+                  handTrackingService (camera -> hand landmarks with MediaPipe, local model in assets/hands/)
   models/         data and rules; no DOM, no three.js, no UI state
     projectModel, fileTree, securityModel (traffic light), supabaseModel, demoProject
     agentModel (chat brain: scripted demo or the user's agent), agentConnectionModel (which agent,
@@ -32,18 +33,20 @@ renderer/
     folderTags (tag and folder KEYS by name; labels live in es.js), modeModel (Vibe / Dev),
     repairHistoryModel (task list of repairs, per project, in localStorage),
     answerFormat (the agent's ```sugerencias block -> next steps),
-    serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo)
+    serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo),
+    handGesture (pinch tracker: hand landmarks -> drag or turn)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
     camera, map (security radar: folders and files with problems), supabase, git (branches), app (which 3D view),
-    shell (sidebar, stage tabs, explorer guide/tree, risks), graph (threat graph), chat,
-    repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open)
-  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
-                  builders/ (block, folderIcon, fileIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader)
+    shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
+    repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open),
+    handControl (camera on/off, pinch and move pans the map, pinch and turn rotates it)
+  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, robotView, inputController,
+                  builders/ (block, folderIcon, fileIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader, robot)
   views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown with answer cards and
                   file links, chatCards: folder / file cards), icons (DOM helper over views/icons.js), thinkingOrb
                   (libraries.dev orbs over the package engine), agentPicker
-                  (+ effortSlider), chatMenu, agentConnect, graph, devTree, hoverCard, hud,
-                  repairPanel, remiJump, panels (breadcrumb, schema, git), controls, labels
+                  (+ effortSlider), chatMenu, agentConnect, devTree, hoverCard, hud,
+                  repairPanel, remiJump, panels (breadcrumb, schema, git), controls, handControl (hand button + camera preview), labels
                   floating layout: iconBar (reorderable icons), draggable (side panel / chat by
                   header), floater (map cards: move, minimize, dock), chatDock (pinned chat column),
                   floatingMenu (⋯ menus: one layer above the app, anchored to its button, flips up, keyboard)
@@ -90,6 +93,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 - Git from the chat (`models/gitIntent.js` parses what the person types; never the agent's output) only runs in the desktop app. `electron/git.js` validates every revision and branch name (a value starting with `-` would be a git option) and `main.js` asks before commit (shows the files; refuses if one is a secret per the MCP blocklist), revert, reset and switch. New branches are only logged. Tests: `electron/git.test.js`.
 - The agent only acts through the local MCP tools. `platanus_write_file` always opens a confirmation dialog and backs up the previous version to `~/.platanus/backups/` (undo from the repair history). Secrets (`.env*`, keys, `.git/`, `.ssh/`, `.npmrc`…) are refused on the normalized and the real path.
 - Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`; Codex read-only, without the user's config and with its shell, browser, computer use, plugins and subagents disabled (`CODEX_DISABLED`). Do not loosen these flags.
+- The window only gets the camera (video only, never the microphone) and clipboard writes, and only for the app's page (`allowPermission` in `electron/main.js`); every other permission is denied. Hand tracking runs locally (`docs/features/hand-gestures/`).
 - Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
 
 ## Visual style ("digital twin", dark)
@@ -103,13 +107,13 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 ## Map navigation
 
-The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
+The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. A project just created and still empty (`MapViewModel.welcome`) has a robot on its plaza asking what to build (`robotView.js`); it leaves with the first file. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
 
 ## Views
 
-Two floating docks on the map: the top one switches between the map and git; the side dock (left edge, vertical) opens the side panels (explorer, risks, repairs, servers, agent), which appear right next to it, and below a divider the project and graph views. Both use `iconBarView.js` (drag to reorder within a group).
+Two floating docks on the map: the top one switches between the map and git; the side dock (left edge, vertical) opens the side panels (explorer, risks, repairs, servers, agent), which appear right next to it. Both use `iconBarView.js` (drag to reorder within a group).
 
-The stage tabs (`ShellViewModel.stage`: map, git, project, graph) drive `AppViewModel`, which picks the 3D view: `git` shows the branches as lanes, every other tab uses the map. Each 3D view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks, hover and Esc are routed to the active view in `main.js`; G toggles Map/Git.
+The stage tabs (`ShellViewModel.stage`: map, git) drive `AppViewModel`, which picks the 3D view: `git` shows the branches as lanes, `map` the security map. Each 3D view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks, hover and Esc are routed to the active view in `main.js`; G toggles Map/Git.
 
 The git view reads the history: `electron/git.js` runs fixed `git` commands with `execFile` (no shell) and returns commits, branches, tags and HEAD. `GitViewModel` assigns each commit to a lane (first-parent chains in git flow priority; deleted branches recovered from merge subjects) and flags commits that added red files (`.env`, keys) as risky.
 

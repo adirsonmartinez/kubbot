@@ -46,6 +46,11 @@ export class CameraViewModel {
     this.azimuthGoal += direction * QUARTER_TURN;
   }
 
+  // Eased rotation (hand gestures: smooths the jumps between camera frames)
+  turnBy(radians) {
+    this.azimuthGoal += radians;
+  }
+
   // Free rotation while dragging: applied immediately
   rotateBy(radians) {
     this.azimuthGoal += radians;
@@ -70,6 +75,12 @@ export class CameraViewModel {
   panBy(dx, dz) {
     this.target = { x: this.target.x + dx, z: this.target.z + dz };
     this.targetGoal = null;
+  }
+
+  // Pan that eases in, like a short flight (hand gestures: smooths the jumps between camera frames)
+  glideBy(dx, dz) {
+    const from = this.targetGoal ?? this.target;
+    this.targetGoal = { x: from.x + dx, z: from.z + dz };
   }
 
   cancelFlight() {

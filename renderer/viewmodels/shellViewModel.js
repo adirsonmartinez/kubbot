@@ -6,7 +6,7 @@ import { allFiles, baseName } from '../models/fileTree.js';
 import { LEVEL_RANK, worstLevel } from '../models/securityModel.js';
 import { fileTags, folderGuide } from '../models/folderTags.js';
 
-export const STAGES = ['map', 'git', 'graph', 'project'];
+export const STAGES = ['map', 'git'];
 
 export const SIDE_VIEWS = ['explorer', 'risks', 'repairs', 'servers', 'agent'];
 
@@ -18,7 +18,7 @@ export class ShellViewModel {
 
   store = new Observable({
     side: 'explorer',
-    stage: 'map', // 'map' | 'git' | 'graph' | 'project'
+    stage: 'map', // 'map' | 'git'
     sidebarOpen: false, // the map comes first: the side panel floats over it and starts folded
     chatOpen: true,
     projectName: '',

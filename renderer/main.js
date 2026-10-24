@@ -11,6 +11,7 @@ import { createServerService } from './services/serverService.js';
 import { ServersModel } from './models/serversModel.js';
 import { ServersViewModel } from './viewmodels/serversViewModel.js';
 import { createGitService } from './services/gitService.js';
+import { createHandTrackingService } from './services/handTrackingService.js';
 
 import { ProjectModel } from './models/projectModel.js';
 import { SecurityModel } from './models/securityModel.js';
@@ -30,8 +31,8 @@ import { ChatViewModel } from './viewmodels/chatViewModel.js';
 import { GitViewModel } from './viewmodels/gitViewModel.js';
 import { AppViewModel } from './viewmodels/appViewModel.js';
 import { ShellViewModel } from './viewmodels/shellViewModel.js';
-import { GraphViewModel } from './viewmodels/graphViewModel.js';
 import { RepairViewModel } from './viewmodels/repairViewModel.js';
+import { HandControlViewModel } from './viewmodels/handControlViewModel.js';
 
 import { createSceneView } from './views/scene/sceneView.js';
 import { createMapView } from './views/scene/mapView.js';
@@ -39,13 +40,14 @@ import { createSupabaseView } from './views/scene/supabaseView.js';
 import { createInputController } from './views/scene/inputController.js';
 import { createGitView } from './views/scene/gitView.js';
 import { createRemiView } from './views/scene/remiView.js';
+import { createRobotView } from './views/scene/robotView.js';
 import { createHudView } from './views/ui/hudView.js';
 import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
+import { createHandControlView } from './views/ui/handControlView.js';
 import { createPanelsView } from './views/ui/panelsView.js';
 import { createChatView } from './views/ui/chatView.js';
 import { createShellView } from './views/ui/shellView.js';
-import { createGraphView } from './views/ui/graphView.js';
 import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu } from './views/ui/chatMenuView.js';
@@ -87,9 +89,10 @@ const mapViewModel = new MapViewModel({ projectModel, securityModel, camera: cam
 const gitViewModel = new GitViewModel({ gitModel, camera: cameraViewModel, bus });
 const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitViewModel });
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
-const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
 const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus, voiceMode: () => (modeModel.tech ? 'dev' : 'vibe') });
 const serversViewModel = new ServersViewModel({ serversModel });
+const handTracking = createHandTrackingService();
+const handControlViewModel = new HandControlViewModel({ tracking: handTracking, camera: cameraViewModel });
 // The server list only refreshes while its side view is on screen
 shellViewModel.store.subscribe(({ side, sidebarOpen }) => serversViewModel.setVisible(sidebarOpen && side === 'servers'), { immediate: true });
 
@@ -108,8 +111,6 @@ const actions = {
     actions.repair(worst.path, from);
   },
   showRisks: () => shellViewModel.store.state.side === 'risks' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('risks'),
-  showGraph: () => shellViewModel.setStage('graph'),
-  showProject: () => shellViewModel.setStage('project'),
   // Send a file to the chat so the agent checks whether its risk is real
   audit(path, reason) {
     if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
@@ -148,6 +149,7 @@ const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
 const gitView = createGitView({ sceneView, labels, gitViewModel });
 createRemiView({ sceneView, labels, repairViewModel });
+createRobotView({ sceneView, labels, mapViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
 appViewModel.store.subscribe(({ view }) => {
   sceneView.setActiveLayer(view);
@@ -173,6 +175,7 @@ createInputController({
   onHover: (pick, x, y) => hoverCard.show(appViewModel.view === 'map' ? pick : null, x, y),
 });
 createControlsView({ cameraViewModel });
+createHandControlView({ handControlViewModel, video: handTracking.video });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
 // Which agent changes ask first (Manual / Auto / Sin preguntar)
 const approvalModel = new ApprovalModel(agentService);
@@ -221,7 +224,6 @@ const menuInfo = () => {
 };
 attachMenu($id('chat-more'), $id('chat-more-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, info: menuInfo }));
 attachMenu($id('chat-launcher-button'), $id('chat-launcher-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, openChat, info: menuInfo }));
-createGraphView({ graphViewModel, shellViewModel, mapViewModel });
 createAgentConnectView({ container: document.getElementById('agent-connect'), connection, modeModel });
 connectMcpBridge({ agentService, securityModel, shellViewModel });
 connection.refresh();
@@ -231,6 +233,7 @@ projectModel.store.subscribe((state, previous) => {
   if (state.session === previous.session) return;
   repairViewModel.reset(); // nothing from the previous project keeps running
   if (!state.open) { // closed: back to the start screen
+    handControlViewModel.stop(); // the camera goes off with the project
     gitModel.clear();
     bus.emit(EVENTS.projectClosed, { name: previous.name ?? strings.map.defaultProjectName });
     return;

@@ -11,6 +11,7 @@ import { LEVEL_RANK, worstLevel, securityScore, scoreLevel } from '../models/sec
 import { fileTags, folderGuide } from '../models/folderTags.js';
 import { folderHeight, folderSlots, levelZoom, plazaGrid, sideGrid } from './layout.js';
 
+const WELCOME_ZOOM = 1.9; // close to the plaza of a new project, where the robot stands
 const emptyCounts = () => ({ green: 0, yellow: 0, red: 0, grey: 0 });
 const parentOf = (path) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '');
 const topFolderOf = (path) => path.split('/')[0];
@@ -24,11 +25,13 @@ export class MapViewModel {
   #supabase;
   #bus;
   #session = 0;
+  #welcomeSession = null; // session of a project just created, until it gets its first file
 
-  // `version` changes whenever the map must be redrawn; `path` is the open folder ('' = none)
+  // `version` changes whenever the map must be redrawn; `path` is the open folder ('' = none);
+  // `welcome`: a new, empty project, where a robot on the plaza asks what to build
   store = new Observable({
     status: 'empty', session: 0, projectName: '', path: '', crumbs: [],
-    root: null, plaza: null, buildings: [], opened: null, version: 0,
+    root: null, plaza: null, buildings: [], opened: null, welcome: false, version: 0,
   });
 
   constructor({ projectModel, securityModel, camera, supabaseViewModel, bus }) {
@@ -52,7 +55,12 @@ export class MapViewModel {
 
   async createProject() {
     const response = await this.#project.create();
-    if (response.ok) this.#bus.emit(EVENTS.projectCreated, { name: response.data.name });
+    if (response.ok) {
+      this.#welcomeSession = this.#project.store.state.session;
+      this.#recompute();
+      if (this.store.state.welcome) this.#camera.flyTo({ x: 0, z: 0 }, WELCOME_ZOOM);
+      this.#bus.emit(EVENTS.projectCreated, { name: response.data.name });
+    }
     else if (!response.cancelled) this.#bus.emit(EVENTS.projectCreateFailed, { error: response.error });
     return response;
   }
@@ -188,13 +196,14 @@ export class MapViewModel {
     if (newSession) path = '';
 
     if (!open) {
-      this.store.set({ status: 'empty', path: '', crumbs: [], root: null, plaza: null, buildings: [], opened: null, version: this.store.state.version + 1 });
+      this.store.set({ status: 'empty', path: '', crumbs: [], root: null, plaza: null, buildings: [], opened: null, welcome: false, version: this.store.state.version + 1 });
       return;
     }
 
     const projectName = name ?? strings.map.defaultProjectName;
     const project = this.#levelsOf(tree);
     const total = countFiles(tree);
+    if (this.#welcomeSession !== session || total > 0) this.#welcomeSession = null;
 
     // Plaza: the root files with a problem
     const files = tree
@@ -271,6 +280,7 @@ export class MapViewModel {
       },
       buildings,
       opened,
+      welcome: this.#welcomeSession !== null,
       version: this.store.state.version + 1,
     });
 

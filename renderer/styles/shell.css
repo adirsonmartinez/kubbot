@@ -220,7 +220,7 @@ html.is-mac #menu { display: none; } /* macOS: the Project menu is in the system
 /* The HUD sits at the bottom right, clear of the stage tabs and the cracks card */
 #stage #hud { position: absolute; top: auto; left: auto; right: 14px; bottom: 14px; z-index: 5; }
 
-/* ---------- Stage tabs + threat graph ---------- */
+/* ---------- Stage tabs ---------- */
 .stage-tabs {
   position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6;
   display: flex; gap: 2px; padding: 3px; border-radius: 10px;
@@ -232,43 +232,6 @@ html.is-mac #menu { display: none; } /* macOS: the Project menu is in the system
   color: var(--muted); font: 12px var(--font); cursor: pointer;
 }
 .stage-tabs button.active { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line); }
-body.stage-graph #stage { background: #11141b; }
-body.stage-graph #stage > canvas, body.stage-graph #map-labels, body.stage-graph #controls,
-body.stage-graph #hud, body.stage-graph #git-panel,
-body.stage-graph #schema-panel, body.stage-graph #empty-state { visibility: hidden; }
-.graph-panel { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; padding: 56px 24px 18px; }
-.graph-panel[hidden] { display: none; }
-.graph-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-.graph-head strong { font-size: 15px; color: var(--ink); }
-.graph-head p { margin: 4px 0 0; max-width: 70ch; color: var(--muted); font-size: 12.5px; line-height: 1.5; }
-.graph-actions { display: flex; gap: 8px; flex: none; }
-.graph-actions button {
-  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel);
-  color: var(--ink); font: 12px var(--font); cursor: pointer;
-}
-.graph-actions button:hover { border-color: var(--line-strong); }
-.graph-actions button.danger { color: var(--danger); border-color: rgba(255, 90, 106, 0.45); }
-.graph-actions button:disabled { opacity: 0.4; cursor: default; }
-.graph-canvas { flex: 1; min-height: 0; margin-top: 14px; border-radius: 12px; cursor: grab; touch-action: none; }
-.graph-canvas.dragging { cursor: grabbing; }
-.graph-canvas svg { width: 100%; height: 100%; display: block; }
-.graph-caption { margin: 10px 0 0; font: 11px var(--mono); color: var(--muted); }
-.obra-graph .edge { fill: none; stroke: #3a4157; stroke-width: 1.6; }
-.obra-graph .edge.taint { stroke: var(--warn); stroke-dasharray: 5 4; }
-.obra-graph .edge.atk { stroke: var(--danger); stroke-width: 2.6; stroke-dasharray: 8 6; }
-.obra-graph .edge.atk.running { animation: graph-dash 1s linear infinite; }
-@keyframes graph-dash { to { stroke-dashoffset: -28; } }
-.obra-graph .node { cursor: pointer; }
-.obra-graph .node rect { fill: #181c27; stroke: #262b3a; stroke-width: 1; }
-.obra-graph .node:hover rect, .obra-graph .node:focus-visible rect { stroke: var(--line-strong); }
-.obra-graph .node.danger rect { stroke: var(--danger); stroke-width: 1.5; }
-.obra-graph .node.warn rect { stroke: rgba(255, 194, 74, 0.6); }
-.obra-graph .node.vault rect { fill: #2a1c1f; }
-.obra-graph .node.internet rect { fill: transparent; }
-.obra-graph .node:focus { outline: none; }
-.obra-graph .label { fill: var(--ink); font: 500 15px var(--font); }
-.obra-graph .sub { fill: var(--muted); font: 10.5px var(--mono); }
-@media (prefers-reduced-motion: reduce) { .obra-graph .edge.atk.running { animation: none; } }
 
 /* ---------- Chat as a glass panel ---------- */
 #chat.card {
@@ -320,7 +283,6 @@ body.stage-graph #schema-panel, body.stage-graph #empty-state { visibility: hidd
 }
 #stage #level-legend[hidden] { display: none; }
 #stage #level-legend span { cursor: help; }
-body.stage-graph #level-legend, body.stage-project #level-legend { visibility: hidden; }
 /* Breadcrumb: where you are + the folder's traffic-light counts, flat in the bar */
 #statusbar #breadcrumb { display: flex; align-items: center; gap: 12px; min-width: 0; }
 #statusbar #breadcrumb[hidden] { display: none; }
@@ -560,36 +522,7 @@ body.mode-tech .side-name { font-family: var(--mono); }
 .mono { font-family: var(--mono); }
 
 /* ---------- Project map (stage) ---------- */
-body.stage-project #stage { background: #11141b; }
-body.stage-project #stage > canvas, body.stage-project #map-labels, body.stage-project #controls,
-body.stage-project #hud, body.stage-project #git-panel,
-body.stage-project #schema-panel, body.stage-project #empty-state,
-body.stage-project #hover-card { visibility: hidden; }
-.project-panel { position: absolute; inset: 0; z-index: 4; overflow-y: auto; padding: 60px 24px 24px; }
-.project-panel[hidden] { display: none; }
-.project-head h2 { margin: 0; font-size: 16px; color: var(--ink); }
-.project-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
-.filters { margin: 14px 0; align-items: center; }
-.filter-label { color: var(--muted); font-size: 11px; margin-right: 4px; }
 .link { border: 0; background: none; color: var(--muted); font: 11px var(--font); text-decoration: underline; cursor: pointer; }
-.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
-.project-card {
-  display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px;
-  border: 1px solid var(--line); border-radius: 14px; background: var(--panel);
-  animation: rise .35s ease both; animation-delay: calc(var(--i) * 25ms);
-  transition: border-color .18s, transform .18s;
-}
-.project-card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
-.project-card.cracked { border-color: rgba(255, 90, 106, .4); }
-.project-card-top { display: flex; align-items: flex-start; gap: 8px; }
-.project-card-top > div:first-child { min-width: 0; flex: 1; }
-.project-card h3 { margin: 0; font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
-.project-card p.mono { margin: 2px 0 0; font-size: 10.5px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.project-summary { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-.size-bar { height: 4px; border-radius: 3px; background: var(--panel-2); overflow: hidden; margin-top: auto; }
-.size-bar i { display: block; height: 100%; border-radius: 3px; transition: width .5s ease; }
-.project-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.project-card-foot .mono { font-size: 10.5px; color: var(--muted); }
 
 /* ---------- Remi's card (brutalist, bottom-right of the stage) ---------- */
 .remi-layer { position: absolute; right: 14px; bottom: 14px; z-index: 8; }
@@ -700,21 +633,20 @@ body.stage-project #hover-card { visibility: hidden; }
 .menu-sep:empty { padding-top: 0; margin: 4px 6px; }
 .menu-item:disabled { color: var(--faint); cursor: default; }
 .menu-item:disabled:hover { background: transparent; }
-#graph-panel:not([hidden]), #project-panel:not([hidden]) { animation: pop-in .2s ease; }
 .risk-card { transition: border-color .18s, background .18s, transform .18s; }
 .risk-card:hover { transform: translateY(-1px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .sidebar-body.enter > *, #chat .msg, .project-card, .remi-card, .remi-plan li, .hover-card,
-  .remi-strip li.now { animation: none !important; }
+  .sidebar-body.enter > *, #chat .msg, .remi-card, .remi-plan li, .hover-card,
+  .remi-strip li.now, #chat .msg.tool::before { animation: none !important; }
 }
 
 /* Panels on the map start below the stage tabs; thin dark scrollbars everywhere */
 #stage #folder-panel, #stage #schema-panel { top: 62px; }
-.sidebar-body, .project-panel, #chat .chat-body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .14) transparent; }
+.sidebar-body, #chat .chat-body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .14) transparent; }
 /* The stage sizes every canvas to fill it (the 3D map); Remi's avatar is a small exception */
 #stage canvas.remi-avatar { position: static; inset: auto; width: 64px !important; height: 72px !important; }
-.risk-card, .guide-card, .project-card, .remi-card, .hover-card { box-sizing: border-box; }
+.risk-card, .guide-card, .remi-card, .hover-card { box-sizing: border-box; }
 /* Remi's speech bubble on the map */
 .map-label.remi-bubble { z-index: 3; padding: 4px 9px; border: 2px solid #000; border-radius: 10px; background: #fff7d6; color: #1b1a2e; font: 700 11px var(--font); box-shadow: 3px 3px 0 #f5c542; white-space: nowrap; }
 .map-label.remi-bubble.done { background: #dcfce9; box-shadow: 3px 3px 0 #3ddc97; }
@@ -1165,7 +1097,6 @@ body.chat-closed #stage #hud-float:not(.moved), body.chat-min #stage #hud-float:
 .floater-min:hover { background: var(--panel-2); color: var(--ink); }
 #stage .floater.min > :not(.floater-bar) { display: none; }
 #stage .floater.dragging { opacity: .92; }
-body.stage-graph #stage #hud-float, body.stage-project #stage #hud-float { visibility: hidden; }
 /* (ids, so these win over the default positions above) */
 body:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 402px; }
 
@@ -1247,4 +1178,3 @@ body.chat-resizing #workspace { transition: none; }
 #sidebar.card { left: 82px; }
 body:not(.sidebar-closed) { --shift-l: 191px; }
 body.no-project #side-dock { display: none; }
-body.stage-graph #level-legend, body.stage-project #level-legend { visibility: hidden; }

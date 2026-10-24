@@ -32,7 +32,7 @@ function setup(tree = TREE) {
   const events = [];
   for (const name of ['folderOpened', 'fileSelected']) bus.on(EVENTS[name], (p) => events.push([name, p]));
   const vm = new MapViewModel({
-    projectModel, securityModel: security, camera: { flyTo: (to) => flights.push(to) }, supabaseViewModel: supabase, bus,
+    projectModel, securityModel: security, camera: { flyTo: (to, zoom) => flights.push({ ...to, zoom }) }, supabaseViewModel: supabase, bus,
   });
   projectModel.store.set({ session: 1 }); // first compute
   return { vm, security, projectModel, events, flights, state: () => vm.store.state };
@@ -143,4 +143,47 @@ test('hover describes folders and the files of the open folder', () => {
   assert.equal(vm.describePick({ type: 'folder', path: 'src' }).kind, 'folder');
   assert.equal(vm.describePick({ type: 'file', path: 'src/login.js' }).level, 'yellow');
   assert.equal(vm.describePick({ type: 'file', path: '.env' }).level, 'red');
+});
+
+// A new project: the workspace creates an empty folder and opens it
+function setupNew() {
+  const s = setup([]);
+  s.projectModel.create = async () => {
+    s.projectModel.store.set({ tree: [], session: s.projectModel.store.state.session + 1 });
+    return { ok: true, data: { name: 'nuevo' } };
+  };
+  return s;
+}
+
+test('a just created, empty project shows the robot that asks what to build', async () => {
+  const { vm, state, flights } = setupNew();
+  assert.equal(state().welcome, false);
+  await vm.createProject();
+  assert.equal(state().welcome, true);
+  // The camera comes closer to the plaza, so the robot reads well
+  const last = flights.at(-1);
+  assert.deepEqual([last.x, last.z], [0, 0]);
+  assert.ok(last.zoom > 1.5);
+});
+
+test('the robot leaves once the project has files, and does not come back', async () => {
+  const { vm, state, projectModel } = setupNew();
+  await vm.createProject();
+  projectModel.store.set({ tree: [file('index.html')] });
+  assert.equal(state().welcome, false);
+  projectModel.store.set({ tree: [] });
+  assert.equal(state().welcome, false);
+});
+
+test('opening an existing project, even an empty one, shows no robot', () => {
+  const { state, projectModel } = setup([]);
+  projectModel.store.set({ session: 2 });
+  assert.equal(state().welcome, false);
+});
+
+test('the robot leaves when another project is opened', async () => {
+  const { vm, state, projectModel } = setupNew();
+  await vm.createProject();
+  projectModel.store.set({ session: projectModel.store.state.session + 1 });
+  assert.equal(state().welcome, false);
 });

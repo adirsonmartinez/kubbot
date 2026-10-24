@@ -1,5 +1,5 @@
 // A floating icon bar (the top view switcher and the vertical side dock). When it holds both side
-// panels (explorer, risks…) and views (project, graph…) a divider splits the two groups. Icons can be
+// panels (explorer, risks…) and views (map, git…) a divider splits the two groups. Icons can be
 // dragged to a new place within their group (or moved with Alt+arrows when focused). The order is
 // remembered in this computer, per bar.
 const KEY = (bar) => `platanus.iconbar.order.v1${bar.id === 'stage-tabs' ? '' : `:${bar.id}`}`;
