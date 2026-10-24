@@ -96,8 +96,6 @@ body::after {
 #schema-panel span, #git-panel span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 #schema-panel span.bad, #git-panel #git-risky { color: var(--danger); font-weight: 600; }
 #git-panel #git-risky[hidden] { display: none; }
-.fp-legend { display: flex; gap: 12px; }
-.fp-legend span { display: flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--text); }
 #schema-panel button {
   padding: 7px 12px; border: 1px solid rgba(139, 131, 255, 0.35); border-radius: 8px;
   background: var(--accent-soft); color: var(--accent); font: 600 12px var(--sans); cursor: pointer;

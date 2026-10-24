@@ -275,14 +275,7 @@ html.is-mac #menu { display: none; } /* macOS: the Project menu is in the system
 #statusbar .status-strong { color: var(--muted); }
 #status-items { display: contents; }
 
-/* Traffic-light counts of the folder on screen: top left of the map, next to the panel toggle */
-#stage #level-legend {
-  position: absolute; top: 14px; left: 14px; z-index: 5; height: 40px; box-sizing: border-box;
-  align-items: center; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius);
-  background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
-}
-#stage #level-legend[hidden] { display: none; }
-#stage #level-legend span { cursor: help; }
+/* Traffic-light counts of the folder on screen (top left of the map): styles/controls.css */
 /* Breadcrumb: where you are + the folder's traffic-light counts, flat in the bar */
 #statusbar #breadcrumb { display: flex; align-items: center; gap: 12px; min-width: 0; }
 #statusbar #breadcrumb[hidden] { display: none; }

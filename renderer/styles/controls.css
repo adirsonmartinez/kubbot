@@ -1,5 +1,5 @@
-/* Map controls (bottom left: zoom, turn, center, hand) and the hand camera preview, in the chat's clear
-   glass (tokens from chat-glass.css). Each group is a glass pill with round buttons; neutral like the chat:
+/* Map controls (bottom left: zoom, turn, center, hand), the hand camera preview and the traffic-light counts
+   (top left), in the chat's clear glass (tokens from chat-glass.css). Each group is a glass pill with round buttons; neutral like the chat:
    hover and "on" are a light chip, never the accent. */
 
 #controls { position: fixed; left: 16px; bottom: 16px; z-index: 2; display: flex; gap: 8px; user-select: none; }
@@ -12,7 +12,7 @@
   box-shadow: var(--lg-rim-strong), var(--lg-shadow);
 }
 /* The glass edge: the chat's gradient rim */
-#controls .group::after, #hand-preview::after {
+#controls .group::after, #hand-preview::after, #stage #level-legend::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
   background: linear-gradient(150deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, .07) 28%, rgba(255, 255, 255, .02) 55%, rgba(255, 255, 255, .1));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -53,6 +53,28 @@
 #hand-preview.pinching .hand-status::before { background: var(--lg-text); box-shadow: 0 0 8px rgba(255, 255, 255, .7); }
 #hand-preview.error .hand-status { color: var(--danger); }
 #hand-preview.error .hand-status::before { background: var(--danger); }
+
+/* ---------- Traffic-light counts of the folder on screen (top left of the map) ---------- */
+#stage #level-legend {
+  position: absolute; top: 14px; left: 14px; z-index: 5; height: 42px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 2px; padding: 0 6px; border-radius: 999px;
+  background: var(--lg-panel);
+  -webkit-backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);
+  backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);
+  box-shadow: var(--lg-rim-strong), var(--lg-shadow);
+}
+#stage #level-legend[hidden] { display: none; }
+#level-legend span {
+  display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border-radius: 999px; cursor: help;
+  font: 600 13px var(--lg-font); font-variant-numeric: tabular-nums; color: var(--lg-text);
+  transition: background .2s var(--lg-ease), opacity .2s var(--lg-ease);
+}
+#level-legend span:hover { background: var(--lg-chip); }
+#level-legend .lvl { width: 7px; height: 7px; }
+/* Problems glow, safe stays calm; a level with nothing in it fades, like the chat's counters */
+#level-legend span.red:not(.zero) .lvl { box-shadow: 0 0 8px rgba(255, 90, 106, .7); }
+#level-legend span.yellow:not(.zero) .lvl { box-shadow: 0 0 8px rgba(255, 194, 74, .55); }
+#level-legend span.zero { opacity: .42; }
 
 @media (prefers-reduced-motion: reduce) {
   #controls button { transition: none; }
