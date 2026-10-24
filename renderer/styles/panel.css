@@ -27,6 +27,10 @@
   color: var(--lg-text); font: 13px/1.45 var(--lg-font); font-feature-settings: "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
 }
+/* Between the traffic-light counts (top) and the map controls (bottom): both sit 14px from the map's edge
+   and are 42px tall (controls.css), so the panel keeps ~10px clear of each */
+#sidebar.card { top: 68px; bottom: 68px; }
+
 /* The glass edge: the chat's gradient rim */
 #sidebar.card::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1px; pointer-events: none;
