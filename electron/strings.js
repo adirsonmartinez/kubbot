@@ -24,6 +24,27 @@ module.exports = {
   cannotDeleteRoot: 'No se puede borrar la carpeta raíz del workspace',
 
   // Agents with the user's own subscription (electron/agents.js)
+  // Native menu bar (macOS): only what the system needs; the app's menus are inside the window
+  menu: {
+    about: 'Acerca de Platanus',
+    hide: 'Ocultar Platanus',
+    hideOthers: 'Ocultar otras',
+    unhide: 'Mostrar todas',
+    quit: 'Salir de Platanus',
+    edit: 'Edición',
+    undo: 'Deshacer',
+    redo: 'Rehacer',
+    cut: 'Cortar',
+    copy: 'Copiar',
+    paste: 'Pegar',
+    selectAll: 'Seleccionar todo',
+    window: 'Ventana',
+    minimize: 'Minimizar',
+    zoom: 'Ajustar',
+    fullscreen: 'Pantalla completa',
+    devTools: 'Herramientas de desarrollo',
+    close: 'Cerrar ventana',
+  },
   agents: {
     claude: 'Claude (tu suscripción)',
     grok: 'Grok (tu suscripción)',

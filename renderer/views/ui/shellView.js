@@ -158,12 +158,12 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   $('sidebar-actions').appendChild(explorerToggle);
 
   // --- Rail (icons with a hover card: name + what it is for) ---
-  for (const button of document.querySelectorAll('#rail [data-side]')) {
+  for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
     const side = button.dataset.side;
     addTip(button, S.rail[side], S.railInfo[side]);
     button.addEventListener('click', () => vm.setSide(side));
   }
-  const stageButtons = [...document.querySelectorAll('#rail [data-stage-button]')];
+  const stageButtons = [...document.querySelectorAll('[data-stage-button]')];
   for (const button of stageButtons) {
     const stage = button.dataset.stageButton;
     addTip(button, S.rail[stage], S.railInfo[stage]);
@@ -172,9 +172,16 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
       vm.setStage(stage);
     });
   }
+  // Floating button on the map: folds / unfolds the side panel of the selected rail icon
+  const panelToggle = $('sidebar-toggle');
+  panelToggle.addEventListener('click', () => vm.toggleSidebar());
+
+  // The chat opens from its own floating button (bottom-right), so the bar has no chat icon
   const chatButton = $('rail-chat');
-  addTip(chatButton, S.rail.chat, S.railInfo.chat);
-  chatButton.addEventListener('click', () => vm.toggleChat());
+  if (chatButton) {
+    addTip(chatButton, S.rail.chat, S.railInfo.chat);
+    chatButton.addEventListener('click', () => vm.toggleChat());
+  }
 
   // --- Sidebar ---
   const sidebarTitle = $('sidebar-title');
@@ -379,8 +386,9 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
       tab.classList.toggle('active', active);
       tab.setAttribute('aria-selected', String(active));
       const em = tab.querySelector('.tab-badge');
-      em.textContent = state.open && badge ? String(badge) : '';
-      em.hidden = !(state.open && badge);
+      // Totals live in the HUD only: no repeated badges on the view tabs
+      em.textContent = '';
+      em.hidden = true;
       tab.querySelector('.tip').replaceChildren(el('strong', '', title), el('small', '', state.open ? text : S.status.noProject));
     }
   }
@@ -454,12 +462,17 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
 
   function render(state) {
     body.classList.toggle('sidebar-closed', !state.sidebarOpen);
+    const toggleText = state.sidebarOpen ? S.panelToggle.hide : S.panelToggle.show;
+    panelToggle.setAttribute('aria-label', toggleText);
+    panelToggle.setAttribute('aria-expanded', String(state.sidebarOpen));
+    panelToggle.classList.toggle('active', state.sidebarOpen);
+    panelToggle.querySelector('.tip').replaceChildren(el('strong', '', toggleText), el('small', '', S.panelToggle.info));
     body.classList.toggle('chat-closed', !state.chatOpen);
     body.classList.toggle('mode-tech', modeModel.tech);
-    for (const button of document.querySelectorAll('#rail [data-side]')) {
+    for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
       button.classList.toggle('active', state.sidebarOpen && button.dataset.side === state.side);
     }
-    chatButton.classList.toggle('active', state.chatOpen);
+    chatButton?.classList.toggle('active', state.chatOpen);
     for (const button of stageButtons) button.classList.toggle('active', button.dataset.stageButton === state.stage);
     for (const b of document.querySelectorAll('.mode-toggle button')) b.classList.toggle('active', b.dataset.mode === modeModel.store.state.mode);
     body.classList.toggle('stage-graph', state.stage === 'graph');
@@ -499,7 +512,6 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     const job = repairViewModel.store.state.job;
     status.replaceChildren(
       el('span', 'status-strong', state.open ? state.projectName || strings.map.defaultProjectName : S.status.noProject),
-      ...(state.open ? [el('span', 'status-counts', S.status.counts(red, yellow, green))] : []),
       ...(job ? [el('span', 'status-remi', `${strings.repair.name}: ${(job.source === 'agent' ? strings.repair.stepsAgent(job.agentLabel) : strings.repair.steps)[job.step]}`)] : []),
       el('span', 'status-mode', `${strings.mode.title}: ${strings.mode[modeModel.store.state.mode]}`),
       el('span', 'status-agent', S.status.agent),

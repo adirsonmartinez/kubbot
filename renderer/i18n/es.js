@@ -46,7 +46,20 @@ export const strings = {
     action: 'Abrir proyecto',
   },
 
+  floater: {
+    move: 'Arrastra para moverlo (doble clic: vuelve a su lugar)',
+    minimize: 'Minimizar',
+    restore: 'Mostrar',
+    hud: 'Seguridad del proyecto',
+  },
+
   panels: {
+    // Breadcrumb counts: files of the current level by traffic light
+    levelCount: (level, n) => ({
+      red: `${n} ${n === 1 ? 'archivo' : 'archivos'} en riesgo en este nivel`,
+      yellow: `${n} ${n === 1 ? 'archivo' : 'archivos'} por revisar en este nivel`,
+      green: `${n} ${n === 1 ? 'archivo seguro' : 'archivos seguros'} en este nivel`,
+    })[level],
     backToMap: 'Volver al mapa',
     schemaTitle: 'Supabase · esquema public',
     schemaSummary: (tables, hasError) => (hasError ? `${tables} tablas · 1 con error` : `${tables} tablas · todo en orden`),
@@ -55,6 +68,7 @@ export const strings = {
   },
 
   hud: {
+    seeRisks: 'Ver la lista de riesgos',
     security: 'Seguridad',
     files: 'Archivos',
     risk: 'En riesgo',
@@ -152,17 +166,6 @@ export const strings = {
     if (key) return strings.folders[key];
     const tag = strings.tags[tags[0]];
     return { name: tag ? `${tag} · ${folder}` : folder, summary: tag ? `Archivos de ${tag.toLowerCase()}.` : 'Archivos del proyecto.' };
-  },
-
-  cracksCard: {
-    title: (n) => (n === 1 ? '1 riesgo abierto' : `${n} riesgos abiertos`),
-    allGood: 'Sin riesgos abiertos',
-    progress: (done, total) => `${done}/${total}`,
-    severity: { red: 'Grave', yellow: 'A revisar' },
-    repair: 'Reparar',
-    seeAll: (n) => `Ver todo (${n} más)`,
-    collapse: 'Ocultar',
-    expand: 'Mostrar riesgos',
   },
 
   devTree: {
@@ -301,6 +304,7 @@ export const strings = {
       repairWorst: 'Reparar el riesgo más grave',
       toggleMode: 'Cambiar entre Vibe y Dev',
     },
+    panelToggle: { show: 'Mostrar el panel', hide: 'Ocultar el panel', info: 'Abre o cierra el panel del ícono marcado. El mapa ocupa el resto.' },
     rail: { explorer: 'Explorador', risks: 'Riesgos', repairs: 'Reparaciones', agent: 'Conecta tu agente', map: 'Mapa 3D', project: 'Mapa del proyecto', graph: 'Grafo de amenazas', git: 'Ramas de git', chat: 'Agente' },
     // Shown when hovering a rail button or a tab
     railInfo: {
@@ -376,6 +380,9 @@ export const strings = {
     placeholder: 'Pregúntale al agente… (Enter envía, Shift+Enter salta línea)',
     thinking: 'Pensando…',
     reasoning: 'Cómo lo pensó',
+    pin: 'Fijar el chat: el mapa le deja su espacio',
+    unpin: 'Soltar el chat: vuelve a flotar sobre el mapa',
+    resize: 'Arrastra para cambiar el ancho del chat',
     run: {
       tools: {
         get_project: 'Ver el proyecto',
