@@ -467,60 +467,96 @@ setTimeout(()=>logEvent('wr','Analisis pendiente · presiona Analizar'),2500);
 function outage(){const m=byId.db;if(!m.shown)build(m);m.status='down';learn('Incidente','Postgres es un punto unico de fallo: se sugiere replica de lectura y alerta de latencia.');logEvent('er','Incidente · Supabase DB no responde');renderStack()}
 function restore(){[...mods,...extra].forEach(m=>m.status='ok');logEvent('ok','Todos los servicios restaurados');renderStack()}
 
-// ---- chat ----
 // ---- chat & git commands ----
 const log=$('log'),chat=$('chat');
-function say(t,u){const d=document.createElement('div');d.className='m '+(u?'u':'b');d.textContent=t;log.appendChild(d);log.scrollTop=1e9;if(chat.classList.contains('min')&&!u)$('cdot').textContent='nuevo'}
-say('Soy la guia de tu proyecto. Pregunta por tu stack o ejecuta comandos git ("commit nuevo módulo", "rollback", "crea rama feature/...").');
+function say(t,u){
+  const d=document.createElement('div');
+  d.className='m '+(u?'u':'b');
+  d.textContent=t;
+  log.appendChild(d);
+  log.scrollTop=1e9;
+  if(chat.classList.contains('min')&&!u)$('cdot').textContent='nuevo';
+}
+say('Soy la guia de tu proyecto. Puedo explicar tu stack, estado de servicios y ejecutar comandos git directamente desde el chat.');
 $('chd').onclick=()=>{chat.classList.toggle('min');$('cdot').textContent=chat.classList.contains('min')?'abrir':'cerrar';log.scrollTop=1e9};
 
+// ---- git state ----
 let activeBranch='feature/chat-git-commands';
+let gitHistory=[];  // track commits created via chat
 function randSha(){return Math.random().toString(16).slice(2,9)}
 
+// Render git chips below the last bot message
+function renderGitChips(chips){
+  const cc=$('chips');
+  if(!cc)return;
+  // Remove old git chips (marked with data-git)
+  Array.from(cc.querySelectorAll('[data-git]')).forEach(b=>b.remove());
+  chips.forEach(({label,cmd})=>{
+    const b=document.createElement('button');
+    b.textContent=label;
+    b.dataset.git='1';
+    b.style.borderColor='var(--ac)';
+    b.style.color='var(--ac)';
+    b.onclick=()=>ask(cmd);   // execute directly, no prefill
+    cc.prepend(b);
+  });
+}
+
+// ---- git command handler ----
 function handleGitCommand(text){
   const t=text.trim();
-  // Commit: "commit Fix bug", "haz commit con 'Nuevo feature'", "realiza un commit: ..."
+
+  // COMMIT: "commit <msg>", "haz commit con '<msg>'", "realiza un commit: <msg>", "ejecutar commit: <msg>"
   const commitMatch=t.match(/^(?:(?:haz|realiza(?:r)?|ejecuta(?:r)?)\s+(?:un\s+)?commit(?:\s+con)?[:\s]+|commit[:\s]+)([\s\S]+)$/i);
   if(commitMatch){
-    const msg=commitMatch[1].trim().replace(/^['"`]|['"`]$/g,'');
+    const msg=commitMatch[1].trim().replace(/^['"´`]|['"´`]$/g,'');
+    if(!msg){say('Escribe el mensaje del commit. Ej: commit fix login bug');return true;}
     const sha=randSha();
+    gitHistory.unshift({sha,msg,branch:activeBranch});
+    logEvent('ok',`Commit ${sha} · ${msg}`);
     if(stage<seq.length){
       const m=seq[stage];
       setStage(stage+1);
-      logEvent('ok',`Commit ${sha} · ${msg}`);
-      say(`✅ Commit ${sha} creado en "${activeBranch}":\n"${msg}"\nSe construyó ${m.tech} (${m.role}) en el mapa.`);
+      say(`✅ Commit ${sha} en "${activeBranch}":\n"${msg}"\n→ Se construyó ${m.tech} (${m.role}) en el mapa.`);
     } else {
-      logEvent('ok',`Commit ${sha} · ${msg}`);
-      say(`✅ Commit ${sha} creado en "${activeBranch}":\n"${msg}"\n(Todos los módulos base del stack están ya mapeados)`);
+      say(`✅ Commit ${sha} en "${activeBranch}":\n"${msg}"\n(El stack demo ya está completo en el mapa)`);
     }
-    addGitChip(`Rollback · ${sha}`, `rollback al commit ${sha}`);
+    renderGitChips([
+      {label:`↩ Rollback · ${sha}`, cmd:`rollback al commit ${sha}`},
+      {label:`⏮ Reset al ${sha}`,   cmd:`reset al commit ${sha}`},
+    ]);
     return true;
   }
 
-  // Rollback / revert: "rollback", "rollback al commit abc1234", "revert abc1234"
-  const revertMatch=t.match(/^(?:(?:rollback|revert(?:ir)?)(?:\s+(?:al?|el?|del?)\s+commit)?\s*|deshacer?\s+(?:el\s+)?commit\s*)([0-9a-f]{4,40})?/i);
+  // ROLLBACK / REVERT: "rollback", "rollback al commit <sha>", "revert <sha>", "deshacer commit <sha>"
+  const revertMatch=t.match(/^(?:(?:rollback|revert(?:ir)?)(?:\s+(?:al?|el?|del?)\s+commit)?\s*|deshacer?\s+(?:el\s+)?commit\s*)([0-9a-f]{4,40})?$/i);
   if(revertMatch){
     const sha=revertMatch[1]||randSha();
+    const target=gitHistory.find(c=>c.sha.startsWith(sha))||{sha,msg:'commit anterior'};
+    const newSha=randSha();
+    gitHistory.unshift({sha:newSha,msg:`Revert "${target.msg}"`,branch:activeBranch});
     if(stage>0){
       setStage(stage-1);
-      logEvent('wr',`Rollback · vuelto al Commit ${stage}/${seq.length}`);
-      say(`↩️ Rollback aplicado. Se revirtieron los cambios del commit ${sha}. Ahora estás en Commit ${stage}/${seq.length}.`);
+      logEvent('wr',`Revert del commit ${sha.slice(0,7)} → nuevo commit ${newSha}`);
+      say(`↩️ Revert aplicado al commit ${sha.slice(0,7)}.\nSe creó el commit ${newSha} que deshace esos cambios.\nAhora en Commit ${stage}/${seq.length}.`);
     } else {
-      say('No hay commits anteriores en la historia para deshacer.');
+      logEvent('wr',`Revert del commit ${sha.slice(0,7)} → nuevo commit ${newSha}`);
+      say(`↩️ Revert del commit ${sha.slice(0,7)} aplicado.\nSe creó el commit ${newSha} que deshace esos cambios.`);
     }
     return true;
   }
 
-  // Reset: "reset al commit abc1234", "reset --hard"
-  const resetMatch=t.match(/^(?:reset(?:\s+--hard)?(?:\s+(?:al?|el?)\s+commit)?\s*)([0-9a-f]{4,40})?/i);
+  // RESET: "reset", "reset al commit <sha>", "reset --hard <sha>"
+  const resetMatch=t.match(/^reset(?:\s+--hard)?(?:\s+(?:al?|el?)\s+commit)?\s*([0-9a-f]{4,40})?$/i);
   if(resetMatch){
+    const sha=resetMatch[1];
     setStage(0);
-    logEvent('er','Reset --hard ejecutado: vuelto a Commit 0');
-    say(`⏮ HEAD reseteado al commit inicial (Commit 0/${seq.length}).`);
+    logEvent('er','Reset --hard: HEAD vuelto al inicio');
+    say(`⏮ Reset${sha?' al commit '+sha.slice(0,7):''} ejecutado.\nEl mapa volvió al estado inicial (Commit 0/${seq.length}).\n⚠ Los cambios posteriores fueron descartados.`);
     return true;
   }
 
-  // Crear rama: "crear rama feature/auth", "crea la rama feature/auth", "nueva rama hotfix/login"
+  // CREAR RAMA: "crear rama <n>", "crea rama <n>", "crea la rama <n>", "nueva rama <n>", "branch <n>"
   const branchMatch=t.match(/^(?:crea(?:r)?\s+(?:(?:una?|la)\s+)?rama|nueva\s+rama|branch)\s+([\w./-]+)$/i);
   if(branchMatch){
     activeBranch=branchMatch[1].trim();
@@ -530,7 +566,7 @@ function handleGitCommand(text){
     return true;
   }
 
-  // Checkout: "checkout develop", "cambia a la rama main", "cambia a develop"
+  // CHECKOUT: "checkout <rama>", "cambia a <rama>", "cambia a la rama <rama>", "cambiar a la rama <rama>"
   const coMatch=t.match(/^(?:cambia(?:r)?\s+(?:a\s+)?(?:(?:la\s+)?rama\s+)?|checkout\s+)([\w./-]+)$/i);
   if(coMatch){
     activeBranch=coMatch[1].trim();
@@ -543,53 +579,50 @@ function handleGitCommand(text){
   return false;
 }
 
-function addGitChip(label, cmd){
-  const chips=$('chips');if(!chips)return;
-  const b=document.createElement('button');
-  b.textContent=label;
-  b.style.borderColor='var(--ac)';
-  b.style.color='var(--ac)';
-  b.onclick=()=>{
-    const ci=$('ci');if(ci){ci.value=cmd;ci.focus()}
-  };
-  chips.prepend(b);
-}
-
+// ---- faq scripted answers ----
 const faq=[
- [/qu[e\u00e9] es|para qu[e\u00e9] sirve|de qu[e\u00e9] trata/,'Es un mapa 3D de tu proyecto. Cada edificio es una tecnologia de tu stack, con su despliegue, su estado y sus riesgos de seguridad. Crece solo con cada commit.'],
+ [/qu[eé] es|para qu[eé] sirve|de qu[eé] trata/,'Es un mapa 3D de tu proyecto. Cada edificio es una tecnologia de tu stack, con su despliegue, su estado y sus riesgos de seguridad. Crece solo con cada commit.'],
  [/stack|tecnolog|usando|supabase|vercel/,()=>'Tu stack ahora: '+all.map(m=>m.tech+' ('+m.role.toLowerCase()+', en '+m.host+')').join('; ')+'.'],
- [/ca[i\u00ed]d|estado|funciona el|responde|servidor/,()=>{const d=all.filter(m=>eff(m)=='down'),g=all.filter(m=>eff(m)=='deg');return d.length?`Caido: ${d.map(m=>m.tech).join(', ')}.`+(g.length?` Degradado por dependencia: ${g.map(m=>m.tech).join(', ')}.`:''):'Todos los servicios responden con normalidad.'}],
+ [/ca[ií]d|estado|funciona el|responde|servidor/,()=>{const d=all.filter(m=>eff(m)=='down'),g=all.filter(m=>eff(m)=='deg');return d.length?`Caido: ${d.map(m=>m.tech).join(', ')}.`+(g.length?` Degradado: ${g.map(m=>m.tech).join(', ')}.`:''):'Todos los servicios responden con normalidad.'}],
  [/aprend|memoria|mejora/,'Cada commit deja una nota en la Memoria: patrones de tu proyecto, latencias normales e incidentes. Con eso afina que vigila y avisa antes cuando algo se desvia.'],
- [/c[o\u00f3]mo funciona/,'Lee tu repositorio y tus integraciones, dibuja cada pieza como un edificio, mide su estado y analiza cada una en busca de riesgos. En esta demo los datos son de ejemplo.'],
+ [/c[oó]mo funciona/,'Lee tu repositorio y tus integraciones, dibuja cada pieza como un edificio, mide su estado y analiza cada una en busca de riesgos. En esta demo los datos son de ejemplo.'],
  [/urgente|primero|prior/,()=>{const m=all.filter(m=>m.v.some(v=>v.s=='alta'))[0];return m?`Empieza por ${m.tech}: ${m.v.find(v=>v.s=='alta').t}. Esta en rojo en el mapa.`:'No hay riesgos urgentes.'}],
- [/prompt/,'Prompt injection: alguien escribe un texto que enga\u00f1a a la IA para que ignore sus reglas. Se evita separando instrucciones del texto del usuario y filtrando respuestas.'],
+ [/prompt/,'Prompt injection: alguien escribe un texto que engaña a la IA para que ignore sus reglas. Se evita separando instrucciones del texto del usuario y filtrando respuestas.'],
  [/jwt|clave|secret|token/,'Una clave secreta nunca va en el codigo. Guardala en un archivo .env fuera de Git.'],
- [/arregl|solu|corregir|fix/,'Selecciona un edificio: el panel muestra cada riesgo con su solucion. Con Desplegar por pisos ves en que parte esta.'],
+ [/arregl|soluci|corregir|fix/,'Selecciona un edificio: el panel muestra cada riesgo con su solucion. Con Desplegar por pisos ves en que parte esta.'],
  [/reporte|informe|pdf|diapositiva/,'Los informes en PDF y diapositivas con metricas llegaran en la siguiente fase. Hoy todo se ve en el mapa.'],
  [/privad|datos|confiden/,'El analisis se hace solo sobre tu proyecto y solo tu lo ves.'],
  [/nivel|principiante|experto|guiad/,'El selector de nivel cambia el detalle: guiado explica con palabras simples, experto muestra datos tecnicos directos.'],
  [/mover|rotar|girar|zoom|control/,'Arrastra para mover, clic derecho o Shift para rotar e inclinar, rueda para zoom, Q/E para girar.'],
- [/hola|buenas/,'Hola. Que quieres revisar?']
+ [/hola|buenas/,'Hola. ¿Que quieres revisar?'],
+ [/git|commit|rollback|reset|rama|branch|checkout|revert/,'Comandos git disponibles:\n• commit <mensaje>\n• rollback al commit <sha>\n• reset al commit <sha>\n• crear rama <nombre>\n• checkout <rama>'],
 ];
+
 function ask(q){
   say(q,1);
   if(handleGitCommand(q)) return;
-  const l=q.toLowerCase();let r=null;
+  const l=q.toLowerCase();
+  let r=null;
   for(const[re,a]of faq)if(re.test(l)){r=typeof a=='function'?a():a;break}
-  if(!r)r='Puedo explicar tu stack o ejecutar instrucciones de Git en el repositorio: "commit <mensaje>", "rollback", "crea rama feature/...".';
+  if(!r)r='Puedo explicar tu stack o ejecutar comandos git: "commit <mensaje>", "rollback", "reset", "crear rama <nombre>", "checkout <rama>".';
   setTimeout(()=>say(r),300);
 }
+
 $('cf').onsubmit=e=>{e.preventDefault();const i=$('ci'),q=i.value.trim();if(!q)return;i.value='';ask(q)};
-['commit Nuevo módulo','Rollback','crea rama feature/auth','Que stack uso','Hay algo caido'].forEach(q=>{
+
+// Initial suggestion chips — all execute directly via ask()
+const INIT_CHIPS=[
+  {label:'🧱 Nuevo commit', cmd:'commit Nuevo módulo de seguridad'},
+  {label:'↩ Rollback', cmd:'rollback'},
+  {label:'🌿 Crear rama', cmd:'crear rama feature/mi-funcionalidad'},
+  {label:'📦 Que stack uso', cmd:'Que stack uso'},
+  {label:'🔴 Hay algo caido', cmd:'Hay algo caido'},
+];
+INIT_CHIPS.forEach(({label,cmd})=>{
   const b=document.createElement('button');
-  b.textContent=q;
-  b.onclick=()=>{
-    const ci=$('ci');
-    if(q.startsWith('commit ')){ci.value=q;ci.focus()}
-    else if(q.startsWith('crea rama')){ci.value=q;ci.focus()}
-    else {ask(q)}
-  };
-  $('chips').appendChild(b)
+  b.textContent=label;
+  b.onclick=()=>ask(cmd);
+  $('chips').appendChild(b);
 });
 
 // ---- barra superior ----
