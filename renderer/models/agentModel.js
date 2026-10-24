@@ -39,8 +39,9 @@ export class AgentModel {
   // the Platanus MCP tools; otherwise the scripted demo answers. Same reply shape either way.
   // agent: ask another agent than the selected one (compare answers)
   // recent: the person's last messages (the agent adapts to how they write; see agent/voice.json)
-  async reply(text, { onTool, onText, onThinking, onEvent, agent, recent = [] } = {}) {
-    if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, recent, ...(agent ? { agent } : {}) });
+  // onStart: called when the agent really starts (a question can wait in line behind a repair)
+  async reply(text, { onTool, onText, onThinking, onEvent, onStart, agent, recent = [] } = {}) {
+    if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, onStart, recent, ...(agent ? { agent } : {}) });
     return (await this.#gitCommand(text)) ?? (await this.#fileCommand(text)) ?? this.#scripted(text);
   }
 
@@ -48,6 +49,8 @@ export class AgentModel {
   async #live(text, { recent, ...callbacks }) {
     const voice = { mode: this.#mode?.tech ? 'dev' : 'vibe', recent: [...recent, text] };
     const { text: answer, error } = await this.#connection.ask(text, '', { ...callbacks, voice });
+    // Stopped halfway: what it wrote stays, but the run failed (found by the simulator, scripts/sim)
+    if (error && answer) return { text: answer, html: AGENT.liveStopped(escapeHtml(error)), tone: 'alert' };
     if (answer) return { text: answer };
     return { html: AGENT.liveFailed(escapeHtml(error ?? '')), tone: 'alert' };
   }

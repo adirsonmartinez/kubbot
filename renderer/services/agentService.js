@@ -15,7 +15,12 @@ export function createAgentService(bridge = window.platanus) {
       replyMcp: async () => {},
       onScore: () => () => {},
       onChanged: () => () => {},
+      onAwaiting: () => () => {},
       undo: async () => ({ ok: false }),
+      setApproval: async () => ({ ok: false, error: 'desktop-only' }),
+      listKeys: async () => ({ ok: true, data: {} }),
+      saveKey: async () => ({ ok: false, error: 'desktop-only' }),
+      removeKey: async () => ({ ok: false, error: 'desktop-only' }),
       auditLog: async () => ({ ok: true, data: [] }),
       onAudit: () => () => {},
     };
@@ -33,8 +38,13 @@ export function createAgentService(bridge = window.platanus) {
     replyMcp: (payload) => bridge.mcp.reply(payload),
     onScore: (cb) => bridge.mcp.onScore(cb),
     onChanged: (cb) => bridge.mcp.onChanged(cb),
+    onAwaiting: (cb) => bridge.mcp.onAwaiting(cb),
     auditLog: () => bridge.auditLog(),
     onAudit: (cb) => bridge.onAudit(cb),
     undo: (change) => bridge.mcp.undo(change),
+    setApproval: (mode) => bridge.mcp.setApproval(mode),
+    listKeys: () => bridge.keys.list(),
+    saveKey: (provider, value) => bridge.keys.set(provider, value),
+    removeKey: (provider) => bridge.keys.remove(provider),
   };
 }

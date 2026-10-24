@@ -2,39 +2,40 @@
 // updates its bubble in place), map cards, "thinking…", chips, and the composer (Enter sends,
 // Shift+Enter breaks) with the Vibe / Dev switch.
 //
-// While the agent works (libraries.dev effects, placed by their author's rules): a thinking orb in the
-// header avatar whose state follows what it is doing (only after 2 s), and a border beam on the composer
-// (only after 3 s). File names in answers are links to the map.
+// While the agent works (libraries.dev effects): a thinking orb whose state names what it is doing, from
+// the first moment, one per activity (the "Pensando…" row, a run card step, or else the header avatar),
+// a border beam on the composer after 3 s, and liquid metal on the send button (calm while it works).
+// File names in answers open the file in the chat.
 import { strings } from '../../i18n/es.js';
 import { splitAnswer } from '../../models/answerFormat.js';
 import { markdownToHtml } from './markdown.js';
-import { renderRunCard, tickRunTimers, orbStateOf } from './runCardView.js';
+import { renderRunCard, tickRunTimers, orbKeyOf, ORB_AFTER_MS } from './runCardView.js';
+import { createComposerAssist } from './composerAssistView.js';
+import { renderStep, renderResult } from './activityView.js';
+import { isSpec } from '../../models/promptSpec.js';
 import { renderChatCard, actionButton } from './chatCardsView.js';
 import { applyIcons } from '../icons.js';
 import { icon } from './icons.js';
-import { thinkingOrb } from './thinkingOrb.js';
+import { thinkingOrb, STEP_ORB } from './thinkingOrb.js';
 
 const MAX_INPUT_PX = 160;
-const ORB_AFTER_MS = 2000;
 const BEAM_AFTER_MS = 3000;
 const reducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-export function createChatView({ chatViewModel: vm, connection = null, modeModel = null, onLocate = () => {} }) {
+export function createChatView({ chatViewModel: vm, composerViewModel = null, connection = null, modeModel = null }) {
   const $ = (id) => document.getElementById(id);
   const root = $('chat'), body = $('chat-body'), form = $('chat-form'), input = $('chat-text');
   const sendButton = $('chat-send'), toggle = $('chat-toggle');
   const rendered = new Map(); // message id -> { el, text }
 
-  // "Thinking…": three dots, and a composing orb with its label if it takes longer than 2 s
+  // "Pensando…": a thinking orb with its label from the first moment (no three dots)
   const typing = document.createElement('div');
   typing.className = 'msg bot typing';
-  const dots = document.createElement('span');
-  dots.className = 'typing-dots';
-  dots.innerHTML = '<i></i><i></i><i></i>'; // static markup
-  const slow = document.createElement('span');
-  slow.className = 'typing-slow';
-  slow.append(thinkingOrb('composing', { size: 20 }), document.createTextNode(strings.chat.thinking));
-  typing.append(dots, slow);
+  const thinking = document.createElement('span');
+  thinking.className = 'typing-orb';
+  thinking.dataset.state = 'breathing';
+  thinking.append(thinkingOrb('breathing', { size: 20 }), document.createTextNode(strings.chat.thinking));
+  typing.append(thinking);
 
   const chips = document.createElement('div');
   chips.className = 'chips';
@@ -65,9 +66,11 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
   }
 
   // Agent answers are Markdown (escaped first, see markdown.js) with cards; the suggestions block is
-  // not shown (it becomes the chips). The person's own text stays plain.
+  // not shown (it becomes the chips). The person's own text stays plain, except a spec made with
+  // "Mejorar mi mensaje", shown with its headings and steps (markdownToHtml escapes it first).
   function fill(el, { role, text, html, thinking }) {
     if (html) { el.innerHTML = html; return; } // only our own strings, never user input
+    if (role === 'user' && isSpec(text)) { el.classList.add('spec'); el.innerHTML = `<div class="md">${markdownToHtml(text)}</div>`; return; }
     if (role !== 'bot') { el.textContent = text ?? ''; return; }
     const parts = [];
     if (thinking) {
@@ -83,26 +86,35 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
 
   function messageElement(m) {
     const el = document.createElement('div');
-    el.className = ['msg', m.role, m.tone, m.run && 'run', m.card && `card-msg ${m.card.kind}`].filter(Boolean).join(' ');
+    el.className = ['msg', m.role, m.tone, m.run && 'run', m.card && `card-msg ${m.card.kind}`, m.result && `result ${m.result}`].filter(Boolean).join(' ');
     paint(el, m);
     return el;
   }
 
   const paint = (el, m) => {
-    if (m.run) renderRunCard(el, m);
-    else if (m.card) renderChatCard(el, m.card, vm);
+    const plain = !modeModel?.tech;
+    if (m.run) renderRunCard(el, m, { plain });
+    else if (m.card) renderChatCard(el, m.card, vm, { plain });
+    else if (m.step) renderStep(el, m);
+    else if (m.result) renderResult(el, m);
     else fill(el, m);
+    // Modo Vibe: file links show the file's name; the full path is on hover
+    for (const ref of el.querySelectorAll('code.file-ref')) {
+      ref.title = ref.dataset.path;
+      ref.textContent = plain ? ref.dataset.path.split('/').filter(Boolean).pop() : ref.dataset.path;
+    }
   };
 
-  // File names in answers are links: they show the file on the map
-  const locate = (e) => {
+  // File names in answers are links: they open the file's card here (folders go to the map)
+  const openRef = (e) => {
     const ref = e.target.closest?.('.file-ref');
     if (!ref || (e.type === 'keydown' && e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
-    onLocate(ref.dataset.path);
+    vm.openFile(ref.dataset.path);
   };
-  body.addEventListener('click', locate);
-  body.addEventListener('keydown', locate);
+  body.addEventListener('click', openRef);
+  body.addEventListener('keydown', openRef);
+  body.addEventListener('mousedown', (e) => { if (e.detail > 1 && e.target.closest?.('.file-ref')) e.preventDefault(); }); // no word selection on double click
 
   function render(state, previous) {
     // Follow the conversation only if the person is already at the bottom (not while they read above)
@@ -126,21 +138,24 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
       }
     });
 
-    typing.remove();
-    chips.remove();
-    // A live run card already says "Trabajando…": no extra dots under it
+    // A live run card already shows its own orb: no "Pensando…" row under it
     const runWorking = state.messages.at(-1)?.run?.status === 'running';
-    if (state.typing && !runWorking) body.appendChild(typing);
-    if (state.chips?.length) {
-      if (state.chips !== previous?.chips) {
-        chips.replaceChildren(...state.chips.map((chip, i) => {
-          const button = actionButton(typeof chip === 'string' ? { kind: 'ask', label: chip } : chip, vm, 'chip');
-          button.style.setProperty('--i', String(i)); // staggered entrance
-          return button;
-        }));
-      }
-      body.appendChild(chips);
+    const showTyping = state.typing && !runWorking;
+    // A detached canvas leaves the orbs' draw loop: the row gets a fresh orb each time it appears
+    if (showTyping && !typing.isConnected) thinking.firstChild.replaceWith(thinkingOrb('breathing', { size: 20 })); // the text beside it says it
+    if (state.chips?.length && state.chips !== previous?.chips) {
+      chips.replaceChildren(...state.chips.map((chip, i) => {
+        const button = actionButton(typeof chip === 'string' ? { kind: 'ask', label: chip } : chip, vm, 'chip');
+        button.style.setProperty('--i', String(i)); // staggered entrance
+        return button;
+      }));
     }
+    // The row and the chips stay at the end; they move only when a new message pushed them up (moving a
+    // node restarts its entrance animation, so they are not re-attached on every streamed word)
+    const tail = [showTyping && typing, state.chips?.length && chips].filter(Boolean);
+    for (const node of [typing, chips]) if (!tail.includes(node)) node.remove();
+    const last = [...body.children].slice(-tail.length);
+    if (tail.length && tail.some((node, i) => last[i] !== node)) body.append(...tail);
     if (atBottom || state.messages.length !== previous?.messages.length) body.scrollTop = body.scrollHeight;
 
     sendButton.disabled = state.typing;
@@ -156,39 +171,73 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
     working(state);
   }
 
-  // --- While the agent works: orb in the avatar (after 2 s), beam on the composer (after 3 s) ---
+  // --- While the agent works: orb in the avatar (from the start), beam on the composer (after 3 s) ---
   const avatar = root.querySelector('.chat-avatar');
-  const avatarIcon = avatar.firstElementChild;
-  let orbState = null;
+  let orbKey = null;
   let workStarted = 0;
   let beamTimer = 0;
   let beam = null;
-  // Built by scripts/vendor-ui.js (npm start runs it); without it the chat simply has no beam
-  import('../../vendor/border-beam.js')
-    .then(({ mountBorderBeam }) => {
-      beam = mountBorderBeam(form, { size: 'md', colorVariant: 'ocean', theme: 'dark', active: Boolean(beamTimer === -1), strength: 0.85, borderRadius: 16 });
+  // The metal of the send button calms down while the agent works (the beam is the effect then: one
+  // effect at a time) and stays still with "reduce motion" (the shader does not read that setting)
+  let metal = null;
+  let metalCalm = null;
+  const calmMetal = (calm) => {
+    if (!metal || calm === metalCalm) return;
+    metalCalm = calm;
+    const still = calm || reducedMotion();
+    metal.update({ paused: still, disableGlow: still, strength: calm ? 0.45 : 0.9 });
+  };
+  // libraries.dev effects (renderer/vendor/react-ui.js, built by scripts/vendor-ui.js): the beam on the
+  // composer while the agent works, and liquid metal on the send button, reflected on the model picker.
+  // Without the file (or WebGL2 for the metal) the chat simply works without them.
+  import('../../vendor/react-ui.js')
+    .then(({ mountBorderBeam, mountMetalButton }) => {
+      beam = mountBorderBeam(form, { size: 'md', colorVariant: 'ocean', theme: 'dark', active: Boolean(beamTimer === -1), strength: 0.85, borderRadius: 22 }); // the composer's glass corners (chat-glass.css)
+      // The beam also rides the border while the cursor is over the composer or the person writes in it
+      const hoverBeam = () => beam?.update({ active: beamTimer === -1 || (!reducedMotion() && (form.matches(':hover') || form.contains(document.activeElement))) });
+      for (const type of ['mouseenter', 'mouseleave', 'focusin', 'focusout']) form.addEventListener(type, () => setTimeout(hoverBeam, 0));
+      metal = mountMetalButton(sendButton, { reflect: form.querySelector('.picker-pill'), paused: reducedMotion(), disableGlow: reducedMotion() });
+      calmMetal(Boolean(vm.store.state.typing));
+      // The floating button (chat closed or minimized) gets the same liquid metal, mounted the first time
+      // it shows (the shader measures the button; a hidden one has no size). Never both at once: it only
+      // shows while the composer and its send button are hidden.
+      const launcher = document.getElementById('chat-launcher-button');
+      const launcherShown = () => launcher && launcher.offsetParent !== null;
+      const mountLauncher = () => {
+        if (!launcherShown() || launcher.closest('.metal-host')) return;
+        mountMetalButton(launcher, { paused: reducedMotion(), disableGlow: reducedMotion() });
+      };
+      new MutationObserver(mountLauncher).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      mountLauncher();
     })
-    .catch((error) => console.warn('border-beam:', error.message));
+    .catch((error) => console.warn('libraries.dev:', error.message));
+  const calmAvatar = () => {
+    if (orbKey) { avatar.querySelector('.orb')?.remove(); orbKey = null; }
+    avatar.classList.remove('busy');
+  };
   function working(state) {
+    calmMetal(Boolean(state.typing));
     if (!state.typing) {
       workStarted = 0;
       clearTimeout(beamTimer);
       beamTimer = 0;
-      beam?.update({ active: false });
-      if (orbState) { avatar.querySelector('.orb')?.remove(); avatarIcon.hidden = false; orbState = null; }
-      avatar.classList.remove('busy');
-      return;
+      beam?.update({ active: !reducedMotion() && (form.matches(':hover') || form.contains(document.activeElement)) }); // hover or writing keeps it
+      return calmAvatar();
     }
     if (!workStarted) {
       workStarted = Date.now();
       if (!reducedMotion()) beamTimer = setTimeout(() => { beamTimer = -1; beam?.update({ active: true }); }, BEAM_AFTER_MS);
     }
-    const next = orbStateOf(state.messages.at(-1));
-    if (next === orbState) return;
-    orbState = next;
+    // The "Pensando…" row or a working card (its avatar is the orb) already shows it: one orb per activity
+    if (typing.isConnected || state.messages.at(-1)?.run?.status === 'running') return calmAvatar();
+    const key = orbKeyOf(state.messages.at(-1));
+    if (key === orbKey) return;
+    orbKey = key;
     avatar.querySelector('.orb')?.remove();
-    const orb = thinkingOrb(next, { size: 20, label: strings.chat.orbLabels[next] ?? strings.chat.thinking });
-    orb.style.animationDelay = `${ORB_AFTER_MS - (Date.now() - workStarted)}ms`; // appears 2 s after it started
+    // The 32 preset drawn at 28 px (0.875, within the library's tolerance) fills the 28 px avatar
+    const orb = thinkingOrb(STEP_ORB[key] ?? 'working', { size: 32, label: strings.chat.orbLabels[key] ?? strings.chat.orbLabels.working });
+    orb.style.width = orb.style.height = '28px';
+    orb.style.animationDelay = `${ORB_AFTER_MS - (Date.now() - workStarted)}ms`;
     avatar.appendChild(orb);
     avatar.classList.add('busy');
   }
@@ -199,6 +248,7 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
   };
   form.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (e.target !== form) return; // a form inside a menu of the composer, not the message
     if (vm.store.state.typing || !input.value.trim()) return; // keep the text until it can be sent
     vm.send(input.value);
     input.value = '';
@@ -242,8 +292,8 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
     b.type = 'button';
     b.setAttribute('role', 'radio');
     b.dataset.mode = mode;
-    b.title = strings.chat.voice.hints[mode];
-    b.setAttribute('aria-label', strings.chat.voice.names[mode]);
+    b.dataset.tip = strings.chat.voice.tips[mode]; // hover label: what this mode does
+    b.setAttribute('aria-label', strings.chat.voice.hints[mode]);
     b.appendChild(icon(mode === 'vibe' ? 'vibe' : 'dev', { size: 14 }));
     b.addEventListener('click', () => modeModel?.set(mode));
     voice.appendChild(b);
@@ -255,6 +305,7 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
     voiceButtons.forEach((b) => b.setAttribute('aria-checked', String(b.dataset.mode === mode)));
     input.placeholder = strings.chat.placeholders[mode];
     fillSuggestions(mode);
+    for (const { el, msg } of rendered.values()) if (msg.run || msg.card) paint(el, msg); // agent and file cards switch voice too
   };
   if (modeModel) modeModel.store.subscribe(({ mode }) => applyMode(mode), { immediate: true });
   else fillSuggestions('vibe');
@@ -279,11 +330,34 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
   });
 
   vm.store.subscribe(render, { immediate: true });
+  // Help while writing: hints, file completions and "Mejorar mi mensaje"
+  if (composerViewModel) createComposerAssist({ vm: composerViewModel, form, input, bar: form.querySelector('.composer-bar') });
 
-  // Header: which agent is answering (the demo or the user's own subscription)
+  // Header: the agent that answers, by its mark and name, and how it is connected ("Claude · Con tu
+  // suscripción"); the demo and the simulator say what they are
+  const title = root.querySelector('.chat-title strong');
   const status = root.querySelector('.chat-title span');
+  const H = strings.chat.header;
+  let mark = 'bot';
   connection?.store.subscribe((state) => {
     const agent = state.agents.find((a) => a.id === state.selected);
-    status.textContent = agent ? `${agent.label} · ${strings.connect.efforts[state.effort]}` : strings.chat.online;
+    const own = agent && agent.id !== 'sim';
+    title.textContent = own ? agent.label.split(' (')[0] : agent ? H.sim.name : H.demo.name;
+    // How it is connected (the model and the effort are on the composer's button)
+    status.textContent = own
+      ? (agent.auth === 'key' ? strings.chat.picker.viaKey(agent.keyLast4) : strings.chat.picker.viaLogin)
+      : agent ? H.sim.detail : H.demo.detail;
+    const next = own && ['claude', 'codex', 'grok', 'opencode'].includes(agent.id) ? agent.id : 'bot';
+    if (next !== mark) {
+      mark = next;
+      avatar.querySelector('svg.icon')?.replaceWith(icon(next, { size: 16 }));
+    }
+    root.dataset.agent = next; // the mark takes its brand color (chat-glass.css)
+    // the floating button shows the same mark
+    const launcher = document.getElementById('chat-launcher-button');
+    if (launcher) {
+      launcher.dataset.agent = next;
+      launcher.querySelector('svg.icon')?.replaceWith(icon(next, { size: 20 }));
+    }
   }, { immediate: true });
 }

@@ -1,6 +1,7 @@
 // Composition root: creates Models -> ViewModels -> Views and wires them together.
 // Models know nothing about the screen; ViewModels hold screen state and actions (no DOM, no three.js);
 // Views only draw and forward user input to ViewModels.
+import { findNode } from './models/fileTree.js';
 import { createEventBus, EVENTS } from './core/eventBus.js';
 import { strings } from './i18n/es.js';
 import { createWorkspaceService } from './services/workspaceService.js';
@@ -24,6 +25,8 @@ import { RepairHistoryModel } from './models/repairHistoryModel.js';
 import { CameraViewModel } from './viewmodels/cameraViewModel.js';
 import { SupabaseViewModel } from './viewmodels/supabaseViewModel.js';
 import { MapViewModel } from './viewmodels/mapViewModel.js';
+import { ApprovalModel } from './models/approvalModel.js';
+import { ComposerViewModel } from './viewmodels/composerViewModel.js';
 import { ChatViewModel } from './viewmodels/chatViewModel.js';
 import { GitViewModel } from './viewmodels/gitViewModel.js';
 import { AppViewModel } from './viewmodels/appViewModel.js';
@@ -48,7 +51,8 @@ import { createChatView } from './views/ui/chatView.js';
 import { createShellView } from './views/ui/shellView.js';
 import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { createAgentPickerView } from './views/ui/agentPickerView.js';
-import { attachMenu, chatMenuItems } from './views/ui/chatMenuView.js';
+import { attachMenu } from './views/ui/chatMenuView.js';
+import { chatMenuItems } from './viewmodels/chatMenu.js';
 import { createIconBarView } from './views/ui/iconBarView.js';
 import { makeFloating } from './views/ui/floater.js';
 import { makeDraggable } from './views/ui/draggable.js';
@@ -117,6 +121,13 @@ const actions = {
     chatViewModel.send(strings.chat.auditPrompt(path, reason));
   },
   // A file or folder named by the agent (links and "Ver … en el mapa" chips)
+  // Opening files from the chat (chatViewModel.openFile)
+  // The tree is loaded level by level: what it does not hold yet is asked to the disk
+  entryOf: async (path) => (path ? findNode(projectModel.store.state.tree, path) : null)
+    ?? (await workspace.kind(path).then((r) => (r.ok && r.data ? { path, type: r.data } : null))),
+  fileInfo: (path) => securityModel.scoreOf(path),
+  readFile: (path) => workspace.read(path),
+  openFile: (path, how) => workspace.open(path, how),
   locate(path) {
     shellViewModel.setStage('map');
     if (!mapViewModel.show(path)) chatViewModel.sayFromMap({ text: strings.chat.notInProject(path) });
@@ -125,6 +136,9 @@ const actions = {
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
 const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection });
+// The agent waits for the person to approve a change (main process dialog): the chat says so
+agentService.onAwaiting((detail) => bus.emit(EVENTS.agentAwaiting, detail));
+agentService.onChanged((change) => bus.emit(EVENTS.agentChanged, change)); // its diff, live in the chat
 
 // The stage tab drives which 3D view is on screen: the git tab shows the branches, the rest the map
 shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 'git' ? 'git' : 'map'), { immediate: true });
@@ -167,11 +181,15 @@ createInputController({
 createControlsView({ cameraViewModel, onReset: () => (appViewModel.view === 'map' ? mapViewModel.home() : cameraViewModel.reset()) });
 createHandControlView({ handControlViewModel, video: handTracking.video });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
-createChatView({ chatViewModel, connection, modeModel, onLocate: (path) => actions.locate(path) });
+// Which agent changes ask first (Manual / Auto / Sin preguntar)
+const approvalModel = new ApprovalModel(agentService);
+approvalModel.init();
+const composerViewModel = new ComposerViewModel({ connection, projectModel, modeModel });
+createChatView({ chatViewModel, composerViewModel, connection, modeModel });
 createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks: () => actions.showRisks() });
-createShellView({ shellViewModel, modeModel, repairViewModel, repairHistory, serversViewModel, actions });
+createShellView({ shellViewModel, modeModel, approval: approvalModel, repairViewModel, repairHistory, serversViewModel, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
-createAgentPickerView({ container: document.getElementById('agent-picker'), connection, onMore: actions.showConnect });
+createAgentPickerView({ container: document.getElementById('agent-picker'), connection, approval: approvalModel, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });
 createIconBarView({ bar: document.getElementById('side-dock'), vertical: true });
 // The side panel and the chat can be dragged by their header (double click: back in place)
@@ -192,8 +210,24 @@ const openChat = () => {
   if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
   if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
 };
-attachMenu($id('chat-more'), $id('chat-more-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel }));
-attachMenu($id('chat-launcher-button'), $id('chat-launcher-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, openChat }));
+// What the chat menus show, read when they open: who answers, whether it works, the worst risk, the counts
+// and the repairs waiting to be checked
+const menuInfo = () => {
+  const c = connection.store.state;
+  const agent = c.agents.find((a) => a.id === c.selected);
+  const shell = shellViewModel.store.state;
+  const worst = shell.risks.find((f) => f.level === 'red' || f.by !== 'remi') ?? null;
+  const last = chatViewModel.store.state.messages.at(-1);
+  return {
+    agent: agent ? { id: agent.id, name: agent.label.split(' (')[0] } : null,
+    working: Boolean(chatViewModel.store.state.typing || last?.run?.status === 'running'),
+    worst: worst && { path: worst.path, level: worst.level },
+    counts: shell.counts,
+    pending: repairHistory.store.state.entries.filter((e) => e.status === 'fixed' || e.status === 'planned').length,
+  };
+};
+attachMenu($id('chat-more'), $id('chat-more-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, info: menuInfo }));
+attachMenu($id('chat-launcher-button'), $id('chat-launcher-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, openChat, info: menuInfo }));
 createAgentConnectView({ container: document.getElementById('agent-connect'), connection, modeModel });
 connectMcpBridge({ agentService, securityModel, shellViewModel });
 connection.refresh();

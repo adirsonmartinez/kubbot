@@ -41,10 +41,18 @@ export const CATALOG = {
   },
 };
 
+// OpenCode: the model its account or keys provide (provider/model ids depend on the person's setup)
+CATALOG.opencode = { models: [{ id: '', label: null, tier: 'plan' }], efforts: ['low'], defaultEffort: 'low' };
+
+// The development simulator (PLATANUS_SIM=1, scripts/sim): one model, any effort
+CATALOG.sim = { models: [{ id: '', label: null, tier: 'plan' }], efforts: ['low'], defaultEffort: 'low' };
+
 // Display name of a model id for an agent (null = the plan's default)
 export const modelLabel = (agent, id) => CATALOG[agent]?.models.find((m) => m.id === id)?.label ?? null;
 
 const CHOICE_KEY = 'platanus.agent.choice.v1';
+// Which connected agent answers when the person never chose one
+const AUTO_ORDER = ['claude', 'codex', 'grok', 'opencode'];
 const STATS_KEY = 'platanus.agent.stats.v1';
 const MAX_ACTIVITY = 30;
 
@@ -53,6 +61,7 @@ const toActivity = (e) => ({ at: Date.parse(e.at) || Date.now(), tool: String(e.
 
 export class AgentConnectionModel {
   #service;
+  #hadChoice = false;
   #turns = new Map(); // "agent:session" -> messages sent (to continue the conversation)
   #queues = new Map(); // agent -> promise: one run at a time per agent (chat and Remi never talk over
                        // each other); different agents (compare) run at the same time
@@ -83,14 +92,30 @@ export class AgentConnectionModel {
     const list = (agents.data ?? []).filter((a) => a.installed);
     const { selected, compareWith } = this.store.state;
     const activity = (audit.data ?? []).filter((e) => String(e.action).startsWith('mcp:')).map(toActivity).reverse().slice(0, MAX_ACTIVITY);
-    // Keep the saved choice only if that agent is still installed
+    // Keep the saved choice only if that agent is still installed. Never chosen before: the best
+    // connected agent answers on its own (Claude, then ChatGPT · Codex, then Grok)
+    const best = AUTO_ORDER.find((id) => list.some((a) => a.id === id && a.loggedIn === true)) ?? null;
+    const keep = list.some((a) => a.id === selected) ? selected : null;
     this.store.set({
       agents: list,
       mcp: mcp.data ?? this.store.state.mcp,
-      selected: list.some((a) => a.id === selected) ? selected : null,
+      selected: keep ?? (this.#hadChoice ? null : best),
       compareWith: list.some((a) => a.id === compareWith) ? compareWith : null,
       activity: activity.length ? activity : this.store.state.activity,
     });
+  }
+
+  // API key instead of a subscription login (kept encrypted by the main process; never read back)
+  async saveKey(provider, value) {
+    const result = await this.#service.saveKey(provider, value);
+    if (result?.ok) await this.refresh();
+    return result;
+  }
+
+  async removeKey(provider) {
+    const result = await this.#service.removeKey(provider);
+    await this.refresh();
+    return result;
   }
 
   select(id) {
@@ -220,6 +245,7 @@ export class AgentConnectionModel {
   #loadChoice() {
     try {
       const saved = JSON.parse(localStorage.getItem(CHOICE_KEY) ?? 'null');
+      this.#hadChoice = Boolean(saved); // the person (or the app) chose before: no automatic pick
       const c = saved && CATALOG[saved.selected];
       if (!c) return {};
       return {
@@ -234,6 +260,7 @@ export class AgentConnectionModel {
 
   #saveChoice() {
     const { selected, model, effort } = this.store.state;
+    this.#hadChoice = true;
     try { localStorage.setItem(CHOICE_KEY, JSON.stringify({ selected, model, effort })); } catch { /* private mode */ }
   }
 }

@@ -30,3 +30,8 @@ test('at most four suggestions; unsafe paths become plain questions', () => {
   const [s] = splitAnswer('x\n```sugerencias\n- reparar: ../../etc/passwd\n```').suggestions;
   assert.equal(s.kind, 'ask');
 });
+
+test('"abrir: ruta" offers to open a file', () => {
+  const { suggestions } = splitAnswer('x\n```sugerencias\n- abrir: `index.html`\n```');
+  assert.deepEqual(suggestions, [{ kind: 'open', path: 'index.html', text: 'abrir: `index.html`' }]);
+});
