@@ -5,7 +5,7 @@
 import { strings } from '../i18n/es.js';
 import { escapeHtml } from '../core/format.js';
 import { baseName } from './fileTree.js';
-import { parseGitIntent } from './gitIntent.js';
+import { parseGitIntent, looksLikeGit } from './gitIntent.js';
 
 const AGENT = strings.agent;
 const FILES = AGENT.files;
@@ -56,7 +56,8 @@ export class AgentModel {
   async #gitCommand(text) {
     if (!GIT) return null; // strings not loaded yet
     const intent = parseGitIntent(text);
-    if (!intent) return null;
+    // Talks about git but not understood: show the examples instead of the generic fallback
+    if (!intent) return looksLikeGit(text) ? { text: GIT.help } : null;
 
     if (intent.type === 'help') return { text: GIT.help };
     if (intent.type === 'explain') return { text: GIT.explain[intent.topic] };

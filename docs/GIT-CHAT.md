@@ -83,3 +83,9 @@ El texto transcrito suele traer mayúsculas, sin puntuación y muletillas: `gitN
 
 - Git simulado: no hay `push`, `merge`, ni lectura de un repo real en la demo.
 - El interprete es por reglas (regex), no un LLM; frases muy ambiguas caen al mensaje de ayuda.
+
+## Cobertura y respaldo (app Platanus)
+
+- El intérprete se guía por **palabras clave por raíz** (hazme, evierte, cambies, mudate...), no por frases exactas. El nombre de una rama es lo que sigue a ama o checkout.
+- Si la frase habla de git (commit, ama, eset...) pero no se entiende, el chat muestra la ayuda con ejemplos en vez de 	odavía estoy aprendiendo.
+- 	ests/renderer/gitIntent.phrases.test.mjs tiene una tabla de ~60 formas de pedir cada comando: añade ahí cada frase nueva que falle.

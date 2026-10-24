@@ -35,17 +35,34 @@ function stripLead(s, words) {
   return s.trim();
 }
 
-const TOPICS = ['commit', 'rollback', 'reset', 'branch', 'diff'];
 const GIT_WORDS = /\b(commit|rollback|revert|reset|rama|branch|checkout|git)\b/;
+const QUESTION_START = /^(que|cual|cuales|cuantos|cuantas|quien|como|por que|para que|donde|cuando|en que)\b/;
+
+// True when the text talks about git but no command was understood: the chat then shows the help
+// instead of a generic "I don't know". Questions are left to the normal chat.
+export function looksLikeGit(text) {
+  const n = normalize(text ?? '');
+  return /\b(commit|rollback|revert|reset|rama|branch|checkout)\b/.test(n) && !QUESTION_START.test(n);
+}
+
+// Name after a keyword ("rama", "checkout"...): drops filler, cuts at "y haz...", slugs it.
+// A single leftover word is the name even if it looks like filler ("git branch nueva").
+function nameAfter(plain, keyword, filler) {
+  const m = plain.match(keyword);
+  const rest = m ? plain.slice(m.index + m[0].length) : plain;
+  const tokens = rest.trim().split(/\s+/).filter(Boolean);
+  let name = stripLead(rest, filler);
+  if (!name && tokens.length === 1) name = tokens[0];
+  return slugBranch(name.split(/[,.;]/)[0].split(/\s+(?:y|e|luego|despues|entonces)\s+/i)[0]);
+}
 
 const TRIGGERS = {
   reset: /\b(reset\w*|resete\w*|reinici\w*|empez\w* de cero|empezar de nuevo|volver? al (inicio|principio|cero|origen)|vuelve al (inicio|principio)|(borra|elimina|limpia)\w* todo|descart\w* (todo|los cambios))\b/,
-  revert: /\b(rollback|roll back|revert\w*|deshac\w*|deshaz|desha\w*|undo|retroced\w*|anula\w*|quita\w* (el )?(ultimo |anterior )?commit|elimina\w* (el )?(ultimo )?commit|borra\w* (el )?(ultimo )?commit|echa\w* (para )?atras|vuelve\w* (para )?atras|volver (para )?atras|regres\w* (al )?(commit )?anterior|vuelve al commit anterior|paso atras|marcha atras)\b|\b(vuelve|volver|regresa\w*|retorna\w*)\b.*\b(commit|version)\b/,
-  commit: /\b(commit\w*|comit\w*|confirma\w* (los )?cambios|guarda\w* (los |mis |todos los )?(cambios|avances|progreso|trabajo)|registra\w* (los )?cambios|sube\w* (los )?cambios|salva\w* (los )?cambios)\b/,
+  revert: /\b(rollback|roll back|rever\w*|revier\w*|revert\w*|deshac\w*|deshaz|desha\w*|undo|retroced\w*|anula\w*|quita\w* (el )?(ultimo |anterior )?commit|elimina\w* (el )?(ultimo )?commit|borra\w* (el )?(ultimo )?commit|echa\w* (para )?atras|vuelve\w* (para )?atras|volver (para )?atras|regres\w* (al )?(commit )?anterior|vuelve al commit anterior|paso atras|marcha atras)\b|\b(vuelve|volver|regresa\w*|retorna\w*)\b.*\b(commit|version)\b/,
+  commit: /\b(commit\w*|comit\w*|(confirma|guarda|registra|sube|salva)\w*(\s+\w+){0,2}\s+(cambios|avances|progreso|trabajo|todo))\b/,
 };
-const CREATE_VERB = /\b(crea\w*|nuev[ao]|new|abre\w*|abrir|haz|hacer|genera\w*|inicia\w*|arranca\w*|agrega\w*|anade\w*|monta\w*|saca\w*|bifurca\w*)\b/;
-const CHECKOUT_VERB = /\b(checkout|switch|cambia\w*|cambiate|muevete|mueve\w*|pasa\w*|pasate|ir|ve|vete|vamos|salta\w*|entra\w*|usa\w*|selecciona\w*|trabaja\w*|activa\w*)\b/;
-const CHECKOUT_VERB_RAW = /\b(checkout|switch|cambia\w*|cámbiate|cambiate|muévete|muevete|mueve\w*|pasa\w*|pásate|ir|ve|vete|vamos|salta\w*|entra\w*|usa\w*|selecciona\w*|trabaja\w*|activa\w*)\b/i;
+const CREATE_VERB = /\b(crea\w*|cre[ao]|nuev[ao]|new|abre\w*|abrir|haz\w*|hac\w*|genera\w*|inicia\w*|arranca\w*|agrega\w*|anade\w*|monta\w*|saca\w*|bifurca\w*)\b/;
+const CHECKOUT_VERB = /\b(checkout|switch|cambi\w*|mud\w*|muev\w*|mueve\w*|pasa\w*|pasate|ir|ve|vete|vamos|salta\w*|entra\w*|usa\w*|selecciona\w*|trabaja\w*|activa\w*)\b/;
 
 export function parseGitIntent(text) {
   const raw = (text ?? '').trim();
@@ -53,7 +70,7 @@ export function parseGitIntent(text) {
   if (!n) return null;
 
   // Questions: explain a git concept, or leave it to the normal chat ("¿qué commit subió secretos?")
-  if (/^(que|cual|cuales|cuantos|cuantas|quien|como|por que|para que|donde|cuando|en que)\b/.test(n)) {
+  if (QUESTION_START.test(n)) {
     if (!GIT_WORDS.test(n)) return null;
     if (!/\b(es|son|significa|hace|sirve|diferencia|diferencias|hago|funciona|uso)\b/.test(n)) return null;
     if (/diferencia/.test(n) && /reset/.test(n) && /(rollback|revert)/.test(n)) return { type: 'explain', topic: 'diff' };
@@ -71,11 +88,14 @@ export function parseGitIntent(text) {
     if (m) found.push({ type, idx: m.index });
   }
   const mentionsBranch = /\b(rama|branch)\b/.test(n);
-  const isCheckout = /\b(checkout|switch)\s+\S+/.test(n)
-    || (CHECKOUT_VERB.test(n) && mentionsBranch)
-    || /^(cambia\w*|cambiate|ve|vete|ir|vamos|pasa\w*|muevete)\s+(a|hacia)\s+\S+$/.test(n);
-  if (isCheckout) found.push({ type: 'checkout', idx: n.search(CHECKOUT_VERB) < 0 ? 0 : n.search(CHECKOUT_VERB) });
-  else if (mentionsBranch && (CREATE_VERB.test(n) || /^(git )?branch\s+\S+/.test(n))) {
+  const moveIdx = n.search(CHECKOUT_VERB);
+  const createIdx = n.search(CREATE_VERB);
+  const explicitCheckout = /\b(checkout|switch)\s+\S+/.test(n);
+  const isCheckout = explicitCheckout
+    || (moveIdx >= 0 && mentionsBranch && (createIdx < 0 || moveIdx < createIdx))
+    || /^(cambi\w*|mud\w*|ve|vete|ir|vamos|pasa\w*|muev\w*)\s+(a|hacia)\s+\S+$/.test(n);
+  if (isCheckout) found.push({ type: 'checkout', idx: moveIdx < 0 ? 0 : moveIdx });
+  else if (mentionsBranch && (createIdx >= 0 || /^(git )?branch\s+\S+/.test(n))) {
     found.push({ type: 'createBranch', idx: n.search(/\b(rama|branch)\b/) });
   }
   if (!found.length) return null;
@@ -86,16 +106,17 @@ export function parseGitIntent(text) {
   if (type === 'reset') return { type, sha: (n.match(SHA_RE) ?? [null])[0] };
   if (type === 'revert') return { type, sha: (n.match(SHA_RE) ?? ['HEAD'])[0] };
 
+  // Branch and checkout: the name is whatever follows the keyword ("rama", "checkout"...)
+  const plain = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (type === 'createBranch') {
-    let rest = raw.replace(/^.*?\b(rama|branch)\b/i, '');
-    rest = stripLead(rest, 'nueva|nuevo|new|llamada|llamado|nombrada|nombrado|de nombre|con nombre|con el nombre|que se llame|se llame|que se llama|el nombre|nombre|para|con|de|la|el|una?|que|sea|se|llame|llama|como|por|a');
-    return { type, name: slugBranch(rest.split(/[,.;]/)[0]) };
+    const name = nameAfter(plain, /\b(rama|branch)\b/i, 'nueva|nuevo|new|llamada|llamado|llamala|llamalo|nombrada|nombrado|de nombre|con nombre|con el nombre|que se llame|se llame|que se llama|el nombre|nombre|para|con|de|la|el|una?|que|sea|se|llame|llama|como|por|a|y|e');
+    return { type, name };
   }
 
   if (type === 'checkout') {
-    let rest = raw.replace(/^.*?\b(checkout|switch|cambia\w*|cámbiate|muévete|mueve\w*|pasa\w*|pásate|ir|ve|vete|vamos|salta\w*|entra\w*|usa\w*|selecciona\w*|trabaja\w*|activa\w*)\b/i, '');
-    rest = stripLead(rest, 'a|al|hasta|hacia|en|la|el|rama|branch|llamada|llamado|de nombre|nombre|-b');
-    return { type, target: slugBranch(rest.split(/[,.;]/)[0]) };
+    const keyword = /\b(rama|branch)\b/i.test(plain) ? /\b(rama|branch)\b/i : new RegExp(CHECKOUT_VERB.source, 'i');
+    const target = nameAfter(plain, keyword, 'a|al|hasta|hacia|en|la|el|rama|branch|de|llamada|llamado|de nombre|nombre|-b');
+    return { type, target };
   }
 
   // commit
