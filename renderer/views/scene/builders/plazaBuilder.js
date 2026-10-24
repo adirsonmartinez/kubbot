@@ -1,12 +1,12 @@
-// Plazas with problem files: the project's plaza in the middle of the map (its root files) and the
-// tray next to an open folder (the files inside it). Files come sorted riskiest first.
+// Problem files on the map: the project's plaza in the middle (its root files, standing icons) and the
+// flat file tiles next to an open folder (the files inside it). Files come sorted riskiest first.
 import * as THREE from 'three';
 import { box, materials as M, platform } from '../materials.js';
 import { PLAZA } from '../../../viewmodels/layout.js';
-import { buildFileIcon } from './fileIconBuilder.js';
+import { buildFileIcon, buildFileTile } from './fileIconBuilder.js';
 
-function addIcon(g, file, x, y, z, index) {
-  const icon = buildFileIcon(file.level);
+function addIcon(g, file, x, y, z, index, build = buildFileIcon) {
+  const icon = build(file.level);
   icon.position.set(x, y, z);
   icon.traverse((o) => { o.userData.pick = { type: 'file', path: file.path }; });
   g.add(icon);
@@ -34,10 +34,9 @@ export function buildPlaza({ size, cols, files }) {
   return { group: g, top: base, icons };
 }
 
-// tray: { x, z, size, files: [{ path, level, x, z }] } in world units
-export function buildFileTray({ x, z, size, files }) {
+// files: [{ path, level, x, z }] in world units, lying on the ground
+export function buildFileTiles({ files }) {
   const g = new THREE.Group();
-  const base = platform(g, size, size, x, z);
-  const icons = files.map((file, i) => addIcon(g, file, file.x, base, file.z, i));
-  return { group: g, top: base, icons };
+  const icons = files.map((file, i) => addIcon(g, file, file.x, 0.02, file.z, i, buildFileTile));
+  return { group: g, top: 0, icons };
 }
