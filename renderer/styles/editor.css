@@ -19,6 +19,7 @@
   --syntax-active-line: rgba(255, 255, 255, .03);
   --syntax-gutter: transparent;
 
+  top: 96px; /* below the security card (hud.css) */
   border: 0; border-radius: var(--lg-r-panel);
   background: rgba(18, 18, 18, .62); /* denser than the chat: code needs a steady background */
   -webkit-backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);

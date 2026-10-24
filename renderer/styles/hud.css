@@ -1,6 +1,6 @@
-/* Security card (bottom right of the map: score ring and counters) and its floating bar (move, minimize),
-   in the chat's clear glass (tokens from chat-glass.css). Neutral like the chat; the ring and the problem
-   counters keep the traffic-light colors, the only color here. Placement lives in shell.css (floater, dock). */
+/* Security card (top right of the map, fixed: score ring and counters) in the chat's clear glass (tokens from
+   chat-glass.css). Neutral like the chat; the ring and the problem counters keep the traffic-light colors,
+   the only color here. */
 
 #hud {
   position: fixed; top: 16px; left: 16px; z-index: 2;
@@ -44,22 +44,10 @@
 .hud-stat[role="button"]:active { background: var(--lg-chip-press); }
 .hud-stat[role="button"]:focus-visible { outline: 2px solid rgba(255, 255, 255, .5); outline-offset: 1px; }
 
-/* ---------- The floating bar above it (drag to move, minimize) ---------- */
-.floater-bar {
-  height: 26px; padding: 0 3px 0 8px; border: 0; border-radius: 999px;
-  background: var(--lg-panel);
-  -webkit-backdrop-filter: blur(22px) saturate(175%); backdrop-filter: blur(22px) saturate(175%);
-  box-shadow: var(--lg-rim), var(--lg-shadow);
-  color: var(--lg-icon-muted); font: 500 11px var(--lg-font);
-}
-.floater-bar:hover { color: var(--lg-icon); }
-#stage .floater.min .floater-title { color: var(--lg-text); }
-.floater-min {
-  width: 20px; height: 20px; border-radius: 50%; color: var(--lg-icon-muted); font: 600 13px/1 var(--lg-font);
-  transition: background .2s var(--lg-ease), color .2s var(--lg-ease);
-}
-.floater-min:hover { background: var(--lg-chip-hover); color: var(--lg-icon); }
+/* ---------- Fixed at the top right of the map (beside the chat while it floats open over the map) ---------- */
+#stage #hud { top: 14px; right: 14px; bottom: auto; left: auto; z-index: 5; }
+body:not(.chat-closed):not(.chat-min):not(.chat-moved):not(.chat-docked) #stage #hud { right: 402px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hud-ring .value, .hud-stat[role="button"], .floater-min { transition: none; }
+  .hud-ring .value, .hud-stat[role="button"] { transition: none; }
 }

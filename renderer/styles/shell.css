@@ -1015,7 +1015,6 @@ body.chat-closed .chat-launcher { display: block; }
 }
 body:not(.chat-closed):not(.chat-min) #stage #hud { right: 402px; }
 #stage #hud, .remi-layer { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
-body.chat-closed #stage #hud, body.chat-min #stage #hud { right: 76px; }
 
 /* ---------- Icon-only floating bar, drag to reorder ---------- */
 #stage .stage-tabs.icon-bar { gap: 2px; padding: 4px; }
@@ -1050,40 +1049,12 @@ body.chat-closed #stage #hud, body.chat-min #stage #hud { right: 76px; }
 
 body:not(.sidebar-closed) #stage #git-panel { left: 318px; }
 
-/* ---------- Floating windows on the map (drag by the bar, minimize to the bar) ---------- */
-#stage .floater { position: absolute; z-index: 7; display: flex; flex-direction: column; gap: 4px; }
-#stage .floater[hidden] { display: none; }
-#stage .floater > #hud { position: static; inset: auto; top: auto; right: auto; bottom: auto; left: auto; transform: none; }
-#stage #hud-float { right: 14px; bottom: 14px; }
-body:not(.chat-closed):not(.chat-min) #stage .floater:not(.moved) { right: 402px; }
-body.chat-closed #stage #hud-float:not(.moved), body.chat-min #stage #hud-float:not(.moved) { right: 76px; }
-#stage .floater:not(.moved) { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
-.floater-bar {
-  display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 4px 0 6px; align-self: flex-end;
-  border-radius: 9px; background: rgba(16, 18, 24, .86); border: 1px solid var(--line-strong);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  color: var(--muted); font: 600 11px var(--font); cursor: grab; user-select: none; touch-action: none;
-  opacity: .55; transition: opacity .15s;
-}
-#stage .floater:hover .floater-bar, #stage .floater.min .floater-bar, #stage .floater.dragging .floater-bar { opacity: 1; }
-#stage .floater.dragging .floater-bar { cursor: grabbing; }
-.floater-grip svg { width: 14px; height: 14px; fill: currentColor; display: block; }
-.floater-title { display: none; }
-#stage .floater.min .floater-title { display: inline; color: var(--ink); }
-.floater-min { width: 20px; height: 20px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 700 13px var(--font); cursor: pointer; }
-.floater-min:hover { background: var(--panel-2); color: var(--ink); }
-#stage .floater.min > :not(.floater-bar) { display: none; }
-#stage .floater.dragging { opacity: .92; }
-/* (ids, so these win over the default positions above) */
-body:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 402px; }
-
 /* ---------- Chat: drag by its header (the side panel stays in its place) ---------- */
 .drag-handle { cursor: grab; user-select: none; touch-action: none; }
 #chat.dragging { transition: none !important; box-shadow: 0 30px 70px rgba(0, 0, 0, .55); }
 #chat.dragging .drag-handle { cursor: grabbing; }
 /* When moved by hand, the rest of the layout stops making room for it */
 body.chat-moved { --shift-r: 0px; }
-body.chat-moved:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 14px; }
 body.chat-moved:not(.chat-closed):not(.chat-min) .remi-layer { right: 14px; }
 body.chat-moved:not(.chat-closed):not(.chat-min) { --shift-r: 0px; }
 
@@ -1091,11 +1062,6 @@ body.chat-moved:not(.chat-closed):not(.chat-min) { --shift-r: 0px; }
 body.chat-docked #workspace { grid-template-columns: minmax(0, 1fr) var(--chat-w, 372px); gap: 8px; }
 body.chat-docked:not(.chat-closed):not(.chat-min) { --shift-r: 0px; }
 #chat-dock { grid-column: 2; display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; padding-bottom: 8px; }
-#chat-dock-info:empty { display: none; }
-#chat-dock-info .floater { position: static; display: flex; flex-direction: column; }
-#chat-dock-info .floater-bar { align-self: flex-end; opacity: 1; }
-#chat-dock-info #hud { flex-wrap: wrap; justify-content: space-between; row-gap: 10px; width: auto; box-sizing: border-box; }
-#chat-dock-info .floater:not(.min) #hud { margin: 0; }
 body.chat-docked #chat-dock > #chat.card {
   position: relative; inset: auto; width: auto; flex: 1; min-height: 0; transform: none; opacity: 1; visibility: visible;
   left: auto !important; top: auto !important; right: auto !important; bottom: auto !important; height: auto !important;
@@ -1110,32 +1076,6 @@ body.chat-resizing, body.chat-resizing * { cursor: ew-resize !important; user-se
 body.chat-resizing #workspace { transition: none; }
 /* Floating chat follows the width too */
 #workspace > #chat.card { width: var(--chat-w, 372px); }
-/* The HUD is positioned for the map; inside the pinned column it flows in the layout */
-#chat-dock-info #hud { position: static !important; inset: auto !important; transform: none !important; margin: 0; }
-#chat-dock-info .floater { margin: 0; }
-
-/* ---------- Floating cards: minimize anywhere; docked above the pinned chat ---------- */
-.floater.min > :not(.floater-bar) { display: none !important; }
-.floater.docked { position: static !important; }
-.floater.docked > #hud { position: static !important; inset: auto !important; transform: none !important; margin: 0; }
-/* Docked security card: one compact row (ring + score, then the counters) */
-.floater.docked #hud {
-  display: grid !important; grid-template-columns: auto repeat(4, minmax(0, 1fr)); align-items: center;
-  gap: 10px; padding: 12px 14px; box-sizing: border-box; width: 100%;
-}
-.floater.docked #hud .hud-ring { gap: 8px; }
-.floater.docked #hud strong { font-size: 17px; }
-.floater.docked #hud span { font-size: 10.5px; white-space: nowrap; }
-.floater.docked .floater-bar { opacity: .7; }
-/* While dragging a card over the pinned column: letting go docks it there */
-#chat-dock.drop-here { outline: 2px dashed color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; border-radius: 16px; }
-#chat-dock.drop-here #chat-dock-info:empty { display: block; height: 70px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
-#workspace .floater.min > :not(.floater-bar) { display: none !important; } /* wins over the docked card layout */
-/* Docked security card: score on top, the four counters below (fits any chat width) */
-.floater.docked #hud { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; row-gap: 12px; }
-.floater.docked #hud .hud-ring { grid-column: 1 / -1; }
-.floater.docked #hud .hud-stat { min-width: 0; }
-.floater.docked #hud .hud-stat span { overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Side dock: vertical icon bar on the map's left edge; the side panel opens beside it ---------- */
 #stage .side-dock {

@@ -63,13 +63,6 @@ export const strings = {
     when: (days) => (days === 0 ? 'hoy' : days === 1 ? 'ayer' : days < 7 ? `${days} d` : days < 30 ? `${Math.floor(days / 7)} sem` : `${Math.floor(days / 30)} m`),
   },
 
-  floater: {
-    move: 'Arrastra para moverlo (doble clic: vuelve a su lugar)',
-    minimize: 'Minimizar',
-    restore: 'Mostrar',
-    hud: 'Seguridad del proyecto',
-  },
-
   // Floating editor: files clicked on the map open as tabs
   editor: {
     title: 'Editor',

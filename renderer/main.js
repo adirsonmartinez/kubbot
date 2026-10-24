@@ -54,7 +54,6 @@ import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu } from './views/ui/chatMenuView.js';
 import { chatMenuItems } from './viewmodels/chatMenu.js';
 import { createIconBarView } from './views/ui/iconBarView.js';
-import { makeFloating } from './views/ui/floater.js';
 import { makeDraggable } from './views/ui/draggable.js';
 import { createChatDockView } from './views/ui/chatDockView.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
@@ -196,12 +195,7 @@ createIconBarView({ bar: document.getElementById('side-dock'), vertical: true })
 const workspaceEl = document.getElementById('workspace');
 makeDraggable({ el: document.getElementById('chat'), handle: document.querySelector('#chat .chat-head'), key: 'chat', area: workspaceEl, disabled: () => document.body.classList.contains('chat-docked') });
 createChatDockView({ workspace: workspaceEl, chat: document.getElementById('chat'), pinButton: document.getElementById('chat-pin') });
-// Cards on the map can be dragged anywhere and minimized
-for (const [id, title] of [['hud', strings.floater.hud]]) {
-  // With the chat pinned, the security card docks above it (or floats on the map if dragged out)
-  makeFloating({ el: document.getElementById(id), key: id, stage, title, labels: strings.floater, dockArea: () => document.querySelector('body.chat-docked #chat-dock-info') });
-}
-// Pin for the chat: a column on the right with the security HUD above it
+// The security card stays fixed at the top right of the map (hud.css)
 
 // Chat options: the "+" in the composer, and the floating button when the chat is minimized or closed
 const $id = (id) => document.getElementById(id);
