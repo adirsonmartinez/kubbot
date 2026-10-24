@@ -96,8 +96,6 @@ body::after {
 #schema-panel span, #git-panel span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 #schema-panel span.bad, #git-panel #git-risky { color: var(--danger); font-weight: 600; }
 #git-panel #git-risky[hidden] { display: none; }
-.fp-legend { display: flex; gap: 12px; }
-.fp-legend span { display: flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--text); }
 #schema-panel button {
   padding: 7px 12px; border: 1px solid rgba(139, 131, 255, 0.35); border-radius: 8px;
   background: var(--accent-soft); color: var(--accent); font: 600 12px var(--sans); cursor: pointer;
@@ -125,12 +123,7 @@ body::after {
 .map-label em { font-style: normal; font-size: 11px; font-weight: 600; }
 .map-label em.risk { color: var(--danger); }
 .map-label em.review { color: var(--warn); }
-.map-label.root { z-index: 2; padding: 8px 12px; border-color: rgba(139, 131, 255, 0.3); }
-.map-label.root strong { font: 600 14px var(--sans); }
-/* Open folder and its problem files: the dot takes the file's level */
-.map-label.open { border-color: rgba(139, 131, 255, 0.45); }
-.map-label.file { padding: 3px 7px 4px; }
-.map-label.file strong { font-size: 10px; }
+.map-label.root { z-index: 2; }
 .map-label.more { padding: 3px 8px; }
 /* Name of the integrations band: plain text on the dark ground, not a card */
 .map-label.band { padding: 0; background: none; border: 0; box-shadow: none; }
@@ -176,7 +169,7 @@ body::after {
 .rb-steps span { width: 18px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.1); transition: background .3s, width .3s; }
 .rb-steps span.done { background: var(--rb); opacity: .55; }
 .rb-steps span.now { width: 28px; background: var(--rb); box-shadow: 0 0 8px var(--rb); }
-.rb-badge { flex: 1; display: inline-flex; align-items: center; gap: 5px; font: 600 10px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--rb); }
+#map-labels .map-label.robot-speech .rb-badge { flex: 1; display: inline-flex; align-items: center; gap: 5px; font: 600 10px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--rb); }
 .rb-badge svg { width: 14px; height: 14px; }
 .rb-icon {
   width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; display: grid; place-items: center;
@@ -199,7 +192,10 @@ body::after {
 .rb-answers button:hover svg, .rb-answers button:focus-visible svg { opacity: 1; margin-left: 0; }
 .rb-answers button:focus-visible { outline: 2px solid var(--rb); outline-offset: 1px; }
 
-.rb-title { display: block; font: 700 13px/1.3 var(--sans); color: #fff; margin-bottom: 3px; }
+/* labels.css styles the strong and span of every map label (#map-labels .map-label strong / span); the bubble
+   keeps its own type, so the rules that touch them carry the same prefix */
+#map-labels .map-label.robot-speech span { font: inherit; color: inherit; letter-spacing: inherit; }
+#map-labels .map-label.robot-speech .rb-title { display: block; font: 700 13px/1.3 var(--sans); letter-spacing: normal; color: #fff; margin-bottom: 3px; }
 .rb-text { margin: 0; min-height: 2.9em; color: var(--text); opacity: .86; cursor: pointer; overflow-wrap: anywhere; }
 .typed .rb-text { cursor: default; }
 /* Caret while typing; dots while "thinking" before the text starts */
@@ -230,7 +226,7 @@ body::after {
 .rb-card li { display: flex; align-items: center; gap: 6px; font: 600 11.5px var(--sans); color: var(--text); opacity: 0; transform: translateX(-6px); transition: opacity .3s, transform .3s; }
 .typed .rb-card li { opacity: 1; transform: none; transition-delay: calc(120ms + var(--i) * 90ms); }
 .rb-card li svg { width: 15px; height: 15px; flex: none; color: var(--ok, #3ddc97); }
-.rb-tech { font-size: 10px; color: var(--muted); }
+#map-labels .map-label.robot-speech .rb-tech { font-size: 10px; color: var(--muted); }
 .rb-tech code { font: 10px var(--mono); color: var(--text); padding: 1px 5px; border-radius: 4px; background: rgba(255, 255, 255, 0.06); }
 
 /* Buttons slide in one by one once the text is typed */

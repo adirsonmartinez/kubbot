@@ -179,7 +179,7 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
       const label = labels.add({
         html: folderLabel(b),
         anchor: { x: b.x, y: building.top + 0.9, z: b.z },
-        className: b.open ? 'open' : '',
+        className: b.open ? 'folder open' : 'folder',
       });
       ownLabels.push(label);
       rise(`folder:${b.path}`, building.group, b.order * 0.06, animate);
@@ -196,7 +196,7 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
         ownLabels.push(labels.add({
           html: folderLabel(f),
           anchor: { x: f.x, y: sub.top + 0.9, z: f.z },
-          className: `file${f.open ? ' open' : ''}`,
+          className: `folder sub${f.open ? ' open' : ''}`,
         }));
         rise(`folder:${f.path}`, sub.group, i * ICON_RISE_STAGGER, animate);
       });

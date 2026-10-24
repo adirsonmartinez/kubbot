@@ -66,6 +66,7 @@ Si el robot le pasa un pedido al agente y no hay ningún agente conectado, se ab
 
 - **Elección automática del agente:** `develop` elige solo el primer agente con sesión iniciada (Claude → Codex → Grok → OpenCode). Esta rama **la mantiene tal cual**. El aviso de "elige un asistente" solo aparece cuando no hay ninguno con sesión.
 - **Mapa en árbol:** con el mapa nuevo de `develop`, los archivos ya no están en la plaza, así que el robot se queda fijo en su esquina (`SPOT`).
+- **`labels.css`:** sus reglas generales `#map-labels .map-label strong` / `span` también alcanzaban al globo (el globo es una etiqueta del mapa). Las reglas del globo que tocan esos elementos llevan el prefijo `#map-labels .map-label.robot-speech` para mantener su tipografía; `labels.css` no se modificó.
 - **Tests que fallan en Windows (también en `develop`):** `symlinks…` (`electron/mcpServer.test.js`) necesita permisos para crear enlaces simbólicos, y `a key is saved encrypted…` (`electron/keyStore.test.js`) espera permisos `0600`, que Windows no tiene. No los causa esta rama.
 - **Toda la lógica nueva tiene tests** y no cambia los flags de seguridad de los agentes.
 
