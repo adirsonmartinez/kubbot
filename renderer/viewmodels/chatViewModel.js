@@ -4,6 +4,7 @@ import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
 import { splitAnswer } from '../models/answerFormat.js';
+import { escapeHtml } from '../core/format.js';
 
 const CHAT = strings.chat;
 const CARDS = CHAT.cards;
@@ -23,7 +24,8 @@ export class ChatViewModel {
   // chip: a label (sent as a message) or { label, kind, prompt?, run? }: `run` does an app action (Remi
   //   repairs a file…), otherwise `prompt ?? label` is sent. kind picks its icon (ask, repair, audit, locate…)
   // welcome: the empty conversation shows a welcome screen with suggestions (as in Obra) instead of bubbles
-  store = new Observable({ messages: [], typing: false, chips: null, minimized: false, welcome: true, projectName: '' });
+  // gitPrefill: string set momentarily when a git chip is clicked; the view reads it and fills the textarea
+  store = new Observable({ messages: [], typing: false, chips: null, minimized: false, welcome: true, projectName: '', gitPrefill: '' });
 
   #connection;
 
@@ -101,7 +103,13 @@ export class ChatViewModel {
       const lane = strings.git.laneNames[commit.lane] ?? commit.lane;
       const laneText = commit.laneLive ? lane : `${lane} (${strings.git.deleted})`;
       const text = strings.git.commitSelected({ ...commit, lane: laneText }) + (commit.risk ? strings.git.riskWarning(commit.risk.files) : '');
-      this.sayFromMap({ text, tone: commit.risk ? 'alert' : '' });
+      const GIT_STR = strings.agent.git;
+      // Actionable chips: clicking them runs the git command directly in one click
+      const chips = GIT_STR ? [
+        { label: GIT_STR.chipRevert(commit.short), directCommand: `rollback al commit ${commit.short}` },
+        { label: GIT_STR.chipReset(commit.short),  directCommand: `reset al commit ${commit.short}` },
+      ] : undefined;
+      this.sayFromMap({ text, tone: commit.risk ? 'alert' : '', chips });
     });
 
     this.store.set({ chips: [CHAT.chips.openFolder] });
@@ -134,20 +142,26 @@ export class ChatViewModel {
     this.store.set({ typing: true });
     let streamId = null;
     let streamed = false;
-    const reply = await this.#agent.reply(text, {
-      recent,
-      onTool: (name) => { streamId = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); },
-      onText: (delta) => {
-        if (streamId === null) { streamId = this.#push({ role: 'bot', text: '' }); this.store.set({ typing: false }); }
-        streamed = true;
-        this.#append(streamId, delta);
-      },
-      // The agent's reasoning goes in the same bubble, folded above the answer
-      onThinking: (delta) => {
-        if (streamId === null) { streamId = this.#push({ role: 'bot', text: '', thinking: '' }); this.store.set({ typing: false }); }
-        this.#appendThinking(streamId, delta);
-      },
-    });
+    let reply;
+    try {
+      reply = await this.#agent.reply(text, {
+        recent,
+        onTool: (name) => { streamId = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); },
+        onText: (delta) => {
+          if (streamId === null) { streamId = this.#push({ role: 'bot', text: '' }); this.store.set({ typing: false }); }
+          streamed = true;
+          this.#append(streamId, delta);
+        },
+        // The agent's reasoning goes in the same bubble, folded above the answer
+        onThinking: (delta) => {
+          if (streamId === null) { streamId = this.#push({ role: 'bot', text: '', thinking: '' }); this.store.set({ typing: false }); }
+          this.#appendThinking(streamId, delta);
+        },
+      });
+    } catch (error) {
+      // Never leave the chat stuck on "typing…" if the agent throws
+      reply = { html: strings.agent.git.failed(escapeHtml(String(error?.message ?? error))), tone: 'alert' };
+    }
     this.store.set({ typing: false });
     if (!streamed || reply.tone === 'alert') this.#enqueue(reply);
     else {
@@ -272,6 +286,7 @@ export class ChatViewModel {
   // `source`: the clicked button (Remi jumps from there to the map)
   choose(chip, source = null) {
     if (typeof chip === 'string') return this.send(chip);
+    if (chip.directCommand) return this.send(chip.directCommand);
     if (!chip.run) return this.send(chip.prompt ?? chip.label);
     chip.run(source); // first, while the button is still on screen
     this.store.set({ chips: null, welcome: false });
@@ -294,6 +309,13 @@ export class ChatViewModel {
 
   toggleMinimized() {
     this.store.set({ minimized: !this.store.state.minimized });
+  }
+
+  // Pre-fills the chat textarea with a git command so the user can review and confirm before sending.
+  // The store field is cleared after one tick so it only triggers once per click.
+  #prefillGitCommand(command) {
+    this.store.set({ minimized: false, welcome: false, gitPrefill: command });
+    setTimeout(() => this.store.set({ gitPrefill: '' }), 0);
   }
 
   #push(message) {

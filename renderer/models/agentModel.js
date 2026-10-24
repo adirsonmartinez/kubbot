@@ -5,9 +5,11 @@
 import { strings } from '../i18n/es.js';
 import { escapeHtml } from '../core/format.js';
 import { baseName } from './fileTree.js';
+import { parseGitIntent, looksLikeGit } from './gitIntent.js';
 
 const AGENT = strings.agent;
 const FILES = AGENT.files;
+const GIT = AGENT.git;
 const MAX_LISTED_FILES = 40;
 
 // Matches the start of each word, so "si" does not match inside "visita"
@@ -18,17 +20,19 @@ export class AgentModel {
   #workspace;
   #project;
   #supabase;
+  #git;
 
   #connection;
 
   #mode;
 
-  constructor({ workspace, projectModel, supabaseModel, connection = null, modeModel = null }) {
+  constructor({ workspace, projectModel, supabaseModel, connection = null, modeModel = null, gitService = null }) {
     this.#mode = modeModel;
     this.#workspace = workspace;
     this.#project = projectModel;
     this.#supabase = supabaseModel;
     this.#connection = connection;
+    this.#git = gitService;
   }
 
   // With a connected agent (the user's own subscription) the real model answers and works through
@@ -37,7 +41,7 @@ export class AgentModel {
   // recent: the person's last messages (the agent adapts to how they write; see agent/voice.json)
   async reply(text, { onTool, onText, onThinking, onEvent, agent, recent = [] } = {}) {
     if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, recent, ...(agent ? { agent } : {}) });
-    return (await this.#fileCommand(text)) ?? this.#scripted(text);
+    return (await this.#gitCommand(text)) ?? (await this.#fileCommand(text)) ?? this.#scripted(text);
   }
 
   // The prompt is built by the main process from agent/voice.json and the Vibe or Dev skill
@@ -46,6 +50,45 @@ export class AgentModel {
     const { text: answer, error } = await this.#connection.ask(text, '', { ...callbacks, voice });
     if (answer) return { text: answer };
     return { html: AGENT.liveFailed(escapeHtml(error ?? '')), tone: 'alert' };
+  }
+
+  // ---- Git commands (detected before file commands) ----
+  // renderer/models/gitIntent.js turns free-form Spanish ("necesito crear un commit que se llame x",
+  // "deshaz el último commit", "cámbiate a main") into an intent; here we only run it.
+  async #gitCommand(text) {
+    if (!GIT) return null; // strings not loaded yet
+    const intent = parseGitIntent(text);
+    // Talks about git but not understood: show the examples instead of the generic fallback
+    if (!intent) return looksLikeGit(text) ? { text: GIT.help } : null;
+
+    if (intent.type === 'help') return { text: GIT.help };
+    if (intent.type === 'explain') return { text: GIT.explain[intent.topic] };
+    if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
+
+    const run = async (fn, ok) => {
+      const result = await fn();
+      if (result.ok) return ok;
+      if (result.error === 'cancelled') return { text: GIT.cancelled };
+      return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
+    };
+    switch (intent.type) {
+      case 'commit':
+        if (!intent.message) return { text: GIT.needsMessage };
+        return run(() => this.#git.commit(intent.message), { text: GIT.committed(intent.message) });
+      case 'revert': // no sha = the latest commit ("HEAD")
+        return run(() => this.#git.revert(intent.sha), { text: GIT.reverted(intent.sha) });
+      case 'reset': // destructive: never guess which commit
+        if (!intent.sha) return { text: GIT.needsSha };
+        return run(() => this.#git.reset(intent.sha), { text: GIT.reset(intent.sha) });
+      case 'createBranch':
+        if (!intent.name) return { text: GIT.needsBranchName };
+        return run(() => this.#git.createBranch(intent.name), { text: GIT.branchCreated(intent.name) });
+      case 'checkout':
+        if (!intent.target) return { text: GIT.needsBranchName };
+        return run(() => this.#git.checkout(intent.target), { text: GIT.checkedOut(intent.target) });
+      default:
+        return null;
+    }
   }
 
   #scripted(text) {

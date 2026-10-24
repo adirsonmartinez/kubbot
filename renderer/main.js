@@ -9,6 +9,7 @@ import { connectMcpBridge } from './services/mcpBridge.js';
 import { createServerService } from './services/serverService.js';
 import { ServersModel } from './models/serversModel.js';
 import { ServersViewModel } from './viewmodels/serversViewModel.js';
+import { createGitService } from './services/gitService.js';
 
 import { ProjectModel } from './models/projectModel.js';
 import { SecurityModel } from './models/securityModel.js';
@@ -67,7 +68,13 @@ const connection = new AgentConnectionModel(agentService);
 const modeModel = new ModeModel();
 const repairHistory = new RepairHistoryModel();
 const serversModel = new ServersModel(createServerService());
-const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel });
+const gitService = createGitService();
+const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel, gitService });
+
+// Reload git history automatically after every write operation (commit, revert, reset, checkout...)
+if (gitService.onChanged) {
+  gitService.onChanged(() => gitModel.scheduleReload());
+}
 
 // --- ViewModels ---
 const cameraViewModel = new CameraViewModel();

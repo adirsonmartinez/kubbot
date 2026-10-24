@@ -30,6 +30,12 @@ contextBridge.exposeInMainWorld('platanus', {
   remove: (rel) => ipcRenderer.invoke('fs:delete', rel),
 
   gitHistory: () => ipcRenderer.invoke('git:history'),
+  gitCommit: (message) => ipcRenderer.invoke('git:commit', message),
+  gitRevert: (sha) => ipcRenderer.invoke('git:revert', sha),
+  gitReset: (sha) => ipcRenderer.invoke('git:reset', sha),
+  gitCreateBranch: (name) => ipcRenderer.invoke('git:createBranch', name),
+  gitCheckout: (target) => ipcRenderer.invoke('git:checkout', target),
+  onGitChanged: on('git:changed'), // ({ op, sha?, name?, target?, data }) => ...
 
   auditLog: () => ipcRenderer.invoke('audit:list'),
 

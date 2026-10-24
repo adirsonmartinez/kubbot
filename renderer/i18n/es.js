@@ -705,5 +705,32 @@ export const strings = {
       needsFolder: 'Primero elige una carpeta de trabajo: escribe "abrir carpeta".',
       failed: (error) => `<strong>⛔ No se pudo</strong>\n${error}`,
     },
+    // Git commands understood in the chat. The phrasing is interpreted by models/gitIntent.js
+    // (natural language → intent); these are only the replies.
+    git: {
+      help: 'Puedo ejecutar git con frases normales. Ejemplos:\n• "haz un commit que se llame arreglo login"\n• "deshaz el último commit" (rollback)\n• "reset al commit abc1234" (destructivo: necesito el SHA)\n• "crea una rama para pagos"\n• "cámbiate a main"',
+      explain: {
+        commit: 'Un commit es una foto guardada de tu proyecto. Dime "haz un commit que se llame ...".',
+        rollback: 'Rollback (revert) crea un commit NUEVO que deshace otro, sin borrar el historial. Es seguro en equipo. Dime "deshaz el último commit".',
+        reset: 'Reset mueve el proyecto a un commit anterior y descarta todo lo posterior. Es destructivo. Dime "reset al commit <sha>".',
+        branch: 'Una rama es una línea paralela de trabajo para probar cosas sin tocar la principal. Dime "crea una rama para pagos".',
+        diff: 'Rollback crea un commit nuevo que deshace otro: el historial se conserva. Reset mueve el historial hacia atrás y descarta cambios: es destructivo, úsalo solo en local.',
+      },
+      desktopOnly: 'Los comandos git solo funcionan dentro de la app de escritorio (npm start).',
+      needsMessage:  'Escríbeme el mensaje del commit. Ejemplo: "haz commit con \"Fix login bug\""',
+      needsSha:       'Necesito el SHA del commit (al menos 4 caracteres). Puedes hacer clic en un commit del mapa y usar el chip que aparece aquí.',
+      needsBranchName: 'Escribe el nombre de la rama. Ejemplo: "crea rama feature/mi-funcion"',
+      cancelled:      'Ok, no hice ningún cambio.',
+      committed:   (msg) => `✅ Commit creado:\n"${msg}"`,
+      reverted:    (sha) => `↩️ Revert aplicado al ${sha === 'HEAD' ? 'último commit' : `commit ${sha.slice(0, 7)}`}.\nSe creó un nuevo commit que deshace esos cambios.`,
+      reset:       (sha) => `⏮ HEAD movido al commit ${sha.slice(0, 7)}.\nLos cambios no guardados fueron descartados.`,
+      branchCreated: (name) => `🌿 Rama "${name}" creada y activada.`,
+      checkedOut:    (target) => `🔀 Cambiado a "${target}".`,
+      failed:        (err) => `<strong>⛔ Error git</strong>\n${err}`,
+      // Chips shown in the chat when the user selects a commit on the map
+      chipRevert:   (short) => `Rollback · ${short}`,
+      chipReset:    (short) => `Reset al ${short}`,
+      chipCopySha:  'Copiar SHA',
+    },
   },
 };
