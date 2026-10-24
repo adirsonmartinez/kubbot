@@ -54,7 +54,6 @@ import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu } from './views/ui/chatMenuView.js';
 import { chatMenuItems } from './viewmodels/chatMenu.js';
 import { createIconBarView } from './views/ui/iconBarView.js';
-import { makeDraggable } from './views/ui/draggable.js';
 import { createChatDockView } from './views/ui/chatDockView.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
@@ -191,9 +190,8 @@ createRepairPanelView({ container: document.getElementById('remi-layer'), repair
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, approval: approvalModel, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });
 createIconBarView({ bar: document.getElementById('side-dock'), vertical: true });
-// The chat can be dragged by its header (double click: back in place); the side panel stays in its place
+// The chat and the side panel stay in their place (bottom right, left edge); the chat can be pinned as a column
 const workspaceEl = document.getElementById('workspace');
-makeDraggable({ el: document.getElementById('chat'), handle: document.querySelector('#chat .chat-head'), key: 'chat', area: workspaceEl, disabled: () => document.body.classList.contains('chat-docked') });
 createChatDockView({ workspace: workspaceEl, chat: document.getElementById('chat'), pinButton: document.getElementById('chat-pin') });
 // The security card stays fixed at the top right of the map (hud.css)
 
