@@ -64,6 +64,14 @@ const resumeIds = {}; // conversation continuity per agent and session ("chat" |
 
 // Grok's built-in tools (terminal, file edits, subagents, media…) are removed: it only acts through
 // Platanus' MCP tools (use_tool). Verified: with these flags `touch` from a prompt is not possible.
+// Codex features that give it tools of its own (verified names, codex-cli 0.164.0 `codex features list`)
+const CODEX_DISABLED = [
+  "shell_tool", "unified_exec", "unified_exec_tty", "shell_snapshot", "apps",
+  "browser_use", "browser_use_external", "browser_use_full_cdp_access", "browser_annotation_api", "in_app_browser",
+  "computer_use", "image_generation", "view_image", "plugins", "remote_plugin", "plugin_sharing",
+  "multi_agent", "hooks", "skill_search", "skill_mcp_dependency_install", "tool_suggest", "sleep_tool",
+];
+
 const GROK_DISALLOWED = [
   "run_terminal_command", "read_file", "search_replace", "write", "list_dir", "grep",
   "kill_command_or_subagent", "get_command_or_subagent_output", "spawn_subagent",
@@ -76,7 +84,10 @@ const GROK_DISALLOWED = [
 function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, session }) {
   const resume = continued ? resumeIds[`${id}:${session}`] : null;
   if (id === "claude") {
-    const mcp = JSON.stringify({ mcpServers: { platanus: { type: "http", url: mcpUrl } } });
+    // The address carries a private key: write it to a 0600 file instead of the command line,
+    // which any user of this computer could read with `ps`
+    const mcp = path.join(WORKDIR, "mcp.json");
+    fs.writeFileSync(mcp, JSON.stringify({ mcpServers: { platanus: { type: "http", url: mcpUrl } } }), { mode: 0o600 });
     return [
       "-p", prompt,
       "--output-format", "stream-json", "--verbose",
@@ -99,7 +110,7 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, s
       "-p", prompt,
       "--output-format", "streaming-messages-json",
       "--system-prompt-override", systemPrompt,
-      "--reasoning-effort", effort === "xhigh" || effort === "max" ? "high" : effort,
+      "--reasoning-effort", effort === "max" ? "xhigh" : effort, // Grok accepts low..xhigh
       ...(model ? ["-m", model] : []),
       "--permission-mode", "dontAsk",
       "--allow", "use_tool",
@@ -109,11 +120,18 @@ function argsFor(id, { prompt, systemPrompt, mcpUrl, continued, model, effort, s
       ...(resume ? ["--resume", resume] : []),
     ];
   }
-  // codex
+  // codex: same rule as the others, it only acts through Platanus' MCP tools. Its terminal, browser,
+  // computer use, plugins and subagents are switched off and the user's config is not loaded, so it
+  // cannot read files (or secrets) on its own. Verified against codex-cli 0.164.0 (unknown flags fail).
   return [
     "exec", "--json", "--skip-git-repo-check", "-C", WORKDIR,
+    "--ignore-user-config", "--ignore-rules", "--ephemeral",
+    "-s", "read-only",
+    "-c", 'approval_policy="never"',
+    "-c", 'web_search="disabled"',
+    ...CODEX_DISABLED.flatMap((feature) => ["--disable", feature]),
     "-c", `mcp_servers.platanus.url=${JSON.stringify(mcpUrl)}`,
-    "-c", `model_reasoning_effort=${JSON.stringify(effort === "xhigh" || effort === "max" ? "high" : effort)}`,
+    "-c", `model_reasoning_effort=${JSON.stringify(effort)}`, // Codex accepts low..max
     ...(model ? ["-m", model] : []),
     `${systemPrompt}\n\n${prompt}`,
   ];
@@ -133,6 +151,7 @@ function parseLine(id, session, line, emit) {
     if (e.type === "assistant") {
       for (const b of e.message?.content ?? []) {
         if (b.type === "text" && b.text) emit({ type: "text", delta: b.text });
+        if (b.type === "thinking" && b.thinking) emit({ type: "thinking", delta: b.thinking });
         // Only Platanus tools are shown, not the agent's internal ones.
         // Grok wraps MCP tools in use_tool { tool_name: "platanus__x" }.
         const name = b.type === "tool_use" ? (b.name === "use_tool" ? b.input?.tool_name : b.name) : "";
@@ -143,9 +162,10 @@ function parseLine(id, session, line, emit) {
     if (e.type === "result" && e.is_error) emit({ type: "error", message: String(e.result || t.agents.failed) });
     return;
   }
-  // codex (eventos JSONL de `codex exec --json`)
+  // codex (JSONL events of `codex exec --json`)
   const item = e.item ?? e.msg;
   if (!item) return;
+  if (item.type === "reasoning" && (item.text || item.summary)) emit({ type: "thinking", delta: String(item.text || item.summary) });
   if ((item.type === "agent_message" || item.type === "assistant_message") && (item.text || item.message)) {
     emit({ type: "text", delta: item.text || item.message });
   }

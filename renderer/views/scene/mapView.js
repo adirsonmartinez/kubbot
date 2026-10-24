@@ -1,9 +1,9 @@
 // Draws one folder level from MapViewModel: the plaza with the folder's files in the middle and its
-// subfolders as blocks around it, linked by roads with cyan pulses. Entering a folder plays a short
+// subfolders as blocks around it, linked by roads with purple pulses. Entering a folder plays a short
 // transition (its block grows and fades, the rest sinks), then the new level rises.
 // Labels follow the mode: friendly names in Vibe, folder names and counts in Dev.
 import * as THREE from 'three';
-import { groundLink, materials as M } from './materials.js';
+import { groundLink, materials as M, warningSign } from './materials.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { buildBlock } from './builders/blockBuilder.js';
 import { buildPlaza } from './builders/plazaBuilder.js';
@@ -49,6 +49,20 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
   let cubeT = 0;
   const pulses = [];            // { mesh, to, phase }
   let transition = null;        // { target, t, done }
+  const signs = [];             // floating "!" over cracked blocks: { sign, baseY, phase }
+
+  // Cracks and the "!" sign are clickable on their own: they open the crack menu (see, repair, audit)
+  function markCracks(building, path, level, top, x, z) {
+    building.traverse((o) => { if (o.userData.crack) o.userData.pick = { type: 'crack', path }; });
+    if (level !== 'red') return;
+    // Floating at the front corner, half-way up next to the cracks (the label sits on top)
+    const sign = warningSign(1.2);
+    const y = Math.max(top * 0.55, 2.2);
+    sign.position.set(x + 2.6, y, z + 2.6);
+    sign.userData.pick = { type: 'crack', path };
+    group.add(sign);
+    signs.push({ sign, baseY: y, phase: signs.length * 0.7 });
+  }
 
   function clear() {
     if (group) sceneView.layers.map.remove(group);
@@ -58,6 +72,7 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     risers.length = 0;
     fileCubes.length = 0;
     pulses.length = 0;
+    signs.length = 0;
     group = null;
   }
 
@@ -109,6 +124,7 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
         anchor: { x: b.x, y: building.top + 0.9, z: b.z },
       }));
       entries.set(b.path, { group: building.group });
+      markCracks(building.group, b.path, b.level, building.top + 1.2, b.x, b.z);
       if (firstVisit) {
         building.group.scale.y = 0.001;
         risers.push({ group: building.group, k: -b.order * 0.06 }); // staggered
@@ -158,6 +174,11 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
         transition = null;
         done();
       }
+    }
+
+    for (const s of signs) {
+      s.sign.position.y = s.baseY + (still ? 0 : Math.sin(t * 2.4 + s.phase) * 0.25);
+      if (!still) s.sign.rotation.y = Math.sin(t * 1.2 + s.phase) * 0.5;
     }
 
     for (let i = risers.length - 1; i >= 0; i--) {

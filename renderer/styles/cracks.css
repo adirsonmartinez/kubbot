@@ -1,5 +1,5 @@
 /* Cracks card: floating card on the map (top-right) showing open security cracks.
-   Light, translucent cards — Obra-inspired — on the light map background. */
+   Dark glass like every other panel over the map (Obra-inspired layout). */
 
 .cracks-card {
   display: flex;
@@ -8,10 +8,13 @@
   padding: 10px 12px;
   min-width: 200px;
   max-width: 260px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(24, 27, 31, 0.82);
+  border: 1px solid var(--line);
   border-radius: 14px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10);
-  color: #1b1a2e;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+  color: var(--ink);
   font: 12px var(--font);
   animation: pop-in .22s ease both;
   z-index: 4;
@@ -30,12 +33,12 @@
 .cracks-card__title {
   font-size: 12px;
   font-weight: 600;
-  color: #1b1a2e;
+  color: var(--ink);
 }
 
 .cracks-card__progress {
   font-size: 11px;
-  color: #6b6890;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
@@ -43,7 +46,7 @@
 .cracks-card__bar-wrap {
   height: 3px;
   border-radius: 2px;
-  background: rgba(27, 26, 46, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   overflow: hidden;
 }
 
@@ -65,8 +68,8 @@
   animation: rise .28s ease both;
 }
 
-.crack-card.red { background: rgba(255, 90, 106, 0.06); }
-.crack-card.yellow { background: rgba(255, 194, 74, 0.05); }
+.crack-card.red { background: rgba(255, 90, 106, 0.1); }
+.crack-card.yellow { background: rgba(255, 194, 74, 0.08); }
 
 .crack-card__head {
   display: flex;
@@ -92,40 +95,40 @@
   white-space: nowrap;
   font-size: 11.5px;
   font-weight: 500;
-  color: #1b1a2e;
+  color: var(--ink);
 }
 
 .crack-card__severity {
   font-size: 10.5px;
   font-weight: 600;
-  color: #6b6890;
+  color: var(--muted);
 }
 
 .crack-card.red .crack-card__severity { color: var(--danger); }
 .crack-card.yellow .crack-card__severity { color: var(--warn); }
 
-/* Repair button (pill, yellow accent) */
+/* Repair button (pill, warning color) */
 .crack-card__btn {
   align-self: flex-end;
   padding: 2px 10px;
-  border: 1px solid rgba(245, 197, 66, 0.45);
+  border: 1px solid rgba(255, 194, 74, 0.45);
   border-radius: 999px;
   background: transparent;
-  color: #f5c542;
+  color: var(--warn);
   font: 11px var(--font);
   cursor: pointer;
   white-space: nowrap;
   transition: background .15s;
 }
 
-.crack-card__btn:hover { background: rgba(245, 197, 66, 0.12); }
+.crack-card__btn:hover { background: rgba(255, 194, 74, 0.14); }
 
 /* ---- "See all" pill & collapse toggle ---- */
 .cracks-card__see-all,
 .cracks-card__collapse {
   border: 0;
   background: none;
-  color: #6b6890;
+  color: var(--muted);
   font: 11px var(--font);
   cursor: pointer;
   text-decoration: underline;
@@ -135,7 +138,7 @@
 }
 
 .cracks-card__see-all:hover,
-.cracks-card__collapse:hover { color: #1b1a2e; }
+.cracks-card__collapse:hover { color: var(--ink); }
 
 .cracks-card__see-all { font-weight: 600; }
 

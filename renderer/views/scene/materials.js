@@ -1,14 +1,14 @@
 // Shared materials, geometries and primitives. Dark "digital twin" palette: silver volumes on dark slabs,
-// one cyan accent that glows (bloom), and amber/red glows reserved for security problems.
+// one purple accent that glows (bloom), and amber/red glows reserved for security problems.
 import * as THREE from 'three';
 
 export const PALETTE = {
   background: 0x1c1f23,
   ground: 0x23262b,
   grid: 0x33373d,
-  accent: 0x19e3c8,
-  warn: 0xffb547,
-  danger: 0xff4d5e,
+  accent: 0x8b83ff, // team purple
+  warn: 0xffc24a,
+  danger: 0xff5a6a,
 };
 
 const cache = {};
@@ -37,8 +37,8 @@ export const materials = {
   get slabEdge()   { return material('slabEdge', 0x4d545d, { roughness: 0.6, metalness: 0.3 }); },
   get road()       { return material('road', 0x41474f, { roughness: 0.9, metalness: 0 }); },
   get roof()       { return material('roof', 0xdfe3e7, { roughness: 0.6, metalness: 0.15 }); },
-  // Lit windows: faint cyan, below the bloom threshold so they do not compete with alerts
-  get windowLit()  { return material('windowLit', 0x7fe9da, { emissive: PALETTE.accent, emissiveIntensity: 0.25, roughness: 0.3, metalness: 0 }); },
+  // Lit windows: faint purple, below the bloom threshold so they do not compete with alerts
+  get windowLit()  { return material('windowLit', 0xb7b2ff, { emissive: PALETTE.accent, emissiveIntensity: 0.25, roughness: 0.3, metalness: 0 }); },
   // Glows (emissive values above 1 feed the bloom pass)
   get accentLit()  { return material('accentLit', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0 }); },
   get supabaseLit(){ return material('supabaseLit', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0 }); },

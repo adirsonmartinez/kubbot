@@ -43,6 +43,7 @@ import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu, chatMenuItems } from './views/ui/chatMenuView.js';
 import { createCracksCardView } from './views/ui/cracksCardView.js';
+import { createCrackMenuView } from './views/ui/crackMenuView.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { remiJump } from './views/ui/remiJump.js';
@@ -88,6 +89,12 @@ const actions = {
   showRisks: () => shellViewModel.store.state.side === 'risks' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('risks'),
   showGraph: () => shellViewModel.setStage('graph'),
   showProject: () => shellViewModel.setStage('project'),
+  // Send a file to the chat so the agent checks whether its risk is real
+  audit(path, reason) {
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+    chatViewModel.send(strings.chat.auditPrompt(path, reason));
+  },
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
 };
@@ -109,6 +116,7 @@ appViewModel.store.subscribe(({ view }) => {
   sceneView.setActiveLayer(view);
   labels.setActiveLayer(view);
 }, { immediate: true });
+const crackMenu = createCrackMenuView({ menu: document.getElementById('crack-menu'), stage, shellViewModel, mapViewModel, modeModel, actions });
 const hoverCard = createHoverCardView({ card: document.getElementById('hover-card'), stage, mapViewModel, modeModel });
 
 // Clicks, hover and Esc go to the view on screen
@@ -127,6 +135,7 @@ createInputController({
   onEscape: () => (appViewModel.view === 'git' ? gitViewModel.escape() : mapViewModel.escape()),
   onToggleView: () => shellViewModel.setStage(appViewModel.view === 'git' ? 'map' : 'git'),
   onHover: (pick, x, y) => hoverCard.show(appViewModel.view === 'map' ? pick : null, x, y),
+  onCrack: (pick, x, y) => crackMenu.open(pick, x, y),
 });
 createControlsView({ cameraViewModel });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });

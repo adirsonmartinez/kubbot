@@ -12,6 +12,10 @@ const el = (tag, className, text) => {
   return node;
 };
 
+// The address carries the server's private key: on screen it is masked (demos, screen sharing);
+// "Copiar" copies the real one.
+const mask = (text, url) => text.split(url).join(url.replace(/\/mcp\/[a-f0-9]+$/, '/mcp/••••••••'));
+
 function snippets(url) {
   return [
     { key: 'claude', code: `claude mcp add --transport http platanus ${url}` },
@@ -100,7 +104,7 @@ export function createAgentConnectView({ container, connection }) {
     parts.push(el('p', 'side-label', C.fromEditor), el('p', 'side-intro', C.fromEditorIntro));
     if (!state.mcp.running) parts.push(el('p', 'side-empty', state.isDesktop ? C.mcpOff : C.desktopOnly));
     else {
-      parts.push(el('p', 'mcp-url', C.mcpOn(state.mcp.url)));
+      parts.push(el('p', 'mcp-url', C.mcpOn(mask(state.mcp.url, state.mcp.url))), el('p', 'side-intro', C.mcpPrivate));
       for (const s of snippets(state.mcp.url)) {
         const box = el('div', 'snippet');
         const head = el('div', 'snippet-head');
@@ -108,7 +112,7 @@ export function createAgentConnectView({ container, connection }) {
         button.type = 'button';
         button.addEventListener('click', () => copy(button, s.code));
         head.append(el('span', '', C.snippets[s.key]), button);
-        box.append(head, el('pre', '', s.code));
+        box.append(head, el('pre', '', mask(s.code, state.mcp.url)));
         parts.push(box);
       }
     }

@@ -85,6 +85,10 @@ export class MapViewModel {
   //   { kind: 'folder' | 'file', path, name, friendly?, tags, level, files?, red?, yellow?, size?, reason?, reasonKey? }
   describePick(pick) {
     const { buildings, plaza } = this.store.state;
+    if (pick.type === 'crack') {
+      const folder = this.describePick({ type: 'folder', path: pick.path });
+      return folder && { ...folder, kind: 'crack' };
+    }
     if (pick.type === 'folder') {
       const b = buildings.find((x) => x.path === pick.path);
       return b ? { kind: 'folder', ...b } : null;

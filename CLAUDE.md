@@ -57,16 +57,16 @@ tests/renderer/   node:test unit tests for models and view models (renderer/pack
 ## Agents and repairs (security rules)
 
 - The agent only acts through the local MCP tools. `platanus_write_file` always opens a confirmation dialog and backs up the previous version to `~/.platanus/backups/` (undo from the repair history). Secrets (`.env*`, keys, `.git/`, `.ssh/`, `.npmrc`…) are refused on the normalized and the real path.
-- Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`. Do not loosen these flags.
+- Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`; Codex read-only, without the user's config and with its shell, browser, computer use, plugins and subagents disabled (`CODEX_DISABLED`). Do not loosen these flags.
 - Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
 
 ## Visual style ("digital twin", dark)
 
 - Graphite background and ground, subtle grid. Silver, matte volumes; light roofs; dark slabs with a lighter rim.
-- **One accent: cyan `#19e3c8`** (selection, HEAD, data pulses, primary buttons). Amber `#ffb547` and red `#ff4d5e` are reserved for security problems.
+- **One accent: the team purple `#8b83ff`** (selection, HEAD, data pulses, primary buttons), the same in the 3D scene and the shell. Amber `#ffc24a` and red `#ff5a6a` are reserved for security problems.
 - **Only problems glow**: safe stays calm (silver, no glow). Glowing = emissive above the bloom threshold (`materials.*Lit`, `glowPad`); small pieces use the `*Solid` variants so they do not blob.
 - Colors and materials live in `views/scene/materials.js` (`PALETTE`) and `views/theme.js` (`LEVEL_STYLE`); UI tokens in `styles/main.css` (`:root`). Do not hardcode new colors elsewhere.
-- UI: dark glass panels (blur, 1px border), small cyan dot in titles, mono font for paths and numbers.
+- UI: dark glass panels (blur, 1px border), small purple dot in titles, mono font for paths and numbers.
 
 ## Map navigation
 

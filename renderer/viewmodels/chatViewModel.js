@@ -57,7 +57,11 @@ export class ChatViewModel {
       this.sayFromMap({ text, tone: entry.status === 'failed' ? 'alert' : entry.status === 'verified' ? '' : 'repair', chips });
     });
 
-    bus.on(EVENTS.diskChanged, ({ paths }) => this.#push({ role: 'sys', text: CHAT.diskChanged(paths) }));
+    // Editors and tools write temporary files (x.tmp.123, x~, .swp…): they are not changes worth a message
+    bus.on(EVENTS.diskChanged, ({ paths }) => {
+      const real = paths.filter((p) => !/(\.tmp(\.|$)|~$|\.sw[op]$|(^|\/)\.![0-9]+!|\.DS_Store$|(^|\/)\.atl\/)/.test(p));
+      if (real.length) this.#push({ role: 'sys', text: CHAT.diskChanged(real) });
+    });
 
     bus.on(EVENTS.supabaseVulnerable, () =>
       this.sayFromMap({ html: strings.agent.vulnerability.alert, tone: 'alert', chips: CHAT.chips.vulnerability }));
@@ -117,6 +121,11 @@ export class ChatViewModel {
         streamed = true;
         this.#append(streamId, delta);
       },
+      // The agent's reasoning goes in the same bubble, folded above the answer
+      onThinking: (delta) => {
+        if (streamId === null) { streamId = this.#push({ role: 'bot', text: '', thinking: '' }); this.store.set({ typing: false }); }
+        this.#appendThinking(streamId, delta);
+      },
     });
     this.store.set({ typing: false });
     if (!streamed || reply.tone === 'alert') this.#enqueue(reply);
@@ -159,6 +168,10 @@ export class ChatViewModel {
     const id = this.#nextId++;
     this.store.set({ messages: [...this.store.state.messages, { id, ...message }] });
     return id;
+  }
+
+  #appendThinking(id, delta) {
+    this.store.set({ messages: this.store.state.messages.map((m) => (m.id === id ? { ...m, thinking: (m.thinking ?? '') + delta } : m)) });
   }
 
   #append(id, delta) {
