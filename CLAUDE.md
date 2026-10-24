@@ -93,6 +93,10 @@ Git is read only: `electron/git.js` runs fixed `git` commands with `execFile` (n
 - Set a file's traffic light: `securityModel.setScore(path, 'green' | 'yellow' | 'red', reason)`, or from anywhere:
   `window.dispatchEvent(new CustomEvent('file:score', { detail: { path, level, reason } }))`.
 
+## Menus
+
+The Project menu (new, open, recent, close) is built twice from the same actions: on macOS in the system menu bar (`nativeMenu()` in `electron/main.js`, rebuilt when a project opens or closes; items send `menu:action` to the window) and the in-app menu is hidden (`html.is-mac #menu`); on Windows/Linux and the web the in-app menu in the title bar is used and the native bar stays hidden. ⌘W closes the project, ⇧⌘W the window.
+
 ## Git flow
 
 - `main`: production / demo-ready. Only receives merges from `release/*` and `hotfix/*`, tagged `vX.Y.Z`.

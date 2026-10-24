@@ -3,7 +3,8 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Lets the CSS leave room for the macOS window buttons (see styles/shell.css)
+// Lets the CSS leave room for the macOS window buttons and hide the in-app menu, which lives in the
+// system menu bar on macOS (see styles/shell.css)
 window.addEventListener('DOMContentLoaded', () => {
   if (process.platform === 'darwin') document.documentElement.classList.add('is-mac');
 });
@@ -49,6 +50,7 @@ contextBridge.exposeInMainWorld('platanus', {
     onChanged: on('agent:changed'), // ({ path, reason, created, backup, at }) => ...
     undo: (change) => ipcRenderer.invoke('agent:undo', change),
   },
+  onMenuAction: on('menu:action'), // ({ action: 'newProject'|'openProject'|'openRecent'|'closeProject', root? }) => ...
   onChanged: on('fs:changed'), // (paths) => ...
   onAudit: on('audit'),        // (entry) => ...
 });

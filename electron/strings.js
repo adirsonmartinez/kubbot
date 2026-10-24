@@ -26,6 +26,12 @@ module.exports = {
   // Agents with the user's own subscription (electron/agents.js)
   // Native menu bar (macOS): only what the system needs; the app's menus are inside the window
   menu: {
+    project: 'Proyecto',
+    newProject: 'Nuevo proyecto',
+    openProject: 'Abrir proyecto…',
+    openRecent: 'Abrir reciente',
+    noRecent: 'Sin proyectos recientes',
+    closeProject: 'Cerrar proyecto',
     about: 'Acerca de Platanus',
     hide: 'Ocultar Platanus',
     hideOthers: 'Ocultar otras',

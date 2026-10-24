@@ -30,6 +30,7 @@ export function createWorkspaceService(bridge = window.platanus) {
       remove: async () => DESKTOP_ONLY,
       gitHistory: async () => ({ ok: true, data: demo.git }),
       onChanged: () => () => {},
+      onMenuAction: () => () => {},
     };
   }
 
@@ -48,5 +49,7 @@ export function createWorkspaceService(bridge = window.platanus) {
     remove: (path) => bridge.remove(path),
     gitHistory: () => bridge.gitHistory(),
     onChanged: (callback) => bridge.onChanged(callback),
+    // macOS system menu bar (Project menu): { action, root? }
+    onMenuAction: (callback) => bridge.onMenuAction(callback),
   };
 }

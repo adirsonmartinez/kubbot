@@ -190,6 +190,15 @@ projectModel.store.subscribe((state, previous) => {
   if (appViewModel.view === 'git') gitViewModel.centerOnHead();
 });
 
+// macOS: the Project menu of the system menu bar runs the same actions as the in-app one
+const MENU_ACTIONS = {
+  newProject: () => shellViewModel.newProject(),
+  openProject: () => shellViewModel.openProject(),
+  openRecent: ({ root }) => shellViewModel.openRecent(root),
+  closeProject: () => shellViewModel.closeProject(),
+};
+workspace.onMenuAction((payload) => MENU_ACTIONS[payload?.action]?.(payload));
+
 workspace.onChanged((paths) => {
   bus.emit(EVENTS.diskChanged, { paths });
   projectModel.scheduleReload();

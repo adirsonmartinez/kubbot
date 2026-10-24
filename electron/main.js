@@ -25,6 +25,9 @@ function createWindow() {
     backgroundColor: '#0a0b0f',
     // macOS: integrated title bar; the window buttons sit inside the app's 44px title bar
     ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 15 } } : {}),
+    // Windows/Linux: the app draws its own menus in the title bar; the native bar stays hidden
+    // (its shortcuts keep working)
+    autoHideMenuBar: process.platform !== 'darwin',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, // the page sees neither Node nor Electron, only what preload exposes
@@ -103,6 +106,7 @@ async function openWorkspace(dir) {
   workspace.watch((paths) => send('fs:changed', paths));
   log('workspace:open', root, true);
   await rememberRecent(root);
+  refreshMenu();
   return { ok: true, data: { root, name: path.basename(root) } };
 }
 
@@ -125,11 +129,14 @@ async function rememberRecent(root) {
   await fs.writeFile(recentFile(), JSON.stringify(list.slice(0, MAX_RECENT), null, 2)).catch(() => {});
 }
 
-ipcMain.handle('workspace:recent', async () => {
+// Recent folders that still exist
+async function aliveRecent() {
   const list = await readRecent();
   const alive = await Promise.all(list.map((r) => fs.stat(r.root).then((s) => s.isDirectory(), () => false)));
-  return { ok: true, data: list.filter((_r, i) => alive[i]) };
-});
+  return list.filter((_r, i) => alive[i]);
+}
+
+ipcMain.handle('workspace:recent', async () => ({ ok: true, data: await aliveRecent() }));
 
 ipcMain.handle('workspace:openRecent', async (_e, root) => {
   if (!(await readRecent()).some((r) => r.root === root)) return { ok: false, error: t.notRecent };
@@ -143,6 +150,7 @@ ipcMain.handle('workspace:openRecent', async (_e, root) => {
 ipcMain.handle('workspace:close', () => {
   if (workspace.root) log('workspace:close', workspace.root, true);
   workspace.close();
+  refreshMenu();
   return { ok: true };
 });
 
@@ -361,8 +369,38 @@ const openArg = process.argv.find((a) => a.startsWith('--open='))?.slice('--open
 // renaming the app would otherwise move it and the app would start as new.
 app.setPath('userData', path.join(app.getPath('appData'), 'platanus-ide'));
 app.setName('Platanus');
-function nativeMenu() {
+// macOS: the Project menu lives in the system menu bar (the window hides its own). Each item asks
+// the window to run the same action as its in-app button. Rebuilt when a project opens or closes,
+// so "Close project" and the recent list stay current.
+const menuAction = (action, extra = {}) => () => send('menu:action', { action, ...extra });
+
+async function projectMenu() {
   const m = t.menu;
+  const recent = await aliveRecent();
+  return {
+    label: m.project,
+    submenu: [
+      { label: m.newProject, accelerator: 'CmdOrCtrl+N', click: menuAction('newProject') },
+      { label: m.openProject, accelerator: 'CmdOrCtrl+O', click: menuAction('openProject') },
+      {
+        label: m.openRecent,
+        submenu: recent.length
+          ? recent.map((r) => ({ label: r.name, sublabel: r.root, click: menuAction('openRecent', { root: r.root }) }))
+          : [{ label: m.noRecent, enabled: false }],
+      },
+      { type: 'separator' },
+      { label: m.closeProject, accelerator: 'CmdOrCtrl+W', enabled: Boolean(workspace.root), click: menuAction('closeProject') },
+    ],
+  };
+}
+
+function refreshMenu() {
+  nativeMenu().catch((err) => log('menu', null, false, err.message));
+}
+
+async function nativeMenu() {
+  const m = t.menu;
+  const isMac = process.platform === 'darwin';
   const template = [
     ...(process.platform === 'darwin' ? [{
       label: 'Platanus',
@@ -376,6 +414,7 @@ function nativeMenu() {
         { role: 'quit', label: m.quit },
       ],
     }] : []),
+    ...(isMac ? [await projectMenu()] : []),
     {
       label: m.edit,
       submenu: [
@@ -396,7 +435,8 @@ function nativeMenu() {
         { role: 'togglefullscreen', label: m.fullscreen },
         ...(process.argv.includes('--dev') ? [{ role: 'toggleDevTools', label: m.devTools }] : []),
         { type: 'separator' },
-        { role: 'close', label: m.close },
+        // ⌘W closes the project (Project menu); the window closes with ⇧⌘W
+        { role: 'close', label: m.close, accelerator: isMac ? 'Shift+CmdOrCtrl+W' : 'CmdOrCtrl+W' },
       ],
     },
   ];
@@ -404,7 +444,7 @@ function nativeMenu() {
 }
 
 app.whenReady().then(async () => {
-  nativeMenu();
+  await nativeMenu();
   if (openArg) await openWorkspace(openArg).catch((err) => log('workspace:open', openArg, false, err.message));
   createWindow();
   startMcp();
