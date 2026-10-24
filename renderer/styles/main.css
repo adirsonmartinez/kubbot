@@ -44,7 +44,7 @@ body::after {
 }
 
 /* Shared glass surface */
-#controls .group, #schema-panel, #git-panel, #hud, #chat {
+#schema-panel, #git-panel, #hud, #chat {
   background: var(--glass);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -60,41 +60,7 @@ body::after {
   border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent);
 }
 
-/* --- Map controls (bottom left) --- */
-#controls { position: fixed; left: 16px; bottom: 16px; z-index: 2; display: flex; gap: 8px; user-select: none; }
-#controls .group { display: flex; overflow: hidden; }
-#controls button {
-  width: 40px; height: 40px; padding: 0; border: 0; background: transparent;
-  display: grid; place-items: center; cursor: pointer; color: var(--muted);
-}
-#controls .group button + button { border-left: 1px solid var(--line); }
-#controls button:hover { color: var(--accent); background: var(--accent-soft); }
-#controls button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-#controls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-#controls button[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
-
-/* Camera preview while the map is moved by hand (mirrored, like a mirror) */
-#hand-preview {
-  position: absolute; left: 0; bottom: 48px; width: 200px; padding: 6px;
-  display: flex; flex-direction: column; gap: 6px;
-  background: var(--glass); border: 1px solid var(--line); border-radius: var(--radius);
-  backdrop-filter: var(--blur); -webkit-backdrop-filter: var(--blur); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
-#hand-preview[hidden] { display: none; }
-#hand-preview.pinching { border-color: rgba(139, 131, 255, 0.6); }
-#hand-preview.error { width: 240px; }
-.hand-video video { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; transform: scaleX(-1); background: var(--bg); }
-#hand-preview.error .hand-video { display: none; }
-.hand-status { padding: 0 4px 2px; font: 11px/1.3 var(--sans); color: var(--muted); }
-.hand-status::before {
-  content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: middle;
-  border-radius: 50%; background: var(--faint);
-}
-#hand-preview.hand .hand-status::before { background: var(--text); }
-#hand-preview.pinching .hand-status { color: var(--text); }
-#hand-preview.pinching .hand-status::before { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-#hand-preview.error .hand-status { color: var(--danger); }
-#hand-preview.error .hand-status::before { background: var(--danger); }
+/* --- Map controls (bottom left) and the hand camera preview: styles/controls.css --- */
 
 /* --- HUD: security score and counters (top left, map view) --- */
 #hud {
