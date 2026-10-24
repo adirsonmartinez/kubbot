@@ -22,6 +22,17 @@ export class ProjectModel {
     return response;
   }
 
+  // [{ root, name, at }] most recent first
+  async recent() {
+    return (await this.#workspace.recent()).data ?? [];
+  }
+
+  async openRecent(root) {
+    const response = await this.#workspace.openRecent(root);
+    if (response.ok) await this.open(response.data);
+    return response;
+  }
+
   // Reopens the folder the app already had (e.g. after reloading the window)
   async restore() {
     const response = await this.#workspace.current();

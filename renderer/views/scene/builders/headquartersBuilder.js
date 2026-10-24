@@ -1,11 +1,12 @@
 // Main building = the project's root folder. The tower grows with the number of files.
 import * as THREE from 'three';
 import { box, materials as M } from '../materials.js';
+import { addCracks } from './crackBuilder.js';
 
 export const HQ_BASE = 0.55;   // platform height
 export const HQ_TOWER = { x: -1, z: -1, w: 4 };
 
-export function buildHeadquarters(height = 9) {
+export function buildHeadquarters(height = 9, level = 'green') {
   const g = new THREE.Group();
   const B = HQ_BASE;
 
@@ -74,6 +75,9 @@ export function buildHeadquarters(height = 9) {
     box(g, M.lavender, 1.6, 0.3, 1.6, 3, B + i * 0.42, 3.8);
     box(g, M.tealLit, 0.9, 0.1, 0.05, 3, B + i * 0.42 + 0.1, 4.62);
   }
+
+  // Files at the project root in red or yellow crack the main tower
+  addCracks(g, { cx: T.x, cz: T.z, halfW: T.w / 2, halfD: T.w / 2, bottom: B + 1.8, top: B + T.h }, level, 7);
 
   return g;
 }

@@ -6,10 +6,22 @@ import { buildHeadquarters, HQ_BASE, HQ_TOWER } from './builders/headquartersBui
 import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
+import { TAG_COLOR } from '../../models/folderTags.js';
 
 const RISE_SPEED = 2.2;
 
-export function createMapView({ sceneView, labels, mapViewModel }) {
+const tagHtml = (tags = []) =>
+  tags.length ? `<span class="tags">${tags.map((t) => `<em style="--c:${TAG_COLOR[t]}">${escapeHtml(strings.tags[t] ?? t)}</em>`).join('')}</span>` : '';
+const crackHtml = (red) => (red ? `<span class="cracks">${strings.hover.cracks(red)}</span>` : '');
+
+// Label text: friendly names in "vibe" mode, folder names and counts in "técnico"
+function folderLabel(b, tech) {
+  const title = tech ? `${escapeHtml(b.name)}/` : escapeHtml(b.friendly);
+  const sub = tech ? strings.map.files(b.files) : escapeHtml(b.name);
+  return `<strong>${title}</strong><span>${sub}</span>${tagHtml(b.tags)}${crackHtml(b.red)}`;
+}
+
+export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
   let group = null;
   let entries = new Map();      // path -> { group, label }
   let session = null;
@@ -37,11 +49,12 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
     sceneView.scene.add(group);
 
     // Main building: the root folder
-    const hq = buildHeadquarters(state.root.height);
+    const tech = modeModel.tech;
+    const hq = buildHeadquarters(state.root.height, state.root.level);
     hq.userData.pick = { type: 'folder', path: '' };
     group.add(hq);
     const rootLabel = labels.add({
-      html: `<strong>${escapeHtml(state.projectName)}</strong><span>${strings.map.rootSummary(state.root.total, state.root.dirs)}</span>`,
+      html: `<strong>${escapeHtml(state.projectName)}</strong><span>${strings.map.rootSummary(state.root.total, state.root.dirs)}</span>${crackHtml(state.root.red)}`,
       anchor: { x: HQ_TOWER.x, y: HQ_BASE + state.root.height + 5.6, z: HQ_TOWER.z },
       className: 'root',
     });
@@ -55,7 +68,8 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
       building.group.userData.pick = { type: 'folder', path: b.path };
       group.add(building.group);
       const label = labels.add({
-        html: `<strong>${escapeHtml(b.name)}/</strong><span>${strings.map.files(b.files)}</span>`,
+        html: folderLabel(b, tech),
+        className: b.level === 'red' ? 'cracked' : '',
         anchor: { x: b.x, y: building.top + 0.9, z: b.z },
       });
       entries.set(b.path, { group: building.group, label });
@@ -79,8 +93,14 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
   mapViewModel.store.subscribe((state, previous) => {
     if (!previous || state.version !== previous.version) render(state);
   }, { immediate: true });
+  modeModel.store.subscribe((state, previous) => {
+    if (state.mode !== previous.mode) render(mapViewModel.store.state);
+  });
 
-  sceneView.onFrame((_t, dt) => {
+  const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  sceneView.onFrame((t, dt) => {
+    // Cracks breathe: the red glow pulses (shared material, so every crack at once)
+    if (!still) M.crackGlow.emissiveIntensity = 0.55 + 0.45 * Math.sin(t * 4);
     for (let i = risers.length - 1; i >= 0; i--) {
       const r = risers[i];
       r.k = Math.min(r.k + dt * RISE_SPEED, 1);

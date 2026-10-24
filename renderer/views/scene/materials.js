@@ -35,6 +35,24 @@ export const materials = {
   // Alerts
   get alert()             { return material('alert', 0xff3b4e, { roughness: 0.5 }); },
   get alertLit()          { return material('alertLit', 0xff3b4e, { emissive: 0xff2238, emissiveIntensity: 0.9, roughness: 0.3 }); },
+  // Cracks (the glow pulses: mapView animates its emissiveIntensity)
+  get crack()             { return material('crack', 0x14121f, { roughness: 0.9 }); },
+  get crackGlow()         { return material('crackGlow', 0xff3b4e, { emissive: 0xff2238, emissiveIntensity: 1, roughness: 0.4 }); },
+  get rubble()            { return material('rubble', 0x8f89c9, { roughness: 0.95 }); },
+  // Remi (same palette as his pixel-art sprite)
+  get remiHelmet()        { return material('remiHelmet', 0xf5c542, { roughness: 0.45 }); },
+  get remiHelmetDark()    { return material('remiHelmetDark', 0xc99a2e, { roughness: 0.5 }); },
+  get remiSkin()          { return material('remiSkin', 0xf2c9a0); },
+  get remiSkinDark()      { return material('remiSkinDark', 0xd9a57a); },
+  get remiEye()           { return material('remiEye', 0x1d2029); },
+  get remiShirt()         { return material('remiShirt', 0xececf0); },
+  get remiOveralls()      { return material('remiOveralls', 0x3b6fd8); },
+  get remiOverallsDark()  { return material('remiOverallsDark', 0x2a4f9e); },
+  get remiBoots()         { return material('remiBoots', 0x3a2a20); },
+  get remiHammer()        { return material('remiHammer', 0xe8b830, { metalness: 0.6, roughness: 0.3 }); },
+  get remiHandle()        { return material('remiHandle', 0x7a5230); },
+  // Remi's sparks
+  get spark()             { return material('spark', 0xffd25a, { emissive: 0xffb020, emissiveIntensity: 1.4, roughness: 0.3 }); },
 };
 
 const geometries = {

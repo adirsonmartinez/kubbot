@@ -11,22 +11,43 @@
     "dev": "electron . --dev",
     "build:web": "node scripts/build-web.js",
     "dist:mac": "electron-builder --mac --publish never",
-    "dist:win": "electron-builder --win --publish never"
+    "dist:win": "electron-builder --win --publish never",
+    "test": "node --test electron/mcpServer.test.js tests/renderer/*.test.mjs"
   },
   "build": {
     "appId": "us.platan.hack26.team12.ide",
     "productName": "Platanus",
     "icon": "project-logo.png",
-    "directories": { "output": "dist-electron" },
-    "files": ["electron/**", "renderer/**", "package.json"],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "electron/**",
+      "renderer/**",
+      "package.json"
+    ],
     "artifactName": "Platanus-${version}-${os}-${arch}.${ext}",
     "mac": {
-      "target": [{ "target": "dmg", "arch": ["universal"] }],
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
       "category": "public.app-category.developer-tools",
       "identity": null
     },
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "signAndEditExecutable": false
     },
     "nsis": {

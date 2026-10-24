@@ -3,6 +3,11 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Lets the CSS leave room for the macOS window buttons (see styles/shell.css)
+window.addEventListener('DOMContentLoaded', () => {
+  if (process.platform === 'darwin') document.documentElement.classList.add('is-mac');
+});
+
 const on = (channel) => (callback) => {
   const listener = (_e, payload) => callback(payload);
   ipcRenderer.on(channel, listener);
@@ -12,6 +17,8 @@ const on = (channel) => (callback) => {
 contextBridge.exposeInMainWorld('platanus', {
   chooseWorkspace: () => ipcRenderer.invoke('workspace:choose'),
   currentWorkspace: () => ipcRenderer.invoke('workspace:current'),
+  recentWorkspaces: () => ipcRenderer.invoke('workspace:recent'),
+  openRecentWorkspace: (root) => ipcRenderer.invoke('workspace:openRecent', root),
 
   tree: (rel = '.') => ipcRenderer.invoke('fs:tree', rel),
   read: (rel) => ipcRenderer.invoke('fs:read', rel),
@@ -20,6 +27,24 @@ contextBridge.exposeInMainWorld('platanus', {
   remove: (rel) => ipcRenderer.invoke('fs:delete', rel),
 
   auditLog: () => ipcRenderer.invoke('audit:list'),
+
+  // The user's own agent (subscription CLIs) and the local MCP server it talks to
+  agents: {
+    detect: () => ipcRenderer.invoke('agents:detect'),
+    login: (id) => ipcRenderer.invoke('agents:login', id),
+    run: (req) => ipcRenderer.invoke('agents:run', req),
+    cancel: (runId) => ipcRenderer.invoke('agents:cancel', runId),
+    onEvent: on('agents:event'), // ({ runId, type: 'text'|'tool'|'error'|'done', ... }) => ...
+  },
+  mcp: {
+    info: () => ipcRenderer.invoke('mcp:info'),
+    onStatus: on('mcp:status'),
+    onRequest: on('mcp:request'), // ({ id, tool, args }) => reply({ id, ok, data | error })
+    reply: (payload) => ipcRenderer.invoke('mcp:reply', payload),
+    onScore: on('agent:score'), // ({ path, level, reason }) => ...
+    onChanged: on('agent:changed'), // ({ path, reason, created, backup, at }) => ...
+    undo: (change) => ipcRenderer.invoke('agent:undo', change),
+  },
   onChanged: on('fs:changed'), // (paths) => ...
   onAudit: on('audit'),        // (entry) => ...
 });
