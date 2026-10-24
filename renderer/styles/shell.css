@@ -618,3 +618,6 @@ body.stage-project #hover-card { visibility: hidden; }
 /* The stage sizes every canvas to fill it (the 3D map); Remi's avatar is a small exception */
 #stage canvas.remi-avatar { position: static; inset: auto; width: 64px !important; height: 72px !important; }
 .risk-card, .guide-card, .project-card, .remi-card, .hover-card { box-sizing: border-box; }
+/* Remi's speech bubble on the map */
+.map-label.remi-bubble { z-index: 3; padding: 4px 9px; border: 2px solid #000; border-radius: 10px; background: #fff7d6; color: #1b1a2e; font: 700 11px var(--font); box-shadow: 3px 3px 0 #f5c542; white-space: nowrap; }
+.map-label.remi-bubble.done { background: #dcfce9; box-shadow: 3px 3px 0 #3ddc97; }

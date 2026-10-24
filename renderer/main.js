@@ -88,7 +88,7 @@ const labels = createLabelLayer(document.getElementById('map-labels'), sceneView
 const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
 const towerView = createTowerView({ sceneView, labels, towerViewModel, cameraViewModel, mapView });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
-createRemiView({ sceneView, repairViewModel });
+createRemiView({ sceneView, labels, repairViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
 const hoverCard = createHoverCardView({ card: document.getElementById('hover-card'), stage, mapViewModel, modeModel });
 

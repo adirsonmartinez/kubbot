@@ -1,48 +1,37 @@
-// Remi on the map: a pixel-art sprite that walks from the main building to the cracked one,
-// looks, thinks (a bubble), hammers with sparks, and waits there until the card is closed.
+// Remi on the map, in 3D: walks from the main building to the cracked one, looks at it, thinks
+// (hand on chin), hammers with sparks and celebrates. A bubble above him says what he is doing.
 import * as THREE from 'three';
 import { box, materials as M } from './materials.js';
-import { drawSprite, SPRITE_H, SPRITE_W, STEP_FPS, STEP_FRAMES } from '../remiSprite.js';
+import { buildRemi } from './builders/remiBuilder.js';
+import { strings } from '../../i18n/es.js';
 
-const SCALE = 8;
-const HEIGHT = 2.4; // world units
 const GRAVITY = 14;
+const BASE_Y = 0.45; // ground plates of the buildings
+const TURN_SPEED = 10;
+const BUBBLE = ['🚶', '👀', '🤔', '🔨', '✅'];
 
-function frameTexture(name) {
-  const canvas = document.createElement('canvas');
-  canvas.width = SPRITE_W * SCALE;
-  canvas.height = SPRITE_H * SCALE;
-  const ctx = canvas.getContext('2d');
-  ctx.imageSmoothingEnabled = false;
-  drawSprite(ctx, name, SCALE);
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
+const damp = (current, goal, dt, speed = TURN_SPEED) => current + (goal - current) * Math.min(dt * speed, 1);
+// Shortest way between two angles
+const angleTo = (from, to) => from + Math.atan2(Math.sin(to - from), Math.cos(to - from));
 
-export function createRemiView({ sceneView, repairViewModel }) {
-  const textures = {};
-  const texture = (name) => (textures[name] ??= frameTexture(name));
-  const material = new THREE.SpriteMaterial({ map: texture('idle'), transparent: true, alphaTest: 0.5 });
-  const sprite = new THREE.Sprite(material);
-  sprite.scale.set(HEIGHT * (SPRITE_W / SPRITE_H), HEIGHT, 1);
-  sprite.center.set(0.5, 0);
+export function createRemiView({ sceneView, labels, repairViewModel }) {
+  const remi = buildRemi();
+  remi.root.scale.setScalar(1.35); // reads well next to the buildings at the default zoom
+  remi.root.visible = false;
+  sceneView.scene.add(remi.root);
 
-  // Shadow under his feet
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.55, 24), new THREE.MeshBasicMaterial({ color: 0x1b1a2e, transparent: true, opacity: 0.22 }));
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.6, 24), new THREE.MeshBasicMaterial({ color: 0x1b1a2e, transparent: true, opacity: 0.2 }));
   shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.02;
+  remi.root.add(shadow);
 
-  const remi = new THREE.Group();
-  remi.add(sprite, shadow);
-  remi.visible = false;
-  sceneView.scene.add(remi);
+  const bubble = labels.add({ className: 'remi-bubble', hidden: true });
 
   const sparks = []; // { mesh, v, life }
   let stepStarted = 0;
   let lastStep = -1;
   let clock = 0;
+  let lastSwing = 0;
   const still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function spark(at) {
@@ -53,10 +42,30 @@ export function createRemiView({ sceneView, repairViewModel }) {
 
   repairViewModel.store.subscribe((state) => {
     const job = state.job;
-    remi.visible = Boolean(job);
-    if (job && job.step !== lastStep) { lastStep = job.step; stepStarted = clock; }
-    if (!job) lastStep = -1;
+    remi.root.visible = Boolean(job);
+    bubble.el.hidden = !job;
+    if (!job) { lastStep = -1; return; }
+    if (job.step !== lastStep) {
+      lastStep = job.step;
+      stepStarted = clock;
+      bubble.el.textContent = `${BUBBLE[job.step]} ${strings.repair.steps[job.step]}`;
+      bubble.el.classList.toggle('done', job.step === BUBBLE.length - 1);
+    }
   });
+
+  // Pose: every joint eases toward its goal so steps blend into each other
+  function pose(dt, { legs = 0, armL = 0, armLz = 0, armR = 0, armRz = 0, headX = 0, headY = 0, lean = 0, bob = 0 }) {
+    remi.legs[0].rotation.x = damp(remi.legs[0].rotation.x, legs, dt, 18);
+    remi.legs[1].rotation.x = damp(remi.legs[1].rotation.x, -legs, dt, 18);
+    remi.arms[0].rotation.x = damp(remi.arms[0].rotation.x, armL, dt, 18);
+    remi.arms[0].rotation.z = damp(remi.arms[0].rotation.z, armLz, dt);
+    remi.arms[1].rotation.x = damp(remi.arms[1].rotation.x, armR, dt, 22);
+    remi.arms[1].rotation.z = damp(remi.arms[1].rotation.z, armRz, dt);
+    remi.head.rotation.x = damp(remi.head.rotation.x, headX, dt);
+    remi.head.rotation.y = damp(remi.head.rotation.y, headY, dt);
+    remi.body.rotation.x = damp(remi.body.rotation.x, lean, dt);
+    remi.body.position.y = bob;
+  }
 
   sceneView.onFrame((_t, dt) => {
     clock += dt;
@@ -70,25 +79,48 @@ export function createRemiView({ sceneView, repairViewModel }) {
 
     const job = repairViewModel.store.state.job;
     if (!job) return;
-    const elapsed = clock - stepStarted;
+    const e = clock - stepStarted;
+    const a = still ? 0 : 1; // amplitude of every movement
 
-    // Position: walking along the road during step 0, then standing at the building
-    const k = job.step === 0 ? Math.min(elapsed / (job.stepMs / 1000), 1) : 1;
+    // Position: along the road while walking, then in front of the building
+    const k = job.step === 0 ? Math.min(e / (job.stepMs / 1000), 1) : 1;
     const x = job.from.x + (job.to.x - job.from.x) * k;
     const z = job.from.z + (job.to.z - job.from.z) * k;
-    const hop = job.step === 0 && !still ? Math.abs(Math.sin(elapsed * 12)) * 0.15 : 0;
-    remi.position.set(x, 0.45 + hop, z);
+    remi.root.position.set(x, BASE_Y, z);
 
-    // Animation frame for the current step
-    const frames = STEP_FRAMES[job.step] ?? ['idle'];
-    const index = still ? 0 : Math.floor(elapsed * STEP_FPS[job.step]) % frames.length;
-    const map = texture(frames[index]);
-    if (material.map !== map) { material.map = map; material.needsUpdate = true; }
+    // Facing: the way he walks, then the building
+    const look = job.step === 0 ? Math.atan2(job.to.x - job.from.x, job.to.z - job.from.z) : Math.atan2(job.center.x - x, job.center.z - z);
+    remi.root.rotation.y = damp(remi.root.rotation.y, angleTo(remi.root.rotation.y, look), dt);
 
-    // Hammer hits throw sparks at the wall (on the hammerDown frame)
-    if (job.step === 3 && frames[index] === 'hammerDown' && !still && Math.random() < 0.5) {
-      const towardWall = 0.4; // a bit in front of Remi, toward the building
-      spark({ x: x + (job.center.x - x) * towardWall, y: 0.45 + HEIGHT * 0.4, z: z + (job.center.z - z) * towardWall });
+    switch (job.step) {
+      case 0: { // walk
+        const s = Math.sin(e * 11) * a;
+        pose(dt, { legs: s * 0.7, armL: -s * 0.6, armR: s * 0.5 - 0.3, bob: Math.abs(s) * 0.08 });
+        break;
+      }
+      case 1: // look: leans in and turns the head side to side
+        pose(dt, { lean: 0.18 * a, headX: 0.15, headY: Math.sin(e * 2.2) * 0.45 * a, armR: -0.2 });
+        break;
+      case 2: // think: hand on the chin, head tilted, slow sway
+        pose(dt, { armL: -2.2, armLz: -0.55, headX: -0.2, headY: 0.25 * Math.sin(e * 1.4) * a, armR: -0.15, bob: Math.sin(e * 2) * 0.03 * a });
+        break;
+      case 3: { // hammer: raise high, strike down, sparks on each hit
+        const phase = still ? 0.5 : (e * 2.6) % 1;
+        const swing = phase < 0.6 ? -2.7 + (phase / 0.6) * 0.3 : -2.4 + ((phase - 0.6) / 0.4) * 1.6;
+        pose(dt, { armR: swing, lean: 0.12 * a, headX: 0.2, armL: -0.4 });
+        if (!still && phase > 0.92 && clock - lastSwing > 0.25) {
+          lastSwing = clock;
+          const toward = 0.45;
+          for (let i = 0; i < 4; i++) spark({ x: x + (job.center.x - x) * toward, y: BASE_Y + 1.0, z: z + (job.center.z - z) * toward });
+        }
+        break;
+      }
+      default: { // done: hammer up and a happy hop
+        const hop = still ? 0 : Math.max(0, Math.sin(e * 6)) * 0.25 * (e < 2.5 ? 1 : 0);
+        pose(dt, { armR: -2.9, armRz: 0.2, bob: hop, headX: -0.15 });
+      }
     }
+
+    bubble.setAnchor(x, BASE_Y + 3.1, z);
   });
 }
