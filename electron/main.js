@@ -1,7 +1,7 @@
 // Electron main process: creates the window and is the only part that touches the disk.
 // The window (renderer) asks for things over IPC and they are validated here before running.
 
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { Workspace } = require('./workspace');
@@ -326,7 +326,53 @@ async function confirm(message, detail) {
 // `npx electron . --open=/path/to/project` opens that folder at start (the window restores it)
 const openArg = process.argv.find((a) => a.startsWith('--open='))?.slice('--open='.length);
 
+// The app's own menus (Archivo, Ver, Agente…) live inside the window. The native bar keeps only what the
+// system needs: the app menu, Edición (so Cmd+C / Cmd+V / Cmd+Z work in the chat) and Ventana.
+app.setName('Platanus');
+function nativeMenu() {
+  const m = t.menu;
+  const template = [
+    ...(process.platform === 'darwin' ? [{
+      label: 'Platanus',
+      submenu: [
+        { role: 'about', label: m.about },
+        { type: 'separator' },
+        { role: 'hide', label: m.hide },
+        { role: 'hideOthers', label: m.hideOthers },
+        { role: 'unhide', label: m.unhide },
+        { type: 'separator' },
+        { role: 'quit', label: m.quit },
+      ],
+    }] : []),
+    {
+      label: m.edit,
+      submenu: [
+        { role: 'undo', label: m.undo },
+        { role: 'redo', label: m.redo },
+        { type: 'separator' },
+        { role: 'cut', label: m.cut },
+        { role: 'copy', label: m.copy },
+        { role: 'paste', label: m.paste },
+        { role: 'selectAll', label: m.selectAll },
+      ],
+    },
+    {
+      label: m.window,
+      submenu: [
+        { role: 'minimize', label: m.minimize },
+        { role: 'zoom', label: m.zoom },
+        { role: 'togglefullscreen', label: m.fullscreen },
+        ...(process.argv.includes('--dev') ? [{ role: 'toggleDevTools', label: m.devTools }] : []),
+        { type: 'separator' },
+        { role: 'close', label: m.close },
+      ],
+    },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 app.whenReady().then(async () => {
+  nativeMenu();
   if (openArg) await openWorkspace(openArg).catch((err) => log('workspace:open', openArg, false, err.message));
   createWindow();
   startMcp();
