@@ -18,7 +18,7 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
   const hidden = new Set();     // buildings replaced by an open building
 
   function clear() {
-    if (group) sceneView.scene.remove(group);
+    if (group) sceneView.layers.map.remove(group);
     entries.forEach((e) => e.label.remove());
     entries = new Map();
     risers.length = 0;
@@ -34,7 +34,7 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
     }
 
     group = new THREE.Group();
-    sceneView.scene.add(group);
+    sceneView.layers.map.add(group);
 
     // Main building: the root folder
     const hq = buildHeadquarters(state.root.height);

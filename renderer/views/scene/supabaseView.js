@@ -7,10 +7,10 @@ export function createSupabaseView({ sceneView, labels, supabaseViewModel, supab
   const node = buildSupabaseNode();
   node.group.userData.pick = { type: 'supabase' };
   node.group.visible = false;
-  sceneView.scene.add(node.group);
+  sceneView.layers.map.add(node.group);
 
   const schema = buildSchema(sceneView.renderer, supabaseModel.tables, node.trunkStart);
-  sceneView.scene.add(schema.group);
+  sceneView.layers.map.add(schema.group);
 
   const label = labels.add({
     html: '<span class="dot"></span><span class="txt"></span> <b></b>',

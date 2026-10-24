@@ -36,6 +36,23 @@
     </div>
   </div>
 
+  <div id="view-switch" role="group" data-i18n-title="views.switchHint">
+    <button type="button" data-view="map" aria-pressed="true">
+      <svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V9l4-3v15M9 21V4l6 3v14M15 21v-9l4 2v7"/></svg>
+      <span data-i18n="views.map"></span>
+    </button>
+    <button type="button" data-view="git" aria-pressed="false">
+      <svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="9" r="2"/><path d="M6 7v10M18 11c0 4-6 3-11 7"/></svg>
+      <span data-i18n="views.git"></span>
+    </button>
+  </div>
+
+  <div id="git-panel" hidden>
+    <strong id="git-title"></strong>
+    <span id="git-summary"></span>
+    <span id="git-risky" hidden></span>
+  </div>
+
   <div id="empty-state">
     <div class="empty-card">
       <div class="empty-icon">

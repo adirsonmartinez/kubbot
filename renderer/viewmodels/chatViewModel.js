@@ -53,6 +53,13 @@ export class ChatViewModel {
       this.sayFromMap({ text: CHAT.fileSelected({ path, levelText, reason, source }), tone: level === 'red' ? 'alert' : '' });
     });
 
+    bus.on(EVENTS.commitSelected, (commit) => {
+      const lane = strings.git.laneNames[commit.lane] ?? commit.lane;
+      const laneText = commit.laneLive ? lane : `${lane} (${strings.git.deleted})`;
+      const text = strings.git.commitSelected({ ...commit, lane: laneText }) + (commit.risk ? strings.git.riskWarning(commit.risk.files) : '');
+      this.sayFromMap({ text, tone: commit.risk ? 'alert' : '' });
+    });
+
     this.#push({ role: 'bot', text: CHAT.greeting });
     this.store.set({ chips: [CHAT.chips.openFolder] });
   }

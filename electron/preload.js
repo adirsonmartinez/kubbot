@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('platanus', {
   write: (rel, content) => ipcRenderer.invoke('fs:write', rel, content),
   remove: (rel) => ipcRenderer.invoke('fs:delete', rel),
 
+  gitHistory: () => ipcRenderer.invoke('git:history'),
+
   auditLog: () => ipcRenderer.invoke('audit:list'),
   onChanged: on('fs:changed'), // (paths) => ...
   onAudit: on('audit'),        // (entry) => ...

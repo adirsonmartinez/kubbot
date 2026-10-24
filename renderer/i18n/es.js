@@ -15,6 +15,37 @@ export const strings = {
     reset: 'Centrar vista',
   },
 
+  views: {
+    map: 'Mapa',
+    git: 'Git',
+    switchHint: 'Cambiar de vista (G)',
+  },
+
+  git: {
+    title: (branch) => (branch ? `🌿 Git · ${branch}` : '🌿 Git · HEAD suelto'),
+    summary: ({ branches, commits, lastTag }) =>
+      `${plural(branches, 'rama', 'ramas')} · ${plural(commits, 'commit', 'commits')}` + (lastTag ? ` · último tag ${lastTag}` : ''),
+    risky: (n) => `⚠ ${plural(n, 'commit subió', 'commits subieron')} secretos`,
+    loading: 'Leyendo el historial…',
+    notRepo: 'Esta carpeta no usa git',
+    notRepoHint: 'Inicializa un repositorio (git init) para ver tus ramas aquí.',
+    gitMissing: 'No encontré git instalado en este equipo.',
+    error: 'No pude leer el historial de git.',
+    noProject: 'Abre un proyecto para ver sus ramas.',
+    deleted: 'borrada',
+    head: 'HEAD',
+    laneNames: { merged: 'rama mezclada', unknown: 'sin rama' },
+    commitSelected: ({ short, subject, author, date, lane, files }) => {
+      const when = new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+      const list = files.slice(0, 8).map((f) => `${f.status} ${f.path}`).join('\n');
+      const more = files.length > 8 ? `\n… y ${files.length - 8} más` : '';
+      const changes = files.length ? `\n\n${plural(files.length, 'archivo', 'archivos')}:\n${list}${more}` : '\n\nCommit de merge (sin cambios propios).';
+      return `🔹 ${short} · ${subject}\n${author} · ${when}\nRama: ${lane}${changes}`;
+    },
+    riskWarning: (files) =>
+      `\n\n⚠ Este commit subió ${files.join(', ')}. Aunque se borre después, queda en el historial de git: rota esas claves y limpia la historia (por ejemplo con git filter-repo).`,
+  },
+
   emptyState: {
     title: 'Ningún proyecto abierto',
     body: 'Elige la carpeta de tu proyecto para verlo en el mapa.',

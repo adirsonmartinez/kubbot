@@ -15,7 +15,7 @@ export function createTowerView({ sceneView, labels, towerViewModel, cameraViewM
 
   function dispose() {
     if (!current) return;
-    sceneView.scene.remove(current.built.group);
+    sceneView.layers.map.remove(current.built.group);
     current.labels.forEach((l) => l.remove());
     mapView.setBuildingHidden(current.path, false);
     current = null;
@@ -24,7 +24,7 @@ export function createTowerView({ sceneView, labels, towerViewModel, cameraViewM
   function build(state) {
     dispose();
     const built = buildTower(state);
-    sceneView.scene.add(built.group);
+    sceneView.layers.map.add(built.group);
     mapView.setBuildingHidden(state.path, true);
     const floorLabels = state.floors.map((floor) => labels.add({
       html: `<i class="lvl" style="background:${LEVEL_STYLE[floor.worst].color}"></i><strong>${escapeHtml(floor.label)}</strong><span>${floor.files.length ? strings.map.files(floor.files.length) : strings.map.emptyFolder}</span>`,
