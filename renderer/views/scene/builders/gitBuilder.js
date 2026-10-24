@@ -37,18 +37,27 @@ export function buildGitGraph({ lanes, commits, connectors, head }) {
   const mats = new Map(lanes.map((l) => [l.name, laneMaterials(l.kind)]));
   const cubes = []; // { mesh, index, size, baseY } for the rise animation
 
+  // Lines go from face to face, so they never cross or stick out of a cube
+  const sizeAt = new Map(commits.map((c) => [`${c.x},${c.z}`, c.isMerge ? MERGE_CUBE : CUBE]));
+  const half = (p) => (sizeAt.get(`${p.x},${p.z}`) ?? CUBE) / 2;
+  function line(material, a, b, pick) {
+    const dx = b.x - a.x, dz = b.z - a.z, length = Math.hypot(dx, dz);
+    // Distance from the center to the cube face along the line direction (cubes are axis aligned)
+    const edge = (p) => half(p) / Math.max(Math.abs(dx), Math.abs(dz)) * length;
+    const start = edge(a), end = length - edge(b);
+    if (end - start <= 0.01) return;
+    const ux = dx / length, uz = dz / length;
+    const mesh = groundLink(group, material, a.x + ux * start, a.z + uz * start, a.x + ux * end, a.z + uz * end, LINE.width, LINE.height);
+    mesh.castShadow = false;
+    if (pick) mesh.userData.pick = pick;
+  }
+
   lanes.forEach((lane) => {
-    const m = mats.get(lane.name);
-    if (lane.toX === lane.fromX) return; // a single commit needs no line
-    const line = box(group, m.line, lane.toX - lane.fromX, LINE.height, LINE.width * 2, (lane.fromX + lane.toX) / 2, LINE.y, lane.z);
-    line.castShadow = false;
-    line.userData.pick = { type: 'lane', name: lane.name };
+    const own = commits.filter((c) => c.lane === lane.name).sort((a, b) => a.x - b.x);
+    for (let i = 1; i < own.length; i++) line(mats.get(lane.name).line, own[i - 1], own[i], { type: 'lane', name: lane.name });
   });
 
-  connectors.forEach((c) => {
-    const m = mats.get(c.lane) ?? mats.values().next().value;
-    groundLink(group, m.line, c.from.x, c.from.z, c.to.x, c.to.z, LINE.width, LINE.height).castShadow = false;
-  });
+  connectors.forEach((c) => line((mats.get(c.lane) ?? mats.values().next().value).line, c.from, c.to));
 
   commits.forEach((commit, index) => {
     const size = commit.isMerge ? MERGE_CUBE : CUBE;
