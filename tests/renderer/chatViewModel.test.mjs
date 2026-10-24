@@ -625,3 +625,32 @@ test('while explaining, a refused change shows as skipped (not as an error)', as
   assert.deepEqual(steps.map((s) => s.status), ['done', 'skipped']);
   await vm.send('Arregla db/a.sql'); // asking for a change, a refused tool is a real error
 });
+
+test('review: a repair write that was never saved (rejected) ends as not saved, not as done', () => {
+  const bus = createEventBus();
+  const vm = new ChatViewModel({ agentModel: { reply: async () => ({ text: '' }) }, bus });
+  bus.emit(EVENTS.repairStarted, { path: 'a.js', agent: 'Claude' });
+  bus.emit(EVENTS.repairTool, { path: 'a.js', name: 'write_file', target: 'a.js' });
+  bus.emit(EVENTS.repairText, { path: 'a.js', delta: 'No guardé el cambio.' }); // the next text settles the steps
+  const step = vm.store.state.messages.find((m) => m.run?.kind === 'repair').run.steps[0];
+  assert.equal(step.status, 'error');
+});
+
+test('review: a repair change reported before its tool is one write step', () => {
+  const bus = createEventBus();
+  const vm = new ChatViewModel({ agentModel: { reply: async () => ({ text: '' }) }, bus });
+  bus.emit(EVENTS.repairStarted, { path: 'a.js', agent: 'Claude' });
+  bus.emit(EVENTS.repairChanged, { path: 'a.js', change: { path: 'a.js', reason: 'x', diff: { created: false, added: 1, removed: 0, hunks: [] } } });
+  bus.emit(EVENTS.repairTool, { path: 'a.js', name: 'write_file', target: 'a.js' });
+  const steps = vm.store.state.messages.find((m) => m.run?.kind === 'repair').run.steps;
+  assert.equal(steps.filter((s) => s.name === 'write_file').length, 1);
+  assert.equal(steps[0].status, 'done');
+});
+
+test('the robot offers the same choices on the map as its chat card (placeActions)', () => {
+  const vm = new ChatViewModel({ agentModel: { reply: async () => ({ text: '' }) }, bus: createEventBus(), actions: { draft: () => {}, locate: () => {}, startTour: () => {} } });
+  const folder = vm.placeActions({ path: 'apps/api', kind: 'folder', name: 'api', files: 2, red: 1, yellow: 0 });
+  assert.deepEqual(folder.map((a) => a.kind), ['ask', 'edit', 'locate']);
+  assert.equal(folder[0].intent, 'explain');
+  assert.deepEqual(vm.placeActions({ path: '', kind: 'project', name: 't', red: 0, yellow: 0 }).map((a) => a.kind), ['ask', 'edit', 'tour']);
+});

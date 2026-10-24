@@ -9,6 +9,7 @@
 import * as THREE from 'three';
 import { buildRobot } from './builders/robotBuilder.js';
 import { materials as M } from './materials.js';
+import { icon } from '../ui/icons.js';
 
 const BASE_Y = 0.6;      // hovering just above the ground
 const SCALE = 1.25;
@@ -65,6 +66,8 @@ export function createGuideRobot({ sceneView, labels }) {
   };
   const orbSlot = document.createElement('span');
   orbSlot.className = 'robot-orb';
+  const actionRow = document.createElement('div');
+  actionRow.className = 'robot-actions';
 
   return {
     // the 3D object (for picking: the person grabs it)
@@ -83,7 +86,7 @@ export function createGuideRobot({ sceneView, labels }) {
       if (poseName === 'held') swing = Math.max(-0.6, Math.min(0.6, swing + moved * 0.25));
     },
     moveTo({ x, z }, ms = 1000, { arc = 0 } = {}) {
-      if (still || ms <= 0) return this.place({ x, z });
+      if (still || ms <= 0 || Math.hypot(x - at.x, z - at.z) < 0.05) return this.place({ x, z }); // already there
       walk = { from: { ...at }, to: { x, z }, ms, t: 0, arc, startLift: lift };
     },
     // Turn toward a point (or to a fixed angle with { yaw })
@@ -97,7 +100,8 @@ export function createGuideRobot({ sceneView, labels }) {
     carry(on) { sheet.visible = on; },
     // where its hands are (the sheet flies from there into the folder)
     get hands() { return { x: at.x, y: BASE_Y + lift + 0.86 * SCALE, z: at.z }; },
-    // words: { title?, text, orb? } (orb: a thinking orb element shown before the words) or null
+    // words: { title?, text, orb?, actions? } or null. orb: a thinking orb element before the words;
+    // actions: [{ label, icon, run }] buttons in the bubble (the person answers right there on the map)
     say(next) {
       words = next;
       title.textContent = next?.title ?? '';
@@ -105,6 +109,20 @@ export function createGuideRobot({ sceneView, labels }) {
       text.textContent = next?.text ?? '';
       if (next?.orb) { orbSlot.replaceChildren(next.orb); bubble.el.prepend(orbSlot); } else orbSlot.remove();
       bubble.el.classList.toggle('busy', Boolean(next?.orb));
+      const actions = next?.actions ?? [];
+      if (actions.length) {
+        actionRow.replaceChildren(...actions.map((a) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'robot-action';
+          if (a.icon) b.appendChild(icon(a.icon, { size: 14 }));
+          b.appendChild(document.createTextNode(a.label));
+          b.addEventListener('click', (e) => { e.stopPropagation(); a.run(); });
+          return b;
+        }));
+        bubble.el.appendChild(actionRow);
+      } else actionRow.remove();
+      bubble.el.classList.toggle('has-actions', actions.length > 0);
       bubble.el.hidden = !robot.root.visible || !next;
     },
     get moving() { return Boolean(walk); },

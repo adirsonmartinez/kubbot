@@ -11,6 +11,10 @@ import { strings } from '../../i18n/es.js';
 import { CAMERA } from '../../viewmodels/cameraViewModel.js';
 import { thinkingOrb } from '../ui/thinkingOrb.js';
 import { orbKeyOf, orbStateOf } from '../ui/runCardView.js';
+import { CHIP_ICON } from '../ui/chatCardsView.js';
+import * as THREE from 'three';
+import { PALETTE } from './materials.js';
+import { FOLDER } from '../../viewmodels/layout.js';
 
 const SPOT = { x: 1.1, z: 1.1 }; // front corner of the plaza, so the bubble clears the project's label
 const HELD_LIFT = 1.4;
@@ -24,7 +28,8 @@ function working(state) {
   return state.typing ? { role: 'bot', text: '' } : null;
 }
 
-export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel = null, buildViewModel = null, robotViewModel = null, chatViewModel = null, cameraViewModel = null }) {
+// openChat(): shows the chat (an answer from the bubble's buttons appears there)
+export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel = null, buildViewModel = null, robotViewModel = null, chatViewModel = null, cameraViewModel = null, openChat = () => {} }) {
   const robot = createGuideRobot({ sceneView, labels });
   robot.object.userData.pick = { type: 'robot' };
   let job = null;     // 'tour' | 'welcome' | 'companion' | null
@@ -33,12 +38,27 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
   let activity = null; // { state, label, orb } while an agent works
   let lastFlight = null;
 
-  // What the companion says: the agent's state while it works, else its own question, else a hint on hover
+  // Where it would land while held: a ring on that folder
+  const target = new THREE.Mesh(new THREE.RingGeometry(1, 1.12, 64), new THREE.MeshBasicMaterial({ color: PALETTE.accent, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
+  target.rotation.x = -Math.PI / 2;
+  target.scale.setScalar(FOLDER.platform * 0.7);
+  target.visible = false;
+  sceneView.layers.map.add(target);
+
+  // The choices where it landed, as buttons in its bubble (the same as its chat card)
+  const placeButtons = (place) => (chatViewModel?.placeActions(place.event) ?? []).map((action) => ({
+    label: action.label,
+    icon: CHIP_ICON[action.kind],
+    run: () => { openChat(); chatViewModel.choose(action); robotViewModel.quiet(); },
+  }));
+
+  // What the companion says: the agent's state while it works, else its own question (with its choices),
+  // else a hint on hover
   const companionWords = () => {
     if (activity) return { text: activity.label, orb: activity.orb };
     const s = robotViewModel.store.state;
     if (s.mode === 'held') return { text: s.over ? R.dropHere(s.over) : R.hint };
-    if (s.bubble) return s.bubble;
+    if (s.bubble) return { ...s.bubble, actions: s.mode === 'here' && s.place?.event ? placeButtons(s.place) : [] };
     return hovered ? { text: R.hint } : null;
   };
 
@@ -66,7 +86,7 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
       if (work.stepId !== stepId) {
         stepId = work.stepId;
         const phase = work.stepId.split(':').pop();
-        if (phase === 'carry') { robot.moveTo(work.to, work.walkMs); robot.pose('carry'); robot.carry(true); }
+        if (phase.startsWith('carry')) { robot.moveTo(work.to, work.walkMs); robot.face(work.center); robot.pose('carry'); robot.carry(true); }
         else if (phase === 'drop') { robot.face(work.center); robot.pose('drop'); robot.carry(false); }
         else if (phase === 'edit') { robot.carry(false); robot.pointAt(work.center); }
         else if (phase === 'done') { robot.carry(false); robot.face({ yaw: cameraViewModel?.azimuth ?? CAMERA.azimuth }); robot.pose('wave'); }
@@ -99,11 +119,14 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
         job = 'companion';
       }
       switch (companion.mode) {
-        case 'held':
+        case 'held': {
+          // drawn lifted, but where the person holds it: its feet over `at` on screen
+          const shift = liftShift();
           robot.pose('held');
           robot.lift(HELD_LIFT);
-          robot.place(companion.at);
+          robot.place({ x: companion.at.x + shift.x, z: companion.at.z + shift.z });
           break;
+        }
         case 'flying':
           if (companion.flight !== lastFlight) {
             lastFlight = companion.flight;
@@ -125,9 +148,12 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
           robot.face({ yaw: cameraViewModel?.azimuth ?? CAMERA.azimuth });
         }
       }
+      target.visible = companion.mode === 'held' && Boolean(companion.overAt);
+      if (target.visible) target.position.set(companion.overAt.x, 0.4, companion.overAt.z);
       robot.say(companionWords());
       return;
     }
+    target.visible = false;
     job = null;
     robot.say(null);
     robot.show(false);
@@ -153,8 +179,17 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
   }, { immediate: true });
   sceneView.onFrame((_t, dt) => robot.update(dt));
 
-  // Dragging and throwing: screen points become ground points; the speed of the last moves is the throw
+  // Lifting it moves it up on screen: its ground spot moves toward the camera by the same amount, so it
+  // stays under the hand (the camera's offset says which way "toward the camera" is)
+  function liftShift() {
+    const o = cameraViewModel?.offset?.() ?? { x: 0, y: 1, z: 0 };
+    return { x: (o.x / o.y) * HELD_LIFT, z: (o.z / o.y) * HELD_LIFT };
+  }
+
+  // Dragging and throwing: screen points become ground points; the speed of the last moves is the throw.
+  // `grip` keeps where on the robot the person took it, so it does not jump to the cursor.
   let samples = [];
+  let grip = { x: 0, z: 0 };
   const ground = (x, y) => sceneView.groundPointAt(x, y);
   const grabber = {
     last: null,
@@ -164,20 +199,25 @@ export function createRobotView({ sceneView, labels, mapViewModel, tourViewModel
       if (job === 'companion') robot.say(companionWords());
     },
     start(x, y) {
+      const at = robotViewModel.store.state.at;
+      const p = ground(x, y);
       if (!robotViewModel.grab()) return;
+      grip = p ? { x: at.x - p.x, z: at.z - p.z } : { x: 0, z: 0 };
       samples = [];
       this.move(x, y);
     },
     move(x, y) {
       this.last = { x, y };
-      const p = ground(x, y);
-      if (!p) return;
+      const g = ground(x, y);
+      if (!g) return;
+      const p = { x: g.x + grip.x, z: g.z + grip.z }; // where its feet are, as the person sees it
       samples.push({ x: p.x, z: p.z, t: performance.now() });
       samples = samples.filter((s) => samples.at(-1).t - s.t < 90);
-      robotViewModel.drag({ x: p.x, z: p.z });
+      robotViewModel.drag(p);
     },
     end(x, y) {
-      const p = ground(x, y) ?? robotViewModel.store.state.at;
+      const g = ground(x, y);
+      const p = g ? { x: g.x + grip.x, z: g.z + grip.z } : robotViewModel.store.state.at;
       const first = samples[0];
       const last = samples.at(-1);
       const dt = first && last ? (last.t - first.t) / 1000 : 0;

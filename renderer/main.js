@@ -187,11 +187,21 @@ const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, 
 const gitView = createGitView({ sceneView, labels, gitViewModel });
 createRemiView({ sceneView, labels, repairViewModel });
 createTourView({ sceneView, labels, tourViewModel });
-const robotView = createRobotView({ sceneView, labels, mapViewModel, tourViewModel, buildViewModel, robotViewModel, chatViewModel, cameraViewModel });
+const robotView = createRobotView({
+  sceneView, labels, mapViewModel, tourViewModel, buildViewModel, robotViewModel, chatViewModel, cameraViewModel,
+  openChat: () => {
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+  },
+});
 createBuildSiteView({ sceneView, labels, buildViewModel, hands: () => robotView.hands });
 if (isDemo) {
   createDemoCursor(); // recording the product video (scripts/demo/)
-  window.__platanus = { robotViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel }; // the recorder can drive the robot
+  // the recorder (and checks) can drive the robot and find 3D things on screen
+  window.__platanus = {
+    robotViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel,
+    screenOf: (point) => { const r = stage.getBoundingClientRect(); const s = sceneView.toScreen(point); return { x: r.left + s.x, y: r.top + s.y }; },
+  };
 }
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
 appViewModel.store.subscribe(({ view }) => {

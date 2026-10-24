@@ -30,7 +30,8 @@ export class RobotViewModel {
   // flight: { from, to, ms } while flying; place: { path, kind, name, center } where it landed (center:
   // the folder it points at, null on the plaza)
   // over: the place it would land on if let go now (while held), for the bubble
-  store = new Observable({ visible: false, mode: 'idle', at: { ...HOME }, flight: null, place: null, bubble: null, over: null });
+  // overAt: that place's position (the view draws a ring there)
+  store = new Observable({ visible: false, mode: 'idle', at: { ...HOME }, flight: null, place: null, bubble: null, over: null, overAt: null });
 
   constructor({ projectModel, mapViewModel, tourViewModel = null, buildViewModel = null, bus }) {
     this.#build = buildViewModel;
@@ -42,7 +43,13 @@ export class RobotViewModel {
     const refresh = () => {
       const { session: now } = this.#project.store.state;
       if (now !== session) { session = now; this.#home(); }
-      this.store.set({ visible: this.#canShow() });
+      const visible = this.#canShow();
+      // taken for another job (building, the tour) in the middle of a drag or a throw: it is let go
+      if (!visible && ['held', 'flying'].includes(this.store.state.mode)) {
+        clearTimeout(this.#timer);
+        this.store.set({ mode: 'idle', flight: null, over: null, bubble: null });
+      }
+      this.store.set({ visible });
     };
     projectModel.store.subscribe(refresh);
     mapViewModel.store.subscribe(refresh);
@@ -66,9 +73,10 @@ export class RobotViewModel {
 
   drag({ x, z }) {
     if (this.store.state.mode !== 'held') return;
-    const over = this.#placeAt({ x, z })?.event ?? null;
+    const target = this.#placeAt({ x, z });
+    const over = target?.event ?? null;
     const name = over && (over.kind === 'folder' ? `${over.name}/` : over.name);
-    this.store.set({ at: { x, z }, over: name !== this.store.state.over ? name : this.store.state.over });
+    this.store.set({ at: { x, z }, over: name, overAt: target ? target.center ?? { x: 0, z: 0 } : null });
   }
 
   // Let go at (x, z) moving at (vx, vz) units per second
@@ -88,14 +96,15 @@ export class RobotViewModel {
     const to = target?.stand ?? land;
     const from = { x, z };
     const ms = Math.round(clamp(Math.hypot(to.x - from.x, to.z - from.z) * 60, 450, 1100));
-    this.store.set({ mode: 'flying', flight: { from, to, ms }, at: to, over: null });
+    this.store.set({ mode: 'flying', flight: { from, to, ms }, at: to, over: null, overAt: null });
     this.#timer = setTimeout(() => this.#land(target), ms);
   }
 
   // Where the robot would land: a folder on the map (closest within reach), else the plaza, else nothing
   #placeAt(point) {
-    const { buildings = [], plaza } = this.#map.store.state;
-    const near = buildings
+    const { buildings = [], branches = [], plaza } = this.#map.store.state;
+    // every folder the map draws: the top-level ones and those of the open path
+    const near = [...buildings, ...branches.flatMap((b) => b.folders ?? [])]
       .map((b) => ({ b, d: Math.hypot(b.x - point.x, b.z - point.z) }))
       .filter(({ d }) => d <= FOLDER_REACH)
       .sort((a, b) => a.d - b.d)[0]?.b;
@@ -103,7 +112,7 @@ export class RobotViewModel {
       return {
         stand: standBy(near.x, near.z, FOLDER.platform / 2 + 1),
         center: { x: near.x, z: near.z },
-        event: { path: near.path, kind: 'folder', name: near.name, files: near.files, red: near.red, yellow: near.yellow },
+        event: { path: near.path, kind: 'folder', name: near.name ?? near.path.split('/').pop(), files: near.files, red: near.red ?? 0, yellow: near.yellow ?? 0 },
       };
     }
     const half = (plaza?.size ?? 5) / 2 + 0.5;
@@ -115,13 +124,14 @@ export class RobotViewModel {
   }
 
   #land(target) {
+    if (!this.store.state.visible) return;
     if (!target) {
       this.store.set({ mode: 'idle', flight: null, place: null, bubble: { title: '', text: R.nowhere } });
       return;
     }
     const { event } = target;
     const name = event.kind === 'folder' ? `${event.name}/` : event.name;
-    this.store.set({ mode: 'here', flight: null, place: { path: event.path, kind: event.kind, name, center: target.center }, bubble: { title: R.at(name), text: R.ask } });
+    this.store.set({ mode: 'here', flight: null, place: { path: event.path, kind: event.kind, name, center: target.center, event }, bubble: { title: R.at(name), text: R.ask } });
     this.#bus.emit(EVENTS.robotLanded, event);
   }
 

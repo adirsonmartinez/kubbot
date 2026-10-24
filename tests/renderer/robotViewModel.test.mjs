@@ -138,3 +138,42 @@ test('let go over a folder while still moving a little: it stays on that folder'
     assert.equal(landed[0]?.path, 'src');
   } finally { mock.timers.reset(); }
 });
+
+test('review: a drag or throw in progress when the robot goes to build is cancelled (no landing, no question)', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const bus = createEventBus();
+    const landed = [];
+    bus.on(EVENTS.robotLanded, (e) => landed.push(e));
+    const projectModel = { store: new Observable({ open: true, session: 1 }) };
+    const mapViewModel = { store: new Observable({ status: 'ready', welcome: false, plaza: { size: 5, name: 't' }, buildings: [{ path: 'src', name: 'src', x: 12, z: 0, files: 1, red: 0, yellow: 0 }] }) };
+    const buildViewModel = { store: new Observable({ active: false }) };
+    const vm = new RobotViewModel({ projectModel, mapViewModel, buildViewModel, bus });
+    vm.grab();
+    vm.release({ x: 12, z: 0, vx: 0, vz: 0 });
+    buildViewModel.store.set({ active: true });
+    mock.timers.tick(2000);
+    assert.equal(landed.length, 0);
+    assert.equal(vm.store.state.mode, 'idle');
+  } finally { mock.timers.reset(); }
+});
+
+test('while held it marks where it would land (folders of the open tree too); the place keeps what the chat needs', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const bus = createEventBus();
+    const projectModel = { store: new Observable({ open: true, session: 1 }) };
+    const mapViewModel = { store: new Observable({ status: 'ready', welcome: false, plaza: { size: 5, name: 't' },
+      buildings: [{ path: 'src', name: 'src', x: 12, z: 0, files: 3, red: 0, yellow: 1 }],
+      branches: [{ folders: [{ path: 'src/routes', name: 'routes', x: 12, z: 14, files: 2, red: 0, yellow: 0 }] }] }) };
+    const vm = new RobotViewModel({ projectModel, mapViewModel, bus });
+    vm.grab();
+    vm.drag({ x: 12.5, z: 13 });
+    assert.equal(vm.store.state.over, 'routes/');
+    assert.deepEqual(vm.store.state.overAt, { x: 12, z: 14 });
+    vm.release({ x: 12.5, z: 13, vx: 0, vz: 0 });
+    mock.timers.tick(vm.store.state.flight.ms);
+    assert.equal(vm.store.state.place.path, 'src/routes');
+    assert.equal(vm.store.state.place.event.yellow, 0);
+  } finally { mock.timers.reset(); }
+});

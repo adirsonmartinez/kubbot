@@ -76,7 +76,8 @@ export class ChatViewModel {
     let repairId = null;
     let repairStep = 0;
     const repair = (fn) => repairId !== null && this.#update(repairId, (m) => ({ ...m, run: fn(m.run) }));
-    const settle = (status = 'done') => repair((r) => ({ ...r, steps: r.steps.map((x) => (x.status === 'running' ? { ...x, status, endedAt: Date.now() } : x)) }));
+    // running steps end; a write that never got its saved change (rejected, failed) ends as not saved
+    const settle = (status = 'done') => repair((r) => ({ ...r, steps: r.steps.map((x) => (x.status !== 'running' ? x : { ...x, status: x.name === 'write_file' && !x.diff ? 'error' : status, endedAt: Date.now() })) }));
     bus.on(EVENTS.repairStarted, ({ path, agent }) => {
       this.store.set({ minimized: false, chips: null, welcome: false });
       // The map card Remi's flight just queued (waiting, or already in its "typing" pause) is not shown
@@ -97,6 +98,9 @@ export class ChatViewModel {
     bus.on(EVENTS.repairTool, ({ name, target = '', level = null }) => {
       settle();
       repairBreak = true;
+      // its change was already reported (saved first): the tool takes that step instead of adding one
+      const early = repairId !== null && this.store.state.messages.find((m) => m.id === repairId)?.run.steps.find((x) => x.fromChange && x.name === toolKey(name) && x.target === target);
+      if (early) return void repair((r) => ({ ...r, steps: r.steps.map((x) => (x === early ? { ...x, fromChange: false } : x)) }));
       repair((r) => ({ ...r, steps: [...r.steps, { id: `r${++repairStep}`, kind: 'tool', name: toolKey(name), target, level, parent: null, status: 'running', startedAt: Date.now(), endedAt: null }] }));
     });
     bus.on(EVENTS.repairChanged, ({ change }) => {
@@ -104,7 +108,7 @@ export class ChatViewModel {
         const saved = (x) => ({ ...x, status: 'done', endedAt: Date.now(), diff: change.diff ?? null, reason: change.reason });
         // its write step (started by the tool call) is completed; a change with no step gets one
         if (r.steps.some((x) => x.name === 'write_file' && x.target === change.path)) return withWriteStep(r, change.path, saved);
-        return { ...r, steps: [...r.steps, saved({ id: `r${++repairStep}`, kind: 'tool', name: 'write_file', target: change.path, parent: null, startedAt: Date.now() })] };
+        return { ...r, steps: [...r.steps, saved({ id: `r${++repairStep}`, kind: 'tool', name: 'write_file', target: change.path, parent: null, startedAt: Date.now(), fromChange: true })] };
       });
     });
     bus.on(EVENTS.repairFinished, ({ entry }) => {
@@ -170,16 +174,10 @@ export class ChatViewModel {
     // The robot dropped on a folder (or the plaza) asks what to do there (robotViewModel.js)
     bus.on(EVENTS.robotLanded, (place) => {
       const RC = strings.robot.chat;
-      const a = this.#actions;
       const folder = place.kind === 'folder';
       const name = folder ? `${place.name}/` : place.name;
       const risks = RC.risks(place.red, place.yellow);
-      const actions = [
-        { kind: 'ask', label: folder ? RC.explain : RC.explainProject, prompt: folder ? RC.explainPrompt(name) : RC.explainProjectPrompt, intent: 'explain' },
-        a.draft && { kind: 'edit', label: RC.change, run: () => a.draft(RC.changeDraft(name)), quiet: true },
-        folder && risks && a.locate && { kind: 'locate', label: RC.risks2, run: () => a.locate(place.path), quiet: true },
-        !folder && a.startTour && { kind: 'tour', label: RC.tour, run: a.startTour, quiet: true },
-      ].filter(Boolean);
+      const actions = this.placeActions(place);
       // A card with a clear title: what the place is in plain words, where it is, what it holds, its risks
       const guide = folder ? folderGuide(place.path) : null;
       const tag = guide?.tags.find((t) => strings.tour.parts[t]) ?? 'other';
@@ -355,7 +353,7 @@ export class ChatViewModel {
     const id = this.#push({
       role: 'bot', text: '', thinking: '',
       // queued: waiting in line behind another run of the same agent (a repair…) until onStart
-      run: { agent: label, agentId, model, effort: effort ?? state.effort, compare: Boolean(state.compareWith), startedAt: Date.now(), endedAt: null, status: 'running', queued: true, steps: [], result: null, ...(about ? { about } : {}) },
+      run: { agent: label, agentId, model, effort: effort ?? state.effort, compare: Boolean(state.compareWith), startedAt: Date.now(), endedAt: null, status: 'running', queued: true, steps: [], result: null, intent, ...(about ? { about } : {}) },
     });
     const run = (fn) => this.#update(id, (m) => ({ ...m, run: fn(m.run) }));
     const step = (stepId, fn) => run((r) => ({ ...r, steps: r.steps.map((x) => (x.id === stepId ? fn(x) : x)) }));
@@ -512,6 +510,20 @@ export class ChatViewModel {
     chip.run(source); // first, while the button is still on screen
     this.store.set({ chips: null, welcome: false });
     if (!chip.quiet) this.#push({ role: 'user', text: chip.label }); // opening or showing a file says nothing
+  }
+
+  // What the person can do where the robot landed (its chat card and its bubble on the map show the same)
+  placeActions(place) {
+    const RC = strings.robot.chat;
+    const a = this.#actions;
+    const folder = place.kind === 'folder';
+    const name = folder ? `${place.name}/` : place.name;
+    return [
+      { kind: 'ask', label: folder ? RC.explain : RC.explainProject, prompt: folder ? RC.explainPrompt(name) : RC.explainProjectPrompt, intent: 'explain' },
+      a.draft && { kind: 'edit', label: RC.change, run: () => a.draft(RC.changeDraft(name)), quiet: true },
+      folder && RC.risks(place.red, place.yellow) && a.locate && { kind: 'locate', label: RC.risks2, run: () => a.locate(place.path), quiet: true },
+      !folder && a.startTour && { kind: 'tour', label: RC.tour, run: a.startTour, quiet: true },
+    ].filter(Boolean);
   }
 
   #tourButton(kind, label) {

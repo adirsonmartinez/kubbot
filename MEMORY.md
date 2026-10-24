@@ -33,6 +33,9 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - al final saluda con «Obra terminada»;
   - prioridad del robot: recorrido > construcción > bienvenida > compañero;
   - escenario `obra` del Simulador.
+- **Robot, precisión y opciones:**
+  - al llevarlo queda bajo el cursor (`grip` y `liftShift` en `robotView.js`) y un anillo marca la carpeta destino (`overAt`), incluidas las de la rama abierta;
+  - al llegar, su globo tiene botones (`chatViewModel.placeActions`, los mismos que la tarjeta).
 - **Logos reales de los agentes**: `renderer/icons/brands.js`, generado con `npm run icons` desde `@lobehub/icons-static-svg` (MIT). La clase es `svg.icon.agent-logo`, no `brand`, porque esa choca con la barra de título. En el encabezado del chat, el logo va en un marco de vidrio líquido con el color del agente (`--agent-tint`).
 - **Video del producto**: `video/` (Remotion) y `scripts/demo/` (grabación por CDP + proyecto de ejemplo «Feria Online»).
 
@@ -68,6 +71,8 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - Commit y PR de `feature/recorrido` cuando el usuario lo pida.
 
 ## Aprendizajes (actualiza aquí; lo técnico detallado va en la skill)
+- **Siempre dejar la app en modo normal** con el proyecto del usuario al terminar una prueba. Si queda en modo grabación (`PLATANUS_DEMO`), el cursor es falso y los clics se sienten desfasados (le pasó al usuario el 2026-10-24).
+- En modo demo, `__platanus.screenOf({x,y,z})` da la posición en pantalla de un punto 3D: sirve para pruebas con el ratón real. Tras recargar, esperar a que la cámara termine de volar.
 - El texto del Simulador es fijo: en el escenario `feria` dice «Lo marqué en amarillo» aunque el modo solo lectura lo rechace. Un agente real ve el rechazo; no es un fallo de la app.
 - El usuario usa **la misma ventana** de la app: los scripts CDP pueden chocar con sus clics. Mejor `window.__platanus` en modo demo que simular el ratón.
 - No editar el repo team-12 mientras el usuario lo tiene abierto en la app: cada guardado aparecía como «Se guardaron cambios» en su chat (ahora solo en Dev).

@@ -32,11 +32,14 @@ export function createBuildSiteView({ sceneView, labels, buildViewModel, hands =
   function drawSite(site) {
     let s = sites.get(site.folder);
     const sheets = site.papers + 1; // an empty site already shows one sheet: it is a folder
-    if (s && s.sheets === sheets && s.x === site.x && s.z === site.z) return s;
+    if (s && s.sheets === sheets && s.x === site.x && s.z === site.z && s.kind === site.kind) return s;
+    // it became a folder the map draws (or the other way): its label changes too
+    if (s && s.kind !== site.kind) { s.label?.remove(); s.label = null; }
     if (s?.group) layer.remove(s.group);
     const isNew = !s;
     s ??= { label: null, rise: 0 };
     s.sheets = sheets;
+    s.kind = site.kind;
     s.x = site.x;
     s.z = site.z;
     // a folder the map already shows (it has problems) keeps its own building; root files use the plaza

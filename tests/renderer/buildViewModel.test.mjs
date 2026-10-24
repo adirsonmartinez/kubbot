@@ -144,3 +144,63 @@ test('when the last file is in, the robot says what it built and waves', () => {
     assert.ok(g.stepId.endsWith(':done'));
   } finally { mock.timers.reset(); }
 });
+
+test('review: a save reported before its tool event (OpenCode) is one file, not two', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const { vm, run } = setup();
+    // the chat adds a done step from the change first, then the tool event takes it over (new id, running), then done
+    const r = run([{ id: 'change-1', kind: 'tool', name: 'write_file', target: 'src/a.js', status: 'done', fromChange: true, diff: { created: true } }]);
+    r.update((x) => ({ ...x, steps: x.steps.map((s) => ({ ...s, id: 't1', status: 'running', fromChange: false })) }));
+    r.set('t1', 'done');
+    mock.timers.tick(TIMING.walkMaxMs); mock.timers.tick(TIMING.dropMs); mock.timers.tick(TIMING.walkMaxMs); mock.timers.tick(TIMING.dropMs);
+    assert.equal(vm.store.state.sites[0].papers, 1);
+    assert.match(vm.store.state.guide.text, /1 archivo nuevo/);
+  } finally { mock.timers.reset(); }
+});
+
+test('review: the card disappearing (new chat) never leaves the robot stuck carrying', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const { vm, run, write, chatViewModel } = setup();
+    run([write('w1', 'src/a.js'), write('w2', 'src/b.js')]);
+    mock.timers.tick(TIMING.walkMaxMs);
+    chatViewModel.store.set({ messages: [] });
+    mock.timers.tick(TIMING.failMs);
+    mock.timers.tick(TIMING.lingerMs);
+    assert.equal(vm.store.state.active, false);
+    assert.equal(vm.store.state.guide, null);
+  } finally { mock.timers.reset(); }
+});
+
+test('review: new or changed is decided per write (the step diff), not per path', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const { vm, run } = setup();
+    const r = run([
+      { id: 'w1', kind: 'tool', name: 'write_file', target: 'src/a.js', status: 'running' },
+      { id: 'w2', kind: 'tool', name: 'write_file', target: 'src/a.js', status: 'running' },
+    ]);
+    r.update((x) => ({ ...x, steps: x.steps.map((s) => (s.id === 'w1' ? { ...s, status: 'done', diff: { created: true } } : s)) }));
+    mock.timers.tick(TIMING.walkMaxMs); mock.timers.tick(TIMING.dropMs);
+    r.update((x) => ({ ...x, steps: x.steps.map((s) => (s.id === 'w2' ? { ...s, status: 'done', diff: { created: false } } : s)) }));
+    mock.timers.tick(TIMING.walkMaxMs); mock.timers.tick(TIMING.editMs);
+    assert.deepEqual([vm.store.state.sites[0].papers, vm.store.state.sites[0].edits], [1, 1]);
+  } finally { mock.timers.reset(); }
+});
+
+test('review: starting the tour stops the work on the map at once; explaining runs build nothing', () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const { vm, run, write, tourViewModel } = setup();
+    run([write('w1', 'src/a.js')]);
+    assert.equal(vm.store.state.active, true);
+    tourViewModel.store.set({ status: 'playing' });
+    assert.equal(vm.store.state.active, false);
+    assert.deepEqual(vm.store.state.sites, []);
+
+    const second = setup();
+    second.run([second.write('w1', 'src/a.js')], { intent: 'explain' });
+    assert.equal(second.vm.store.state.active, false);
+  } finally { mock.timers.reset(); }
+});

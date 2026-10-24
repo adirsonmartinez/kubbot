@@ -1,11 +1,10 @@
 // Building live: while an agent (chat or repair) saves files, the robot carries each one as a sheet of
 // paper to its folder and drops it in, so the person sees the project being built. The source is the
-// chat's run cards (their write_file steps); EVENTS.agentChanged / repairChanged say whether a file is
-// new. A folder the map does not draw (the map only shows problems) appears as a temporary "site"
+// chat's run cards: their write_file steps, and each step's diff (diff.created) says whether the file is
+// new. Explaining runs (read-only) build nothing; a card that disappears lets its work go. A folder the map does not draw (the map only shows problems) appears as a temporary "site"
 // while the work lasts (views/scene/buildSiteView.js); the robot is driven through `guide`
 // (views/scene/robotView.js), like the tour. One file at a time, in the order the agent wrote them.
 import { Observable } from '../core/observable.js';
-import { EVENTS } from '../core/eventBus.js';
 import { clamp } from '../core/format.js';
 import { strings } from '../i18n/es.js';
 import { findNode } from '../models/fileTree.js';
@@ -28,7 +27,7 @@ export class BuildViewModel {
   #current = null;       // the job being carried
   #arrived = false;
   #timer = null;         // arrival, drop or linger
-  #created = new Map();  // path -> true/false from the agent's change events
+  #moves = 0;            // the robot's target moved under it (the map rearranged)
   #sites = new Map();    // folder -> { folder, papers, edits }
 
   // active: there is work (or it just ended); sites: [{ folder, label, kind, x, z, papers, edits, current }]
@@ -36,16 +35,16 @@ export class BuildViewModel {
   // drop: the last sheet going into a folder { key, folder, from, x, z } (the view animates it)
   store = new Observable({ active: false, sites: [], guide: null, drop: null });
 
-  constructor({ chatViewModel, mapViewModel, projectModel, tourViewModel = null, bus, timing = {} }) {
+  constructor({ chatViewModel, mapViewModel, projectModel, tourViewModel = null, timing = {} }) {
     this.#chat = chatViewModel;
     this.#map = mapViewModel;
     this.#project = projectModel;
     this.#tour = tourViewModel;
     this.#timing = { ...TIMING, ...timing };
-    bus.on(EVENTS.agentChanged, (c) => { if (typeof c?.diff?.created === 'boolean') this.#created.set(c.path, c.diff.created); });
-    bus.on(EVENTS.repairChanged, ({ change }) => { if (typeof change?.diff?.created === 'boolean') this.#created.set(change.path, change.diff.created); });
     chatViewModel.store.subscribe((state) => this.#watch(state));
-    mapViewModel.store.subscribe(() => { if (this.store.state.active) this.#publish(); }); // folders may move
+    mapViewModel.store.subscribe(() => { if (this.store.state.active) { this.#publish(); this.#follow(); } }); // folders may move
+    // the tour takes the robot and the map: the work on the map stops at once
+    tourViewModel?.store.subscribe(({ status }) => { if (status !== 'idle' && this.store.state.active) this.#reset(); });
     let session = projectModel.store.state.session;
     projectModel.store.subscribe(({ session: now }) => { if (now !== session) { session = now; this.#reset(); } });
   }
@@ -53,26 +52,44 @@ export class BuildViewModel {
   // New write steps join the line; known ones update their status; the person's approval is waited for
   #watch(state) {
     const touring = (this.#tour?.store.state.status ?? 'idle') !== 'idle';
+    const seen = new Set();
     for (const m of state.messages) {
       const run = m.run;
       if (!run) continue;
       for (const s of run.steps ?? []) {
         if (s.name !== 'write_file' || !s.target) continue;
         const key = `${m.id}:${s.id}`;
-        const job = this.#jobs.get(key);
-        if (job) { job.status = s.status; continue; }
-        if (run.status !== 'running' || touring) continue; // old cards are history, not work
+        let job = this.#jobs.get(key);
+        if (!job) {
+          // the same write under a new id: a save reported before its tool event, whose step the tool took over
+          job = [...this.#jobs.values()].find((j) => j.run === m.id && j.path === s.target && !run.steps.some((x) => `${m.id}:${x.id}` === j.key));
+          if (job) this.#rekey(job, key);
+        }
+        if (job) {
+          seen.add(key);
+          job.status = s.status;
+          if (typeof s.diff?.created === 'boolean') job.created = s.diff.created; // this write's own answer
+          continue;
+        }
+        // old cards are history, not work; a run that only explains changes nothing
+        if (run.status !== 'running' || touring || run.intent === 'explain' || s.status === 'skipped') continue;
         const exists = Boolean(findNode(this.#project.store.state.tree ?? [], s.target));
-        this.#jobs.set(key, { key, path: s.target, folder: folderOf(s.target), status: s.status, created: !exists, run: m.id });
+        this.#jobs.set(key, { key, path: s.target, folder: folderOf(s.target), status: s.status, created: s.diff?.created ?? !exists, run: m.id });
         this.#queue.push(key);
+        seen.add(key);
         if (!this.#sites.has(folderOf(s.target))) this.#sites.set(folderOf(s.target), { folder: folderOf(s.target), papers: 0, edits: 0 });
       }
     }
+    // a card that is gone (a new chat): its waiting files are dropped and the one in hand is let go
+    this.#queue = this.#queue.filter((k) => seen.has(k));
+    const holding = this.#current && this.#jobs.get(this.#current);
+    if (holding && !seen.has(holding.key) && !holding.done) holding.status = 'gone';
     if (!this.#current && this.#queue.length) return this.#next();
     const job = this.#current && this.#jobs.get(this.#current);
     if (!job) return;
     const run = state.messages.find((m) => m.id === job.run)?.run;
     const waiting = run?.awaiting === job.path && job.status === 'running';
+    if (job.status === 'gone') return this.#check();
     const { guide } = this.store.state;
     if (guide?.carrying) {
       const text = waiting ? B.waiting(nameOf(job.path)) : B.saving(nameOf(job.path));
@@ -119,13 +136,17 @@ export class BuildViewModel {
     const name = nameOf(job.path);
     const site = this.#sites.get(job.folder);
     const t = this.#timing;
+    if (job.status === 'gone' || job.status === 'skipped') { // nothing to tell: the card went, or it only explained
+      this.store.set({ guide: { ...guide, stepId: `${job.key}:fail`, pose: 'idle', carrying: false } });
+      this.#timer = setTimeout(() => this.#next(), t.failMs);
+      return;
+    }
     if (job.status !== 'done') {
       this.store.set({ guide: { ...guide, stepId: `${job.key}:fail`, pose: 'idle', carrying: false, text: B.notSaved(name) } });
       this.#timer = setTimeout(() => this.#next(), t.failMs);
       return;
     }
-    const created = this.#created.get(job.path) ?? job.created;
-    if (created) {
+    if (job.created) {
       this.store.set({
         guide: { ...guide, stepId: `${job.key}:drop`, pose: 'drop', carrying: false, text: B.saved(name) },
         drop: { key: job.key, folder: job.folder, from: guide.to, x: guide.center.x, z: guide.center.z },
@@ -135,6 +156,24 @@ export class BuildViewModel {
       this.store.set({ guide: { ...guide, stepId: `${job.key}:edit`, pose: 'point', carrying: false, text: B.edited(name) } });
       this.#timer = setTimeout(() => { site.edits++; this.#publish(); this.#next(); }, t.editMs);
     }
+  }
+
+  #rekey(job, key) {
+    this.#jobs.delete(job.key);
+    this.#queue = this.#queue.map((k) => (k === job.key ? key : k));
+    if (this.#current === job.key) this.#current = key;
+    job.key = key;
+    this.#jobs.set(key, job);
+  }
+
+  // The map rearranged (a new folder appeared): if the folder the robot carries to moved, it follows
+  #follow() {
+    const job = this.#current && this.#jobs.get(this.#current);
+    const { guide } = this.store.state;
+    if (!job || !guide?.carrying) return;
+    const place = this.#places().get(job.folder);
+    if (Math.hypot(place.x - guide.center.x, place.z - guide.center.z) < 0.5) return;
+    this.store.set({ guide: { ...guide, from: guide.to, to: place.stand, center: { x: place.x, z: place.z }, walkMs: this.#timing.walkMinMs, stepId: `${job.key}:carry~${++this.#moves}` } });
   }
 
   // Where each site is: the folder's building, the plaza for root files, or a temporary place

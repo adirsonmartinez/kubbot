@@ -15,6 +15,11 @@
 - thinking-orbs only has the 20, 32 and 64 px presets. The `thinkingOrb()` wrapper maps any size to the nearest one; never pass another size straight to the package.
 - Chat scroll: the newest question stays anchored at the top while its answer streams, until the person scrolls (`anchorId` in `chatView.js`).
 
+## Map interaction
+- A lifted object drawn under the cursor: shift its ground spot toward the camera by `offset/offset.y * height`, keep the grip offset from where it was grabbed, and decide the drop target from the visual spot. Mark the target with a ring while dragging.
+- Fake mouse checks with CDP: locate things with `__platanus.screenOf` (demo mode), not by scanning the screen; a grid scan of `evaluate` calls takes minutes.
+- Review workflows on new stateful view models pay off. The building-live review found real races: steps re-keyed when OpenCode reports late, cards vanishing on a new chat, the tour starting mid-build, rejected repair writes shown as saved.
+
 ## Agents and MCP
 - When the person asks to understand, keep it read-only end to end. `questionIntent` → `readOnly` → `/ro` MCP, `explainNote` in the prompt, and no repair or audit chips after. Offering repairs after an explanation feels pushy and off-topic to them.
 - Real agents can take more than 25 s for a tour narration (Grok took about 40 s with 3 reads). The script plays first and the timeout is 120 s.
