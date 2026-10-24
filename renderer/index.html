@@ -17,6 +17,9 @@
   <link rel="stylesheet" href="styles/controls.css" />
   <link rel="stylesheet" href="styles/dock.css" />
   <link rel="stylesheet" href="styles/labels.css" />
+  <link rel="stylesheet" href="styles/hud.css" />
+  <link rel="stylesheet" href="styles/panel.css" />
+  <link rel="stylesheet" href="styles/editor.css" />
   <script type="importmap">
     { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/", "thinking-orbs/engine": "./vendor/thinking-orbs/engine.es.js", "@mediapipe/tasks-vision": "../node_modules/@mediapipe/tasks-vision/vision_bundle.mjs" } }
   </script>
@@ -48,7 +51,7 @@
   <div id="workspace">
 
     <aside id="sidebar" class="card">
-      <header class="card-head"><span id="sidebar-title"></span><div id="sidebar-actions" class="sidebar-actions"></div></header>
+      <header class="card-head"><span id="sidebar-title"></span><div id="sidebar-actions" class="sidebar-actions"></div><button class="chat-toggle sidebar-close" id="sidebar-close" type="button" data-i18n-title="shell.closePanel" data-i18n-aria="shell.closePanel"><i data-icon="minus"></i></button></header>
       <div id="sidebar-body" class="sidebar-body"></div>
       <div id="agent-connect" class="sidebar-body" hidden></div>
     </aside>

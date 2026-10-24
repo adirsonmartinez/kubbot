@@ -382,7 +382,6 @@ button.tag-chip { cursor: pointer; }
   background: transparent; color: var(--muted); font: 11.5px var(--font); text-align: left; cursor: pointer;
 }
 .guide-sub:hover { background: var(--panel); color: var(--ink); }
-.guide-sub i { width: 6px; height: 6px; border-radius: 2px; flex: none; }
 
 /* ---------- Explorer: Dev tree ---------- */
 .side-row .chevron { display: inline-block; width: 10px; color: var(--faint); transition: transform .15s ease; }
@@ -957,10 +956,8 @@ body.sidebar-closed #sidebar.card {
 @media (prefers-reduced-motion: reduce) {
   #sidebar.card, body.sidebar-closed #sidebar.card { transition: none; }
 }
-/* The panel opens under the map's top-left counts; tabs center on the visible map */
+/* The panel opens under the map's top-left counts */
 #sidebar.card { top: 56px; }
-#stage .stage-tabs { transition: left .28s cubic-bezier(.2, .8, .2, 1); }
-body:not(.sidebar-closed) #stage .stage-tabs { left: calc(50% + 154px); }
 body:not(.sidebar-closed) #stage #folder-panel, body:not(.sidebar-closed) #stage #schema-panel { left: 318px; }
 
 /* =====================================================================
@@ -974,10 +971,6 @@ body.sidebar-closed.chat-closed #workspace, body.chat-min.sidebar-closed #worksp
 }
 #workspace > #stage { grid-column: 1; }
 #sidebar.card { left: 16px; }
-body { --shift-l: 0px; --shift-r: 0px; }
-body:not(.sidebar-closed) { --shift-l: 154px; }
-body:not(.chat-closed):not(.chat-min) { --shift-r: -194px; }
-#stage .stage-tabs, body:not(.sidebar-closed) #stage .stage-tabs { left: calc(50% + var(--shift-l) + var(--shift-r)); }
 
 /* Chat: dark glass card floating on the map's right side */
 #workspace > #chat.card {
@@ -1009,14 +1002,11 @@ body.chat-closed .chat-launcher { display: block; }
 
 @media (max-width: 820px) {
   #workspace > #chat.card { left: 16px; width: auto; }
-  body { --shift-l: 0px; --shift-r: 0px; }
 }
 @media (prefers-reduced-motion: reduce) {
   #workspace > #chat.card, body.chat-closed #workspace > #chat.card { transition: none; }
 }
-body:not(.chat-closed):not(.chat-min) #stage #hud { right: 402px; }
-#stage #hud, .remi-layer { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
-body.chat-closed #stage #hud, body.chat-min #stage #hud { right: 76px; }
+.remi-layer { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
 
 /* ---------- Icon-only floating bar, drag to reorder ---------- */
 #stage .stage-tabs.icon-bar { gap: 2px; padding: 4px; }
@@ -1040,64 +1030,28 @@ body.chat-closed #stage #hud, body.chat-min #stage #hud { right: 76px; }
 .icon-bar > button.drop-before { box-shadow: inset 2px 0 0 var(--accent); }
 .icon-bar > button.drop-after { box-shadow: inset -2px 0 0 var(--accent); }
 .icon-bar > button.drop-before.active, .icon-bar > button.drop-after.active { background: var(--panel-2); }
-/* Round bar with round icons; the bar re-centers on the visible map as the panel and the chat open or fold */
+/* Round bar with round icons */
 .icon-bar > button { width: 40px; height: 40px; border-radius: 999px; }
 .icon-bar > button svg { width: 20px; height: 20px; }
 #stage .stage-tabs.icon-bar { padding: 5px; gap: 3px; border-radius: 999px; top: 12px; }
 /* Divider between the side panels and the views */
 .icon-bar-divider { width: 1px; height: 22px; margin: 0 6px; background: var(--line-strong); flex: none; }
-#stage .stage-tabs.icon-bar { left: calc(50% + var(--shift-l) + var(--shift-r)); transform: translateX(-50%); transition: left .28s cubic-bezier(.2, .8, .2, 1); }
+/* Centered on the map; it never moves when the side panel or the chat open */
+#stage .stage-tabs.icon-bar { left: 50%; transform: translateX(-50%); }
 #sidebar.card { top: 62px; }
 
 body:not(.sidebar-closed) #stage #git-panel { left: 318px; }
 
-/* ---------- Floating windows on the map (drag by the bar, minimize to the bar) ---------- */
-#stage .floater { position: absolute; z-index: 7; display: flex; flex-direction: column; gap: 4px; }
-#stage .floater[hidden] { display: none; }
-#stage .floater > #hud { position: static; inset: auto; top: auto; right: auto; bottom: auto; left: auto; transform: none; }
-#stage #hud-float { right: 14px; bottom: 14px; }
-body:not(.chat-closed):not(.chat-min) #stage .floater:not(.moved) { right: 402px; }
-body.chat-closed #stage #hud-float:not(.moved), body.chat-min #stage #hud-float:not(.moved) { right: 76px; }
-#stage .floater:not(.moved) { transition: right .28s cubic-bezier(.2, .8, .2, 1); }
-.floater-bar {
-  display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 4px 0 6px; align-self: flex-end;
-  border-radius: 9px; background: rgba(16, 18, 24, .86); border: 1px solid var(--line-strong);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
-  color: var(--muted); font: 600 11px var(--font); cursor: grab; user-select: none; touch-action: none;
-  opacity: .55; transition: opacity .15s;
-}
-#stage .floater:hover .floater-bar, #stage .floater.min .floater-bar, #stage .floater.dragging .floater-bar { opacity: 1; }
-#stage .floater.dragging .floater-bar { cursor: grabbing; }
-.floater-grip svg { width: 14px; height: 14px; fill: currentColor; display: block; }
-.floater-title { display: none; }
-#stage .floater.min .floater-title { display: inline; color: var(--ink); }
-.floater-min { width: 20px; height: 20px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: 700 13px var(--font); cursor: pointer; }
-.floater-min:hover { background: var(--panel-2); color: var(--ink); }
-#stage .floater.min > :not(.floater-bar) { display: none; }
-#stage .floater.dragging { opacity: .92; }
-/* (ids, so these win over the default positions above) */
-body:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 402px; }
-
-/* ---------- Side panel and chat: drag by their header ---------- */
+/* ---------- Chat: drag by its header (the side panel stays in its place) ---------- */
 .drag-handle { cursor: grab; user-select: none; touch-action: none; }
-#sidebar.dragging, #chat.dragging { transition: none !important; box-shadow: 0 30px 70px rgba(0, 0, 0, .55); }
-#sidebar.dragging .drag-handle, #chat.dragging .drag-handle { cursor: grabbing; }
-/* When moved by hand, the rest of the layout stops making room for them */
-body.sidebar-moved { --shift-l: 0px; }
-body.chat-moved { --shift-r: 0px; }
-body.chat-moved:not(.chat-closed):not(.chat-min) #stage #hud-float:not(.moved) { right: 14px; }
+#chat.dragging { transition: none !important; box-shadow: 0 30px 70px rgba(0, 0, 0, .55); }
+#chat.dragging .drag-handle { cursor: grabbing; }
+/* When moved by hand, the rest of the layout stops making room for it */
 body.chat-moved:not(.chat-closed):not(.chat-min) .remi-layer { right: 14px; }
-body.chat-moved:not(.chat-closed):not(.chat-min) { --shift-r: 0px; }
 
 /* ---------- Pinned chat: a column on the right, information above, adjustable width ---------- */
 body.chat-docked #workspace { grid-template-columns: minmax(0, 1fr) var(--chat-w, 372px); gap: 8px; }
-body.chat-docked:not(.chat-closed):not(.chat-min) { --shift-r: 0px; }
 #chat-dock { grid-column: 2; display: flex; flex-direction: column; gap: 8px; min-height: 0; min-width: 0; padding-bottom: 8px; }
-#chat-dock-info:empty { display: none; }
-#chat-dock-info .floater { position: static; display: flex; flex-direction: column; }
-#chat-dock-info .floater-bar { align-self: flex-end; opacity: 1; }
-#chat-dock-info #hud { flex-wrap: wrap; justify-content: space-between; row-gap: 10px; width: auto; box-sizing: border-box; }
-#chat-dock-info .floater:not(.min) #hud { margin: 0; }
 body.chat-docked #chat-dock > #chat.card {
   position: relative; inset: auto; width: auto; flex: 1; min-height: 0; transform: none; opacity: 1; visibility: visible;
   left: auto !important; top: auto !important; right: auto !important; bottom: auto !important; height: auto !important;
@@ -1112,32 +1066,6 @@ body.chat-resizing, body.chat-resizing * { cursor: ew-resize !important; user-se
 body.chat-resizing #workspace { transition: none; }
 /* Floating chat follows the width too */
 #workspace > #chat.card { width: var(--chat-w, 372px); }
-/* The HUD is positioned for the map; inside the pinned column it flows in the layout */
-#chat-dock-info #hud { position: static !important; inset: auto !important; transform: none !important; margin: 0; }
-#chat-dock-info .floater { margin: 0; }
-
-/* ---------- Floating cards: minimize anywhere; docked above the pinned chat ---------- */
-.floater.min > :not(.floater-bar) { display: none !important; }
-.floater.docked { position: static !important; }
-.floater.docked > #hud { position: static !important; inset: auto !important; transform: none !important; margin: 0; }
-/* Docked security card: one compact row (ring + score, then the counters) */
-.floater.docked #hud {
-  display: grid !important; grid-template-columns: auto repeat(4, minmax(0, 1fr)); align-items: center;
-  gap: 10px; padding: 12px 14px; box-sizing: border-box; width: 100%;
-}
-.floater.docked #hud .hud-ring { gap: 8px; }
-.floater.docked #hud strong { font-size: 17px; }
-.floater.docked #hud span { font-size: 10.5px; white-space: nowrap; }
-.floater.docked .floater-bar { opacity: .7; }
-/* While dragging a card over the pinned column: letting go docks it there */
-#chat-dock.drop-here { outline: 2px dashed color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; border-radius: 16px; }
-#chat-dock.drop-here #chat-dock-info:empty { display: block; height: 70px; border-radius: 14px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
-#workspace .floater.min > :not(.floater-bar) { display: none !important; } /* wins over the docked card layout */
-/* Docked security card: score on top, the four counters below (fits any chat width) */
-.floater.docked #hud { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; row-gap: 12px; }
-.floater.docked #hud .hud-ring { grid-column: 1 / -1; }
-.floater.docked #hud .hud-stat { min-width: 0; }
-.floater.docked #hud .hud-stat span { overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Side dock: vertical icon bar on the map's left edge; the side panel opens beside it ---------- */
 #stage .side-dock {
@@ -1154,7 +1082,6 @@ body.chat-resizing #workspace { transition: none; }
 #side-dock button:hover .tip, #side-dock button:focus-visible .tip { opacity: 1; transform: translate(0, -50%); }
 /* The side panel sits right of the dock (8px workspace padding + 14px + 50px dock + 10px gap) */
 #sidebar.card { left: 82px; }
-body:not(.sidebar-closed) { --shift-l: 191px; }
 body.no-project #side-dock { display: none; }
 
 /* ---------- Floating editor: files clicked on the map, one tab each (editorView.js) ---------- */

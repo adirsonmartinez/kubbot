@@ -9,12 +9,12 @@ El **mapa ocupa toda la ventana**. Todo lo demás flota encima y se puede plegar
 
 | Pieza | Dónde está | Qué hace |
 |---|---|---|
-| Barra de íconos | Arriba, centrada en el mapa visible | Paneles (Explorador, Riesgos, Reparaciones, Conecta tu agente) y vistas (Mapa, Git). Solo íconos: el nombre y la descripción salen al pasar el mouse. **Se ordena arrastrando** (o Alt+← / Alt+→) y el orden se recuerda. |
+| Barra de íconos | Arriba, centrada en el mapa (no se mueve al abrir el panel o el chat) | Paneles (Explorador, Riesgos, Reparaciones, Conecta tu agente) y vistas (Mapa, Git). Solo íconos: el nombre y la descripción salen al pasar el mouse. **Se ordena arrastrando** (o Alt+← / Alt+→) y el orden se recuerda. |
 | Botón del panel | Arriba a la izquierda del mapa | Abre o cierra el panel lateral del ícono marcado. |
 | Ruta | Al lado del botón del panel | El proyecto y la carpeta abierta (`team-12 / src`; tocar el proyecto o Esc la cierra) y sus archivos por semáforo: en riesgo, por revisar, seguros. |
-| Panel lateral | Flota a la izquierda | Explorador (Vibe: guía con nombres sencillos; Dev: árbol completo con búsqueda), Riesgos (la única lista de riesgos), Reparaciones (historial de Remi y del agente), Conecta tu agente. **Se arrastra por su encabezado**; doble clic lo devuelve a su lugar. |
-| Chat | Flota a la derecha | **Pin** 📌: lo fija como columna y el mapa le deja su espacio; arriba aparece la tarjeta de seguridad. **Borde izquierdo**: cambia el ancho (300–720 px, doble clic lo resetea). Se arrastra por su encabezado cuando no está fijado. Minimizado o cerrado, queda el botón flotante del agente (abajo a la derecha) con su menú. |
-| Tarjeta de seguridad | Abajo a la derecha del mapa, o anclada sobre el chat fijado | Puntaje, archivos, en riesgo, por revisar, commits. Sus números de riesgo abren la lista de Riesgos. Se **arrastra** por su barrita (⠿), se **minimiza** con "–" y se **ancla** soltándola sobre la columna del chat (se ilumina al pasar). Doble clic en la barrita: vuelve a su lugar. |
+| Panel lateral | Flota a la izquierda | Explorador (Vibe: guía con nombres sencillos; Dev: árbol completo con búsqueda), Riesgos (la única lista de riesgos), Reparaciones (historial de Remi y del agente), Conecta tu agente. Queda fijo junto al dock; el "–" de su encabezado lo cierra, como el del chat. |
+| Chat | Flota a la derecha | **Pin** 📌: lo fija como columna y el mapa le deja su espacio. **Borde izquierdo**: cambia el ancho (300–720 px, doble clic lo resetea). Se arrastra por su encabezado cuando no está fijado. Minimizado o cerrado, queda el botón flotante del agente (abajo a la derecha) con su menú. |
+| Tarjeta de seguridad | Fija arriba a la derecha del mapa (el chat abierto puede quedar encima) | Puntaje, archivos, en riesgo, por revisar, commits. Sus números de riesgo abren la lista de Riesgos. No se mueve ni se minimiza. |
 | Menú de arriba (macOS) | Barra del sistema | Solo Platanus, Edición y Ventana: los menús de la app (Archivo, Ver, Agente…) están dentro de la ventana. |
 
 Cada cosa aparece **una sola vez**: la lista de riesgos está en el panel, los totales en la tarjeta de
@@ -203,8 +203,7 @@ falló. Desde ahí se marca como verificado, se deshace un cambio o se reintenta
 |---|---|
 | `views/ui/shellView.js` | Menús, barra de íconos (contenido y descripciones), panel lateral (explorador, riesgos, reparaciones), barra de estado. |
 | `views/ui/iconBarView.js` | Ordenar los íconos arrastrando o con Alt+flechas; recuerda el orden. |
-| `views/ui/draggable.js` | Arrastrar el panel lateral y el chat por su encabezado. |
-| `views/ui/floater.js` | Tarjetas flotantes del mapa: barrita para mover, minimizar y anclar (la tarjeta de seguridad). |
+| `views/ui/draggable.js` | Arrastrar el chat por su encabezado. |
 | `views/ui/chatDockView.js` | Pin del chat (columna a la derecha + zona de información arriba) y su ancho. |
 | `views/ui/chatView.js`, `runCardView.js`, `markdown.js` | Mensajes, tarjetas de respuesta en vivo, Markdown seguro (escapa todo antes) con tarjetas y enlaces a archivos, interruptor Vibe/Dev. |
 | `views/ui/chatCardsView.js` | Tarjetas de carpeta y archivo en el chat, botones de acción. |
@@ -238,9 +237,8 @@ sistema) asegura que se escriba.
 | `platanus.mode.v1` | Vibe o Dev. |
 | `platanus.repairs.v1:<proyecto>` | Historial de reparaciones de cada proyecto. |
 | `platanus.iconbar.order.v1` | Orden de la barra de íconos. |
-| `platanus.drag.v1:sidebar` / `:chat` | Posición del panel y del chat movidos a mano. |
+| `platanus.drag.v1:chat` | Posición del chat movido a mano. |
 | `platanus.chat.dock.v1` | Chat fijado y su ancho. |
-| `platanus.float.v1:hud` | Posición, minimizado y anclaje de la tarjeta de seguridad. |
 
 En la carpeta de datos de Electron: `recent.json` (proyectos recientes) y `mcp-token` (llave del servidor
 MCP, solo legible por tu usuario). Las copias de los cambios del agente van a `~/.platanus/backups/`.

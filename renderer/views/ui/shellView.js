@@ -3,7 +3,6 @@
 // Only draws ShellViewModel and forwards clicks to view model actions.
 import { strings } from '../../i18n/es.js';
 import { daysAgo } from '../../core/format.js';
-import { TAG_COLOR } from '../../models/folderTags.js';
 import { createDevTree } from './devTreeView.js';
 import { icon } from '../icons.js';
 import { createFloatingMenu } from './floatingMenu.js';
@@ -20,17 +19,6 @@ const el = (tag, className, text) => {
   if (className) node.className = className;
   if (text != null) node.textContent = text;
   return node;
-};
-
-const tagChip = (tag, { active = false, onClick = null } = {}) => {
-  const chip = el(onClick ? 'button' : 'span', `tag-chip${active ? ' active' : ''}`, strings.tags[tag] ?? tag);
-  chip.style.setProperty('--c', TAG_COLOR[tag] ?? '#8c909c');
-  if (onClick) {
-    chip.type = 'button';
-    chip.setAttribute('aria-pressed', String(active));
-    chip.addEventListener('click', onClick);
-  }
-  return chip;
 };
 
 // Hover card for icon buttons: name + one line of what it is for
@@ -128,6 +116,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
   const explorerToggle = el('div');
   modeToggle(explorerToggle);
   $('sidebar-actions').appendChild(explorerToggle);
+  $('sidebar-close').addEventListener('click', () => vm.toggleSidebar()); // "–" in the panel's header, like the chat's
 
   // --- Rail (icons with a hover card: name + what it is for) ---
   for (const button of document.querySelectorAll('#side-dock [data-side]')) {
@@ -155,8 +144,10 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
   const sidebarTitle = $('sidebar-title');
   const sidebarBody = $('sidebar-body');
 
-  const dot = (level) => {
-    const d = el('span', `level-dot ${level}`);
+  // Folder or file icon, tinted by its traffic light (safe stays grey)
+  const entryIcon = (name, level) => {
+    const d = el('span', `entry-icon ${level}`);
+    d.innerHTML = icon(name); // static icon
     d.title = LEVEL_LABEL[level];
     return d;
   };
@@ -175,10 +166,8 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
       const card = el('button', 'guide-card');
       card.type = 'button';
       const head = el('div', 'guide-head');
-      head.append(dot(g.red ? 'red' : g.yellow ? 'yellow' : 'green'), el('strong', '', g.name), counters(g.red, g.yellow));
-      const tags = el('div', 'tag-row');
-      g.tags.forEach((t) => tags.appendChild(tagChip(t)));
-      card.append(head, el('span', 'guide-folder', `${g.folder}/`), el('p', 'guide-summary', g.summary), tags);
+      head.append(entryIcon('folder', g.red ? 'red' : g.yellow ? 'yellow' : 'green'), el('strong', '', g.name), counters(g.red, g.yellow));
+      card.append(head, el('span', 'guide-folder', `${g.folder}/`), el('p', 'guide-summary', g.summary));
       card.addEventListener('click', () => vm.showFolder(g.path));
       parts.push(card);
       const subs = state.guide.filter((x) => x.depth === 1 && x.path.startsWith(`${g.path}/`));
@@ -188,10 +177,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
           const row = el('button', 'guide-sub');
           row.type = 'button';
           row.title = sub.summary;
-          const tag = sub.tags[0];
-          const mark = el('i');
-          mark.style.background = TAG_COLOR[tag] ?? 'var(--faint)';
-          row.append(mark, el('span', '', sub.name), counters(sub.red, sub.yellow));
+          row.append(entryIcon('folder', sub.red ? 'red' : sub.yellow ? 'yellow' : 'green'), el('span', '', sub.name), counters(sub.red, sub.yellow));
           row.addEventListener('click', () => vm.showFolder(g.path));
           list.appendChild(row);
         });
@@ -210,8 +196,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     const row = el('button', 'side-row file');
     row.type = 'button';
     row.style.paddingLeft = `${8 + depth * 12}px`;
-    row.append(dot(file.level), el('span', 'side-name', file.name));
-    if (file.tags?.[0] && modeModel.tech) row.appendChild(tagChip(file.tags[0]));
+    row.append(entryIcon('file', file.level), el('span', 'side-name', file.name));
     row.title = file.path;
     row.addEventListener('click', () => vm.showFile(file.path));
     return row;
@@ -224,7 +209,9 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
 
   function repairButton(file) {
     const queued = repairViewModel.isQueued(file.path);
-    const b = el('button', `pill repair${queued ? ' active' : ''}`, queued ? strings.repair.repairing : strings.repair.repair);
+    const b = el('button', `pill repair${queued ? ' active' : ''}`);
+    b.innerHTML = icon('wrench'); // static icon
+    b.append(el('span', '', queued ? strings.repair.repairing : strings.repair.repair));
     b.type = 'button';
     b.disabled = queued;
     b.addEventListener('click', (e) => {
@@ -549,10 +536,13 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     if (!entries.length) return [el('p', 'side-intro', H.intro), el('p', 'side-empty', H.empty)];
     const parts = [el('p', 'side-intro', H.intro)];
     if (entries.some((e) => e.status !== 'working' && e.status !== 'queued')) {
-      const clear = el('button', 'link', H.clear);
+      // On its own row above the cards, so it never reads as part of the first one
+      const bar = el('div', 'repairs-bar');
+      const clear = el('button', 'repairs-clear', H.clear);
       clear.type = 'button';
       clear.addEventListener('click', () => repairHistory.clearFinished());
-      parts.push(clear);
+      bar.appendChild(clear);
+      parts.push(bar);
     }
     entries.forEach((entry, i) => parts.push(repairEntry(entry, i === 0)));
     return parts;
