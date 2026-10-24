@@ -156,8 +156,10 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
   const sidebarTitle = $('sidebar-title');
   const sidebarBody = $('sidebar-body');
 
-  const dot = (level) => {
-    const d = el('span', `level-dot ${level}`);
+  // Folder or file icon, tinted by its traffic light (safe stays grey)
+  const entryIcon = (name, level) => {
+    const d = el('span', `entry-icon ${level}`);
+    d.innerHTML = icon(name); // static icon
     d.title = LEVEL_LABEL[level];
     return d;
   };
@@ -176,7 +178,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
       const card = el('button', 'guide-card');
       card.type = 'button';
       const head = el('div', 'guide-head');
-      head.append(dot(g.red ? 'red' : g.yellow ? 'yellow' : 'green'), el('strong', '', g.name), counters(g.red, g.yellow));
+      head.append(entryIcon('folder', g.red ? 'red' : g.yellow ? 'yellow' : 'green'), el('strong', '', g.name), counters(g.red, g.yellow));
       const tags = el('div', 'tag-row');
       g.tags.forEach((t) => tags.appendChild(tagChip(t)));
       card.append(head, el('span', 'guide-folder', `${g.folder}/`), el('p', 'guide-summary', g.summary), tags);
@@ -189,10 +191,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
           const row = el('button', 'guide-sub');
           row.type = 'button';
           row.title = sub.summary;
-          const tag = sub.tags[0];
-          const mark = el('i');
-          mark.style.background = TAG_COLOR[tag] ?? 'var(--faint)';
-          row.append(mark, el('span', '', sub.name), counters(sub.red, sub.yellow));
+          row.append(entryIcon('folder', sub.red ? 'red' : sub.yellow ? 'yellow' : 'green'), el('span', '', sub.name), counters(sub.red, sub.yellow));
           row.addEventListener('click', () => vm.showFolder(g.path));
           list.appendChild(row);
         });
@@ -211,7 +210,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     const row = el('button', 'side-row file');
     row.type = 'button';
     row.style.paddingLeft = `${8 + depth * 12}px`;
-    row.append(dot(file.level), el('span', 'side-name', file.name));
+    row.append(entryIcon('file', file.level), el('span', 'side-name', file.name));
     if (file.tags?.[0] && modeModel.tech) row.appendChild(tagChip(file.tags[0]));
     row.title = file.path;
     row.addEventListener('click', () => vm.showFile(file.path));

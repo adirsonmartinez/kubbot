@@ -54,3 +54,11 @@
 #sidebar .task-status.fixed { background: var(--lg-chip-hover); color: var(--lg-text); }
 #sidebar .hub-agent.hub-agent-demo .hub-avatar { background: var(--lg-chip-hover); color: var(--lg-text); }
 #sidebar .hub-agent.hub-agent-selected { border-color: rgba(255, 255, 255, .35); background: var(--lg-card); box-shadow: var(--lg-rim); }
+
+/* Explorer rows: a folder or file icon (Hugeicons) instead of a dot, tinted by its traffic light. Safe stays
+   a calm grey; problems take their color and only red glows. */
+.entry-icon { display: grid; place-items: center; flex: none; width: 16px; height: 16px; color: var(--lg-icon-muted); }
+.entry-icon svg { width: 15px; height: 15px; }
+.entry-icon.yellow { color: var(--warn); }
+.entry-icon.red { color: var(--danger); filter: drop-shadow(0 0 4px rgba(255, 90, 106, .55)); }
+.guide-head .entry-icon svg { width: 16px; height: 16px; }

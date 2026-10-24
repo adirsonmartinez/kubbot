@@ -382,7 +382,6 @@ button.tag-chip { cursor: pointer; }
   background: transparent; color: var(--muted); font: 11.5px var(--font); text-align: left; cursor: pointer;
 }
 .guide-sub:hover { background: var(--panel); color: var(--ink); }
-.guide-sub i { width: 6px; height: 6px; border-radius: 2px; flex: none; }
 
 /* ---------- Explorer: Dev tree ---------- */
 .side-row .chevron { display: inline-block; width: 10px; color: var(--faint); transition: transform .15s ease; }

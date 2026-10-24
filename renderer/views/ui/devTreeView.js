@@ -1,8 +1,17 @@
 // Dev tree sidebar view: expandable folders + files with search, risk filter and keyboard nav.
 import { strings } from '../../i18n/es.js';
 import { TAG_COLOR } from '../../models/folderTags.js';
+import { icon } from '../icons.js';
 
 const S = strings.devTree;
+
+/** Folder (open or closed) or file icon, tinted by its traffic light (safe stays grey). */
+const entryIcon = (name, level) => {
+  const n = document.createElement('span');
+  n.className = `entry-icon ${level}`;
+  n.innerHTML = icon(name); // static icon
+  return n;
+};
 
 /** Tiny DOM helper. */
 const h = (tag, cls, text) => {
@@ -186,7 +195,7 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
 
       row.append(
         h('span', 'devtree-chevron', opened ? '▾' : '▸'),
-        h('span', `level-dot ${node.level}`, ''),
+        entryIcon(opened ? 'folderOpen' : 'folder', node.level),
         h('span', 'devtree-name', `${node.name}/`),
       );
 
@@ -211,7 +220,7 @@ export function createDevTree({ onOpenFolder, onOpenFile, onRepair, isRepairing 
     } else {
       // ---- file row ----
       row.append(
-        h('span', `level-dot ${node.level}`, ''),
+        entryIcon('file', node.level),
         h('span', 'devtree-name', node.name),
       );
 
