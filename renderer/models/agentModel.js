@@ -5,6 +5,7 @@
 import { strings } from '../i18n/es.js';
 import { escapeHtml } from '../core/format.js';
 import { baseName } from './fileTree.js';
+import { parseGitIntent } from './gitIntent.js';
 
 const AGENT = strings.agent;
 const FILES = AGENT.files;
@@ -50,88 +51,41 @@ export class AgentModel {
   }
 
   // ---- Git commands (detected before file commands) ----
-  // Patterns match common natural-language Spanish phrasing.
-  // The `context` chip injected from a selected commit looks like: «abc1234 · mensaje»
+  // renderer/models/gitIntent.js turns free-form Spanish ("necesito crear un commit que se llame x",
+  // "deshaz el último commit", "cámbiate a main") into an intent; here we only run it.
   async #gitCommand(text) {
     if (!GIT) return null; // strings not loaded yet
-    const t = text.trim();
+    const intent = parseGitIntent(text);
+    if (!intent) return null;
 
-    // -- commit --
-    // "haz commit con 'Fix auth bug'"
-    // "realiza un commit: Fix auth bug"
-    // «commit Fix auth bug»
-    const commitMatch = t.match(GIT.patterns.commit);
-    if (commitMatch) {
-      const message = (commitMatch[1] || commitMatch[2] || commitMatch[3] || '').trim().replace(/^['"`]|['"`]$/g, '');
-      if (!message) return { text: GIT.needsMessage };
-      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
-      const result = await this.#git.commit(message);
-      if (!result.ok) {
-        if (result.error === 'cancelled') return { text: GIT.cancelled };
-        return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
-      }
-      return { text: GIT.committed(message) };
+    if (intent.type === 'help') return { text: GIT.help };
+    if (intent.type === 'explain') return { text: GIT.explain[intent.topic] };
+    if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
+
+    const run = async (fn, ok) => {
+      const result = await fn();
+      if (result.ok) return ok;
+      if (result.error === 'cancelled') return { text: GIT.cancelled };
+      return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
+    };
+    switch (intent.type) {
+      case 'commit':
+        if (!intent.message) return { text: GIT.needsMessage };
+        return run(() => this.#git.commit(intent.message), { text: GIT.committed(intent.message) });
+      case 'revert': // no sha = the latest commit ("HEAD")
+        return run(() => this.#git.revert(intent.sha), { text: GIT.reverted(intent.sha) });
+      case 'reset': // destructive: never guess which commit
+        if (!intent.sha) return { text: GIT.needsSha };
+        return run(() => this.#git.reset(intent.sha), { text: GIT.reset(intent.sha) });
+      case 'createBranch':
+        if (!intent.name) return { text: GIT.needsBranchName };
+        return run(() => this.#git.createBranch(intent.name), { text: GIT.branchCreated(intent.name) });
+      case 'checkout':
+        if (!intent.target) return { text: GIT.needsBranchName };
+        return run(() => this.#git.checkout(intent.target), { text: GIT.checkedOut(intent.target) });
+      default:
+        return null;
     }
-
-    // -- revert (safe rollback: creates a new commit that undoes the SHA) --
-    // "rollback al commit abc1234"
-    // "revert abc1234"
-    // «revert abc1234 · Fix auth bug»  (from the chip injected by commitSelected)
-    const revertMatch = t.match(GIT.patterns.revert);
-    if (revertMatch) {
-      const sha = (revertMatch[1] || revertMatch[2] || '').trim().split(/\s/)[0];
-      if (!sha) return { text: GIT.needsSha };
-      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
-      const result = await this.#git.revert(sha);
-      if (!result.ok) {
-        if (result.error === 'cancelled') return { text: GIT.cancelled };
-        return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
-      }
-      return { text: GIT.reverted(sha) };
-    }
-
-    // -- reset --hard (destructive, always confirmed by Electron dialog) --
-    // "reset al commit abc1234"
-    const resetMatch = t.match(GIT.patterns.reset);
-    if (resetMatch) {
-      const sha = (resetMatch[1] || '').trim().split(/\s/)[0];
-      if (!sha) return { text: GIT.needsSha };
-      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
-      const result = await this.#git.reset(sha);
-      if (!result.ok) {
-        if (result.error === 'cancelled') return { text: GIT.cancelled };
-        return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
-      }
-      return { text: GIT.reset(sha) };
-    }
-
-    // -- create branch --
-    // "crea la rama feature/auth"
-    // "nueva rama hotfix/fix-login"
-    const branchMatch = t.match(GIT.patterns.createBranch);
-    if (branchMatch) {
-      const name = (branchMatch[1] || branchMatch[2] || '').trim();
-      if (!name) return { text: GIT.needsBranchName };
-      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
-      const result = await this.#git.createBranch(name);
-      if (!result.ok) return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
-      return { text: GIT.branchCreated(name) };
-    }
-
-    // -- checkout --
-    // "cambia a la rama develop"
-    // "checkout main"
-    const checkoutMatch = t.match(GIT.patterns.checkout);
-    if (checkoutMatch) {
-      const target = (checkoutMatch[1] || checkoutMatch[2] || '').trim();
-      if (!target) return { text: GIT.needsBranchName };
-      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
-      const result = await this.#git.checkout(target);
-      if (!result.ok) return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
-      return { text: GIT.checkedOut(target) };
-    }
-
-    return null;
   }
 
   #scripted(text) {

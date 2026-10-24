@@ -1,6 +1,18 @@
 # Chat Git en lenguaje natural
 
-Rama: `feature/chat-git-commands` · Archivo principal: [`demo/index.html`](../demo/index.html)
+Rama: `feature/chat-git-commands`
+
+## Dónde está el código
+
+| Dónde | Archivo | Git |
+|---|---|---|
+| **App Platanus** (chat "Agente Platanus") | [`renderer/models/gitIntent.js`](../renderer/models/gitIntent.js) + [`agentModel.js`](../renderer/models/agentModel.js), respuestas en `renderer/i18n/es.js`, tests en `tests/renderer/gitIntent.test.mjs` | **Real**, solo en la app de escritorio (`npm start`) vía `electron/git.js`. En el navegador responde que solo funciona en escritorio |
+| Demo standalone | [`demo/index.html`](../demo/index.html) | Simulado en memoria |
+
+`parseGitIntent(texto)` es una función pura: devuelve `{type:'commit'|'revert'|'reset'|'createBranch'|'checkout'|'explain'|'help', ...}` o `null`. `agentModel` solo ejecuta la intención. Diferencias de seguridad en la app real: `revert` sin SHA usa `HEAD` (último commit), `reset` **nunca** adivina el SHA (lo pide) y los nombres de rama nunca empiezan por `-`. Reset/revert/checkout siguen pidiendo confirmación en Electron.
+
+Lo que sigue describe el intérprete con ejemplos de la demo; las frases funcionan igual en la app.
+
 
 El chat de la guía ahora puede **ejecutar acciones de git** (commit, rollback, reset, ramas) y las refleja en el mapa 3D: cada commit construye un edificio y cada rollback/reset lo deshace. No hace falta memorizar una sintaxis: el intérprete entiende frases naturales, con o sin tildes, y está pensado para que luego funcione igual con **comandos de voz**.
 
