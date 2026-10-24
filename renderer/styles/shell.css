@@ -972,7 +972,7 @@ body.sidebar-closed.chat-closed #workspace, body.chat-min.sidebar-closed #worksp
 #workspace > #stage { grid-column: 1; }
 #sidebar.card { left: 16px; }
 
-/* Chat: dark glass card floating on the map's right side */
+/* Chat: glass card fixed at the map's bottom right (it does not move) */
 #workspace > #chat.card {
   position: absolute; z-index: 25; top: 8px; bottom: 8px; right: 16px; width: 372px; grid-column: auto;
   background: rgba(16, 18, 24, .86); border-color: var(--line-strong);
@@ -1042,12 +1042,8 @@ body.chat-closed .chat-launcher { display: block; }
 
 body:not(.sidebar-closed) #stage #git-panel { left: 318px; }
 
-/* ---------- Chat: drag by its header (the side panel stays in its place) ---------- */
+/* ---------- Dragged by the header (the floating editor; the chat and the side panel stay in place) ---------- */
 .drag-handle { cursor: grab; user-select: none; touch-action: none; }
-#chat.dragging { transition: none !important; box-shadow: 0 30px 70px rgba(0, 0, 0, .55); }
-#chat.dragging .drag-handle { cursor: grabbing; }
-/* When moved by hand, the rest of the layout stops making room for it */
-body.chat-moved:not(.chat-closed):not(.chat-min) .remi-layer { right: 14px; }
 
 /* ---------- Pinned chat: a column on the right, information above, adjustable width ---------- */
 body.chat-docked #workspace { grid-template-columns: minmax(0, 1fr) var(--chat-w, 372px); gap: 8px; }

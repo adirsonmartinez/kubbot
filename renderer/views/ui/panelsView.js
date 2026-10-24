@@ -2,7 +2,6 @@
 // The breadcrumb lives in the status bar and stays visible in every tab while a project is open;
 // the folder's traffic-light counts stay on the map, top left.
 import { strings } from '../../i18n/es.js';
-import { LEVEL_STYLE } from '../theme.js';
 import { escapeHtml } from '../../core/format.js';
 
 export function createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel }) {
@@ -20,17 +19,13 @@ export function createPanelsView({ appViewModel, mapViewModel, supabaseViewModel
     if (target) mapViewModel.enterFolder(target.dataset.path);
   });
   const renderBreadcrumb = () => {
-    const { status, crumbs, plaza } = mapViewModel.store.state;
+    const { status, crumbs } = mapViewModel.store.state;
     $('breadcrumb').hidden = status !== 'ready';
-    $('level-legend').hidden = status !== 'ready' || !onMap();
     if (status !== 'ready') return;
     $('crumbs').innerHTML = crumbs.map((c, i) => (i === crumbs.length - 1
       ? `<strong>${escapeHtml(c.name)}</strong>`
       : `<button type="button" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button><span class="sep">/</span>`)).join('');
     $('crumbs').title = crumbs.length > 1 ? strings.panels.upHint : '';
-    $('level-legend').innerHTML = ['red', 'yellow', 'green']
-      .map((l) => `<span class="${l}${plaza.counts[l] ? '' : ' zero'}" title="${strings.panels.levelCount(l, plaza.counts[l])}"><i class="lvl" style="background:${LEVEL_STYLE[l].color}"></i>${plaza.counts[l]}</span>`)
-      .join('');
   };
 
   // Supabase schema
