@@ -314,15 +314,23 @@ body.stage-graph #schema-panel, body.stage-graph #empty-state { visibility: hidd
 }
 #statusbar .status-strong { color: var(--muted); }
 #status-items { display: contents; }
+
+/* Traffic-light counts of the folder on screen: top left of the map, next to the panel toggle */
+#stage #level-legend {
+  position: absolute; top: 14px; left: 62px; z-index: 5; height: 40px; box-sizing: border-box;
+  align-items: center; padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--glass); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
+}
+#stage #level-legend[hidden] { display: none; }
+#stage #level-legend span { cursor: help; }
+body.stage-graph #level-legend, body.stage-project #level-legend { visibility: hidden; }
 /* Breadcrumb: where you are + the folder's traffic-light counts, flat in the bar */
 #statusbar #breadcrumb { display: flex; align-items: center; gap: 12px; min-width: 0; }
 #statusbar #breadcrumb[hidden] { display: none; }
 #statusbar #breadcrumb::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex: none; }
 #statusbar .crumbs { flex-wrap: nowrap; gap: 2px; font: 600 11px var(--mono); overflow: hidden; white-space: nowrap; }
 #statusbar #breadcrumb .crumbs button { padding: 1px 4px; }
-#statusbar .fp-legend { gap: 10px; }
-#statusbar .fp-legend span { gap: 5px; font-size: 11px; color: var(--muted); cursor: help; }
-#statusbar .lvl { width: 6px; height: 6px; }
+
 #statusbar .status-agent::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--ok); }
 
 /* ---------- Narrow screens: the map first, panels as overlays ---------- */
