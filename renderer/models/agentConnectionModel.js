@@ -65,8 +65,8 @@ export class AgentConnectionModel {
   }
 
   // Runs one message with the selected agent. Resolves with the full answer text.
-  // onTool(name) is called each time the agent uses a Platanus tool.
-  async ask(prompt, systemPrompt, { onTool } = {}) {
+  // onTool(name) is called each time the agent uses a Platanus tool; onText(delta) as the answer streams.
+  async ask(prompt, systemPrompt, { onTool, onText } = {}) {
     const { selected: agent, model, effort } = this.store.state;
     const turns = this.#turns.get(agent) ?? 0;
     this.#turns.set(agent, turns + 1);
@@ -76,7 +76,7 @@ export class AgentConnectionModel {
     const early = [];
     return new Promise((resolve) => {
       const handle = (e) => {
-        if (e.type === 'text') text += e.delta;
+        if (e.type === 'text') { text += e.delta; onText?.(e.delta); }
         else if (e.type === 'tool') onTool?.(e.name);
         else if (e.type === 'error') error = e.message;
         else if (e.type === 'done') { off(); resolve({ text: text.trim(), error }); }

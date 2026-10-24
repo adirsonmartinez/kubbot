@@ -2,7 +2,10 @@
 // shows (folders and files with their security level). No DOM, no three.js.
 import { Observable } from '../core/observable.js';
 import { allFiles, baseName } from '../models/fileTree.js';
-import { LEVEL_RANK } from '../models/securityModel.js';
+import { LEVEL_RANK, worstLevel } from '../models/securityModel.js';
+import { fileTags, folderGuide } from '../models/folderTags.js';
+
+export const STAGES = ['map', 'graph', 'project'];
 
 export const SIDE_VIEWS = ['explorer', 'risks', 'agent'];
 
@@ -10,10 +13,11 @@ export class ShellViewModel {
   #projectModel;
   #securityModel;
   #mapViewModel;
+  #session = -1;
 
   store = new Observable({
     side: 'explorer',
-    stage: 'map', // 'map' | 'graph'
+    stage: 'map', // 'map' | 'graph' | 'project'
     sidebarOpen: true,
     chatOpen: true,
     projectName: '',
@@ -21,6 +25,9 @@ export class ShellViewModel {
     folders: [], // [{ path, name, files: [{ path, name, level }] }]
     risks: [], // files in red or yellow, worst first
     counts: { green: 0, yellow: 0, red: 0, grey: 0 },
+    tree: [], // full folder tree for "técnico": [{ path, name, type, level, tags?, files?, children? }]
+    guide: [], // "vibe" guide and project map: [{ path, name, folder, summary, tags, files, size, red, yellow, depth }]
+    recent: [], // [{ root, name, at }]
   });
 
   // `compact`: small screens start with the map alone; panels open on demand
@@ -42,7 +49,7 @@ export class ShellViewModel {
   }
 
   setStage(stage) {
-    if (stage === 'map' || stage === 'graph') this.store.set({ stage });
+    if (STAGES.includes(stage)) this.store.set({ stage });
   }
 
   toggleSidebar() {
@@ -55,6 +62,14 @@ export class ShellViewModel {
 
   openProject() {
     this.#mapViewModel.openProject();
+  }
+
+  async refreshRecent() {
+    this.store.set({ recent: await this.#projectModel.recent() });
+  }
+
+  openRecent(root) {
+    return this.#projectModel.openRecent(root);
   }
 
   // Opens the building of a folder on the map ('' = back to the whole map)
@@ -71,12 +86,12 @@ export class ShellViewModel {
   }
 
   #recompute() {
-    const { open, name, tree } = this.#projectModel.store.state;
+    const { open, name, tree, session } = this.#projectModel.store.state;
     const counts = { green: 0, yellow: 0, red: 0, grey: 0 };
     const withLevel = (node) => {
-      const { level, reason, reasonKey } = this.#securityModel.scoreOf(node.path);
+      const { level, reason, reasonKey, by } = this.#securityModel.scoreOf(node.path);
       counts[level] += 1;
-      return { path: node.path, name: baseName(node.path), level, reason, reasonKey };
+      return { path: node.path, name: baseName(node.path), level, reason, reasonKey, by };
     };
     const rootFiles = tree.filter((n) => n.type === 'file').map(withLevel);
     const folders = tree
@@ -87,6 +102,30 @@ export class ShellViewModel {
       .flatMap((f) => f.files)
       .filter((f) => f.level === 'red' || f.level === 'yellow')
       .sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level]);
-    this.store.set({ open, projectName: name ?? '', folders, risks, counts });
+    // Full tree (técnico) and the guide of folders two levels deep (vibe + project map)
+    const describeTree = (nodes) => nodes
+      .map((n) => {
+        if (n.type !== 'dir') return { path: n.path, name: baseName(n.path), type: 'file', level: this.#securityModel.scoreOf(n.path).level, tags: fileTags(n.path) };
+        const children = describeTree(n.children ?? []);
+        const levels = allFiles(n.children ?? []).map((f) => this.#securityModel.scoreOf(f.path).level);
+        return { path: n.path, name: baseName(n.path), type: 'dir', level: worstLevel(levels), files: levels.length, children };
+      })
+      .sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1));
+    const guide = [];
+    const addGuide = (node, depth) => {
+      const files = allFiles(node.children ?? []);
+      if (!files.length) return;
+      const levels = files.map((f) => this.#securityModel.scoreOf(f.path).level);
+      const g = folderGuide(node.path, files);
+      guide.push({
+        path: node.path, folder: baseName(node.path), ...g, depth,
+        files: files.length, size: files.reduce((sum, f) => sum + (f.size ?? 0), 0),
+        red: levels.filter((l) => l === 'red').length, yellow: levels.filter((l) => l === 'yellow').length,
+      });
+      if (depth === 0) (node.children ?? []).filter((c) => c.type === 'dir').forEach((c) => addGuide(c, 1));
+    };
+    tree.filter((n) => n.type === 'dir').forEach((n) => addGuide(n, 0));
+    this.store.set({ open, projectName: name ?? '', folders, risks, counts, tree: describeTree(tree), guide });
+    if (session !== this.#session) { this.#session = session; this.refreshRecent(); }
   }
 }

@@ -4,7 +4,8 @@ import { Observable } from '../core/observable.js';
 import { strings } from '../i18n/es.js';
 import { allFiles, baseName, countDirs, countFiles, findNode } from '../models/fileTree.js';
 import { worstLevel } from '../models/securityModel.js';
-import { folderSlots, hqHeight } from './layout.js';
+import { folderHeight as folderHeightOf, folderSlots, hqHeight } from './layout.js';
+import { fileTags, folderTags, friendlyName } from '../models/folderTags.js';
 
 export class MapViewModel {
   #project;
@@ -70,6 +71,40 @@ export class MapViewModel {
     else this.#supabase.openSchema(false);
   }
 
+  // What the hover card shows for a pick (null = nothing to show)
+  //   { kind: 'folder' | 'floor' | 'file', path, name, friendly?, tags, level, files?, red?, yellow?, size?, reason? }
+  describePick(pick) {
+    const { root, buildings, projectName } = this.store.state;
+    if (pick.type === 'folder') {
+      const b = pick.path === '' ? { ...root, path: '', name: projectName, files: root?.total ?? 0 } : buildings.find((x) => x.path === pick.path);
+      return b ? { kind: 'folder', ...b } : null;
+    }
+    const tower = this.#tower.store.state;
+    if (pick.type === 'floor') {
+      const floor = tower.floors[pick.index];
+      if (!floor) return null;
+      const levels = floor.files.map((f) => f.level);
+      return {
+        kind: 'floor', path: floor.path, name: floor.label, level: floor.worst, files: floor.files.length,
+        red: levels.filter((l) => l === 'red').length, yellow: levels.filter((l) => l === 'yellow').length,
+        tags: folderTags(floor.path, floor.files),
+      };
+    }
+    if (pick.type === 'file') {
+      const file = tower.floors.flatMap((f) => f.files).find((f) => f.path === pick.path);
+      return file ? { kind: 'file', path: file.path, name: baseName(file.path), level: file.level, size: file.size, reason: file.reason, reasonKey: file.reasonKey, tags: fileTags(file.path) } : null;
+    }
+    return null;
+  }
+
+  // Where a file's building stands on the map: its first-level folder, or the main building
+  locateFile(path) {
+    const top = path.includes('/') ? path.slice(0, path.indexOf('/')) : '';
+    const b = this.store.state.buildings.find((x) => x.path === top);
+    if (b) return { folder: b.path, x: b.x, z: b.z, height: folderHeightOf(b.files) };
+    return { folder: '', x: -1, z: -1, height: this.store.state.root?.height ?? 8 };
+  }
+
   // Node + position + display name of a folder ('' = root), or null if it is not on the map
   #locate(path) {
     const { tree } = this.#project.store.state;
@@ -94,7 +129,19 @@ export class MapViewModel {
       return;
     }
 
-    const levelOf = (nodes) => worstLevel(allFiles(nodes).map((f) => this.#security.scoreOf(f.path).level));
+    // Worst level, red/yellow counts and tags of a set of nodes
+    const describe = (path, nodes) => {
+      const files = allFiles(nodes);
+      const levels = files.map((f) => this.#security.scoreOf(f.path).level);
+      const tags = folderTags(path, files);
+      return {
+        level: worstLevel(levels),
+        red: levels.filter((l) => l === 'red').length,
+        yellow: levels.filter((l) => l === 'yellow').length,
+        tags,
+        friendly: friendlyName(path, tags),
+      };
+    };
     const total = countFiles(tree);
     const dirs = tree
       .filter((n) => n.type === 'dir')
@@ -105,14 +152,15 @@ export class MapViewModel {
       status: 'ready',
       session,
       projectName: name ?? strings.map.defaultProjectName,
-      root: { total, dirs: countDirs(tree), height: hqHeight(total) },
+      // The main building only cracks for files at the root (folders crack their own buildings)
+      root: { total, dirs: countDirs(tree), height: hqHeight(total), ...describe('', tree.filter((n) => n.type === 'file')) },
       buildings: dirs.map((node, i) => ({
         path: node.path,
         name: baseName(node.path),
         x: slots[i].x,
         z: slots[i].z,
         files: countFiles(node.children ?? []),
-        level: levelOf(node.children ?? []),
+        ...describe(node.path, node.children ?? []),
         order: i,
       })),
       version: this.store.state.version + 1,

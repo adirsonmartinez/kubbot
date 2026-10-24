@@ -3,6 +3,7 @@ module.exports = {
   windowTitle: 'Platanus',
   chooseFolder: 'Elige la carpeta del proyecto',
   cancelled: 'cancelado',
+  notRecent: 'Esa carpeta no está en tus proyectos recientes.',
   cancel: 'Cancelar',
   allow: 'Permitir',
   confirmOverwrite: (path) => `¿Sobrescribir "${path}"?`,

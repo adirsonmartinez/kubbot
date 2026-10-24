@@ -5,6 +5,7 @@ import { box, materials as M } from '../materials.js';
 import { FALLBACK_BODIES, FOLDER_STYLES, LEVEL_STYLE } from '../../theme.js';
 import { hashString } from '../../../core/format.js';
 import { folderHeight } from '../../../viewmodels/layout.js';
+import { addCracks } from './crackBuilder.js';
 
 const BODY_WIDTH = 3.2;
 const BASE = 0.45;
@@ -37,6 +38,8 @@ export function buildFolderBuilding({ name, files, level }) {
   box(g, M.screen, 0.7, 1.1, 0.12, -0.7, B, face); // door
 
   box(g, LEVEL_STYLE[level].material(), 0.6, 0.6, 0.6, 0.9, B + h + 0.22, 0.9); // status light
+
+  addCracks(g, { cx: 0, cz: 0, halfW: W / 2, halfD: W / 2, bottom: B, top: B + h }, level, seed);
 
   return { group: g, top: B + h + 0.22 };
 }

@@ -13,11 +13,15 @@ export class ChatViewModel {
   #nextId = 1;
   #greeted = false;
 
-  // message: { id, role: 'bot' | 'user' | 'sys', text?, html?, tone? }
+  #actions;
+
+  // message: { id, role: 'bot' | 'user' | 'sys' | 'tool', text?, html?, tone? }
+  // chip: a label (sent as a message) or { label, run } (runs an app action, e.g. Remi repairs a file)
   store = new Observable({ messages: [], typing: false, chips: null, minimized: false });
 
-  constructor({ agentModel, bus }) {
+  constructor({ agentModel, bus, actions = {} }) {
     this.#agent = agentModel;
+    this.#actions = actions;
 
     bus.on(EVENTS.projectOpened, ({ name }) => {
       this.store.set({ chips: null });
@@ -26,8 +30,11 @@ export class ChatViewModel {
         this.#greeted = true;
         this.#push({ role: 'bot', text: CHAT.projectReady });
       }
-      this.store.set({ chips: CHAT.chips.suggestions });
+      this.store.set({ chips: this.#suggestions() });
     });
+
+    bus.on(EVENTS.repairStarted, ({ path }) => this.#push({ role: 'sys', text: strings.repair.started(path) }));
+    bus.on(EVENTS.repairPlanned, ({ path, plan }) => this.sayFromMap({ text: strings.repair.planned(path, plan) }));
 
     bus.on(EVENTS.diskChanged, ({ paths }) => this.#push({ role: 'sys', text: CHAT.diskChanged(paths) }));
 
@@ -48,9 +55,11 @@ export class ChatViewModel {
       this.sayFromMap({ text: CHAT.folderOpened(detail), tone: detail.counts.red ? 'alert' : '' }));
 
     bus.on(EVENTS.fileSelected, ({ path, level, reason, by }) => {
-      const source = by === 'agent' ? strings.security.byAgent : strings.security.byDemo;
+      const source = { agent: strings.security.byAgent, remi: strings.security.byRemi }[by] ?? strings.security.byDemo;
       const levelText = strings.security.levelWithEmoji[level] ?? level;
-      this.sayFromMap({ text: CHAT.fileSelected({ path, levelText, reason, source }), tone: level === 'red' ? 'alert' : '' });
+      const repair = (level === 'red' || level === 'yellow') && this.#actions.repair
+        ? [{ label: strings.repair.chip, run: (source) => this.#actions.repair(path, source) }] : undefined;
+      this.sayFromMap({ text: CHAT.fileSelected({ path, levelText, reason, source }), tone: level === 'red' ? 'alert' : '', chips: repair });
     });
 
     this.#push({ role: 'bot', text: CHAT.greeting });
@@ -63,10 +72,40 @@ export class ChatViewModel {
     this.store.set({ chips: null });
     this.#push({ role: 'user', text });
     // A real agent can take a while: show "typing…" and a short note for each tool it uses
+    // A connected agent streams its answer into a bubble that grows; a tool use starts a new one.
     this.store.set({ typing: true });
-    const reply = await this.#agent.reply(text, { onTool: (name) => this.#push({ role: 'sys', text: CHAT.toolUsed(name) }) });
+    let streamId = null;
+    let streamed = false;
+    const reply = await this.#agent.reply(text, {
+      onTool: (name) => { streamId = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); },
+      onText: (delta) => {
+        if (streamId === null) { streamId = this.#push({ role: 'bot', text: '' }); this.store.set({ typing: false }); }
+        streamed = true;
+        this.#append(streamId, delta);
+      },
+    });
     this.store.set({ typing: false });
-    this.#enqueue(reply);
+    if (!streamed || reply.tone === 'alert') this.#enqueue(reply);
+    else this.store.set({ chips: reply.chips ?? null });
+  }
+
+  // A chip with an action runs it; a plain chip is sent as a message
+  // `source`: the clicked button (Remi jumps from there to the map)
+  choose(chip, source = null) {
+    if (typeof chip === 'string') return this.send(chip);
+    chip.run(source); // first, while the button is still on screen
+    this.store.set({ chips: null });
+    this.#push({ role: 'user', text: chip.label });
+  }
+
+  #suggestions() {
+    const a = this.#actions;
+    return [
+      a.repairWorst && { label: strings.repair.chipWorst, run: a.repairWorst },
+      a.showRisks && { label: strings.shell.rail.risks, run: a.showRisks },
+      a.showGraph && { label: strings.shell.actions.showGraph, run: a.showGraph },
+      ...CHAT.chips.suggestions.slice(2),
+    ].filter(Boolean);
   }
 
   // Map messages open the chat if it was minimized
@@ -80,7 +119,13 @@ export class ChatViewModel {
   }
 
   #push(message) {
-    this.store.set({ messages: [...this.store.state.messages, { id: this.#nextId++, ...message }] });
+    const id = this.#nextId++;
+    this.store.set({ messages: [...this.store.state.messages, { id, ...message }] });
+    return id;
+  }
+
+  #append(id, delta) {
+    this.store.set({ messages: this.store.state.messages.map((m) => (m.id === id ? { ...m, text: m.text + delta } : m)) });
   }
 
   #enqueue(reply) {

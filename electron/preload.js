@@ -17,6 +17,8 @@ const on = (channel) => (callback) => {
 contextBridge.exposeInMainWorld('platanus', {
   chooseWorkspace: () => ipcRenderer.invoke('workspace:choose'),
   currentWorkspace: () => ipcRenderer.invoke('workspace:current'),
+  recentWorkspaces: () => ipcRenderer.invoke('workspace:recent'),
+  openRecentWorkspace: (root) => ipcRenderer.invoke('workspace:openRecent', root),
 
   tree: (rel = '.') => ipcRenderer.invoke('fs:tree', rel),
   read: (rel) => ipcRenderer.invoke('fs:read', rel),

@@ -69,8 +69,8 @@ export class TowerViewModel {
   selectFile(path) {
     const file = this.store.state.floors.flatMap((f) => f.files).find((f) => f.path === path);
     if (!file) return;
-    const { level, reason, by } = file;
-    this.#bus.emit(EVENTS.fileSelected, { path, level, reason, by });
+    const { level, reason, reasonKey, by } = file;
+    this.#bus.emit(EVENTS.fileSelected, { path, level, reason, reasonKey, by });
   }
 
   // Files sorted riskiest first (they are drawn at the front of each floor)
@@ -79,7 +79,7 @@ export class TowerViewModel {
       .map((f) => {
         const score = this.#security.scoreOf(f.path);
         const reason = score.reason || strings.security.reasons[score.reasonKey] || '';
-        return { path: f.path, size: f.size ?? 0, level: score.level, reason, by: score.by };
+        return { path: f.path, size: f.size ?? 0, level: score.level, reason, reasonKey: score.reasonKey, by: score.by };
       })
       .sort((a, b) => LEVEL_RANK[b.level] - LEVEL_RANK[a.level] || a.path.localeCompare(b.path));
     return { path: floor.path, label: floor.label, files, worst: worstLevel(files.map((f) => f.level)) };

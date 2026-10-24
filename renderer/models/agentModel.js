@@ -21,7 +21,10 @@ export class AgentModel {
 
   #connection;
 
-  constructor({ workspace, projectModel, supabaseModel, connection = null }) {
+  #mode;
+
+  constructor({ workspace, projectModel, supabaseModel, connection = null, modeModel = null }) {
+    this.#mode = modeModel;
     this.#workspace = workspace;
     this.#project = projectModel;
     this.#supabase = supabaseModel;
@@ -30,13 +33,14 @@ export class AgentModel {
 
   // With a connected agent (the user's own subscription) the real model answers and works through
   // the Platanus MCP tools; otherwise the scripted demo answers. Same reply shape either way.
-  async reply(text, { onTool } = {}) {
-    if (this.#connection?.live) return this.#live(text, onTool);
+  async reply(text, { onTool, onText } = {}) {
+    if (this.#connection?.live) return this.#live(text, onTool, onText);
     return (await this.#fileCommand(text)) ?? this.#scripted(text);
   }
 
-  async #live(text, onTool) {
-    const { text: answer, error } = await this.#connection.ask(text, AGENT.livePrompt, { onTool });
+  async #live(text, onTool, onText) {
+    const prompt = AGENT.livePrompt + (this.#mode?.tech ? AGENT.techSuffix : '');
+    const { text: answer, error } = await this.#connection.ask(text, prompt, { onTool, onText });
     if (answer) return { text: answer };
     return { html: AGENT.liveFailed(escapeHtml(error ?? '')), tone: 'alert' };
   }

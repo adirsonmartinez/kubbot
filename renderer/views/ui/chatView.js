@@ -1,14 +1,16 @@
-// Renders ChatViewModel: messages (appended incrementally to keep the scroll), "typing…", chips.
+// Renders ChatViewModel: messages (appended incrementally to keep the scroll; a streaming answer
+// updates its bubble in place), "thinking…", chips, and the composer (Enter sends, Shift+Enter breaks).
 import { strings } from '../../i18n/es.js';
 
 const ICON_MINIMIZE = '<path d="M6 12h12"/>';
 const ICON_EXPAND = '<path d="M6 12h12M12 6v12"/>';
+const MAX_INPUT_PX = 160;
 
 export function createChatView({ chatViewModel: vm, connection = null }) {
   const $ = (id) => document.getElementById(id);
   const root = $('chat'), body = $('chat-body'), form = $('chat-form'), input = $('chat-text');
   const sendButton = $('chat-send'), toggle = $('chat-toggle');
-  const rendered = new Set(); // message ids already in the DOM
+  const rendered = new Map(); // message id -> { el, text }
 
   const typing = document.createElement('div');
   typing.className = 'msg bot typing';
@@ -21,15 +23,21 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
     const el = document.createElement('div');
     el.className = ['msg', role, tone].filter(Boolean).join(' ');
     if (html) el.innerHTML = html; // only our own strings, never user input
-    else el.textContent = text ?? '';
+    else el.textContent = text || (role === 'bot' ? strings.chat.thinking : '');
     return el;
   }
 
   function render(state, previous) {
     state.messages.forEach((m) => {
-      if (rendered.has(m.id)) return;
-      rendered.add(m.id);
-      body.appendChild(messageElement(m));
+      const seen = rendered.get(m.id);
+      if (!seen) {
+        const el = messageElement(m);
+        rendered.set(m.id, { el, text: m.text });
+        body.appendChild(el);
+      } else if (seen.text !== m.text && !m.html) {
+        seen.text = m.text;
+        seen.el.textContent = m.text;
+      }
     });
 
     typing.remove();
@@ -37,11 +45,12 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
     if (state.typing) body.appendChild(typing);
     if (state.chips?.length) {
       if (state.chips !== previous?.chips) {
-        chips.replaceChildren(...state.chips.map((label) => {
+        chips.replaceChildren(...state.chips.map((chip) => {
           const button = document.createElement('button');
           button.type = 'button';
-          button.textContent = label;
-          button.addEventListener('click', () => vm.send(label));
+          button.textContent = typeof chip === 'string' ? chip : chip.label;
+          if (typeof chip !== 'string') button.classList.add('action');
+          button.addEventListener('click', () => vm.choose(chip, button));
           return button;
         }));
       }
@@ -56,10 +65,22 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
     toggle.querySelector('svg').innerHTML = state.minimized ? ICON_EXPAND : ICON_MINIMIZE;
   }
 
+  const grow = () => {
+    input.style.height = 'auto';
+    input.style.height = `${Math.min(input.scrollHeight, MAX_INPUT_PX)}px`;
+  };
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     vm.send(input.value);
     input.value = '';
+    grow();
+  });
+  input.addEventListener('input', grow);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      form.requestSubmit();
+    }
   });
   toggle.addEventListener('click', () => vm.toggleMinimized());
 

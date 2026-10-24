@@ -30,16 +30,18 @@ export class SecurityModel {
   // `version` changes every time a score changes, so view models know when to recompute
   store = new Observable({ version: 0 });
 
-  // { level, reason?, reasonKey?, by: 'agent' | 'demo' }
+  // { level, reason?, reasonKey?, by: 'agent' | 'remi' | 'demo' }. reasonKey always comes from the demo
+  // rule, so the technical detail of the original finding is kept after an override.
   scoreOf(path) {
-    const agent = this.#agentScores.get(path);
-    if (agent) return { ...agent, by: 'agent' };
-    return { ...demoScore(path), by: 'demo' };
+    const demo = demoScore(path);
+    const override = this.#agentScores.get(path);
+    if (override) return { reasonKey: demo.reasonKey, ...override };
+    return { ...demo, by: 'demo' };
   }
 
-  setScore(path, level, reason = '') {
+  setScore(path, level, reason = '', by = 'agent') {
     if (!path || !LEVELS.includes(level)) return false;
-    this.#agentScores.set(path, { level, reason });
+    this.#agentScores.set(path, { level, reason, by });
     this.store.set({ version: this.store.state.version + 1 });
     return true;
   }

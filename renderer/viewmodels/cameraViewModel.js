@@ -9,6 +9,8 @@ export const CAMERA = {
   viewHeight: 30,
   zoomMin: 0.4,
   zoomMax: 4,
+  elevationMin: (22 * Math.PI) / 180, // low: almost from the street
+  elevationMax: (82 * Math.PI) / 180, // high: almost a floor plan
 };
 
 const EASE_SPEED = 10;
@@ -17,6 +19,7 @@ const QUARTER_TURN = Math.PI / 2;
 export class CameraViewModel {
   azimuth = CAMERA.azimuth;
   azimuthGoal = CAMERA.azimuth;
+  elevation = CAMERA.elevation;
   zoom = 1;
   zoomGoal = 1;
   target = { x: 0, z: 0 };
@@ -24,7 +27,8 @@ export class CameraViewModel {
 
   // Camera position relative to its target
   offset(azimuth = this.azimuth) {
-    const { elevation, distance } = CAMERA;
+    const { elevation } = this;
+    const { distance } = CAMERA;
     return {
       x: Math.cos(elevation) * Math.sin(azimuth) * distance,
       y: Math.sin(elevation) * distance,
@@ -46,6 +50,11 @@ export class CameraViewModel {
   rotateBy(radians) {
     this.azimuthGoal += radians;
     this.azimuth = this.azimuthGoal;
+  }
+
+  // Dragging up/down tilts the view (applied immediately)
+  tiltBy(radians) {
+    this.elevation = clamp(this.elevation + radians, CAMERA.elevationMin, CAMERA.elevationMax);
   }
 
   zoomBy(factor) {
@@ -76,6 +85,7 @@ export class CameraViewModel {
   reset() {
     const turn = Math.PI * 2;
     this.azimuthGoal = CAMERA.azimuth + Math.round((this.azimuth - CAMERA.azimuth) / turn) * turn;
+    this.elevation = CAMERA.elevation;
     this.flyTo({ x: 0, z: 0 }, 1);
   }
 

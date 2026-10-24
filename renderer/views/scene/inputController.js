@@ -1,12 +1,15 @@
-// Mouse and keyboard on the map. Left drag: pan (the grabbed ground point stays under the cursor).
-// Right drag or Shift + drag: rotate. Wheel: zoom toward the cursor. Click: pick an object.
+// Mouse and keyboard on the map. Left drag: orbit (sideways rotates, up/down tilts).
+// Right or middle drag, or Shift + drag: pan (the grabbed ground point stays under the cursor).
+// Wheel / pinch: zoom toward the cursor. Arrows or WASD: pan. Q / E: quarter turns. Click: pick.
 const CLICK_TOLERANCE_PX = 6;
 const ROTATE_SPEED = 0.008;
+const TILT_SPEED = 0.005;
+const KEY_PAN = 2.5;
 
-export function createInputController({ sceneView, cameraViewModel: camera, mapViewModel, pickTargets }) {
+export function createInputController({ sceneView, cameraViewModel: camera, mapViewModel, pickTargets, onHover = () => {} }) {
   const canvas = sceneView.canvas;
   let grabPoint = null;
-  let rotatingFromX = null;
+  let rotatingFrom = null; // { x, y }
   let downAt = null;
 
   const pickAt = (x, y) =>
@@ -15,8 +18,9 @@ export function createInputController({ sceneView, cameraViewModel: camera, mapV
   canvas.addEventListener('pointerdown', (e) => {
     downAt = { x: e.clientX, y: e.clientY, button: e.button };
     camera.cancelFlight(); // dragging cancels any animated camera flight
-    if (e.button === 2 || e.shiftKey) rotatingFromX = e.clientX;
+    if (e.button === 0 && !e.shiftKey) rotatingFrom = { x: e.clientX, y: e.clientY };
     else grabPoint = sceneView.groundPointAt(e.clientX, e.clientY);
+    onHover(null);
     canvas.setPointerCapture(e.pointerId);
     canvas.classList.add('dragging');
   });
@@ -24,14 +28,17 @@ export function createInputController({ sceneView, cameraViewModel: camera, mapV
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
   canvas.addEventListener('pointermove', (e) => {
-    if (rotatingFromX !== null) {
-      camera.rotateBy(-(e.clientX - rotatingFromX) * ROTATE_SPEED);
-      rotatingFromX = e.clientX;
+    if (rotatingFrom) {
+      camera.rotateBy(-(e.clientX - rotatingFrom.x) * ROTATE_SPEED);
+      camera.tiltBy((e.clientY - rotatingFrom.y) * TILT_SPEED);
+      rotatingFrom = { x: e.clientX, y: e.clientY };
       sceneView.syncCamera();
       return;
     }
     if (!grabPoint) {
-      canvas.style.cursor = e.pointerType === 'mouse' && pickAt(e.clientX, e.clientY) ? 'pointer' : '';
+      const pick = e.pointerType === 'mouse' ? pickAt(e.clientX, e.clientY) : null;
+      canvas.style.cursor = pick ? 'pointer' : '';
+      onHover(pick, e.clientX, e.clientY);
       return;
     }
     const now = sceneView.groundPointAt(e.clientX, e.clientY);
@@ -42,7 +49,7 @@ export function createInputController({ sceneView, cameraViewModel: camera, mapV
 
   function endDrag(e) {
     grabPoint = null;
-    rotatingFromX = null;
+    rotatingFrom = null;
     canvas.classList.remove('dragging');
     if (canvas.hasPointerCapture(e.pointerId)) canvas.releasePointerCapture(e.pointerId);
   }
@@ -57,6 +64,7 @@ export function createInputController({ sceneView, cameraViewModel: camera, mapV
     if (pick) mapViewModel.handlePick(pick);
   });
   canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerleave', () => onHover(null));
 
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -74,5 +82,14 @@ export function createInputController({ sceneView, cameraViewModel: camera, mapV
     const key = e.key.toLowerCase();
     if (key === 'q') camera.rotateQuarter(1);
     if (key === 'e') camera.rotateQuarter(-1);
+    // Pan relative to the screen: "up" moves away from the camera
+    const move = { arrowup: [0, -1], w: [0, -1], arrowdown: [0, 1], s: [0, 1], arrowleft: [-1, 0], a: [-1, 0], arrowright: [1, 0], d: [1, 0] }[key];
+    if (move && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      const az = camera.azimuth, [right, back] = move;
+      const step = KEY_PAN / camera.zoom;
+      camera.panBy((Math.cos(az) * right + Math.sin(az) * back) * step, (-Math.sin(az) * right + Math.cos(az) * back) * step);
+      sceneView.syncCamera();
+    }
   });
 }

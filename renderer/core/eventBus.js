@@ -7,6 +7,8 @@ export const EVENTS = Object.freeze({
   fileSelected: 'file:selected',       // { path, level, reason, by }
   tableSelected: 'table:selected',     // { name, columns, rlsEnabled }
   supabaseVulnerable: 'supabase:vulnerable',
+  repairStarted: 'repair:started',     // { path }
+  repairPlanned: 'repair:planned',     // { path, plan }
 });
 
 export function createEventBus() {

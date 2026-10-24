@@ -71,10 +71,49 @@ ipcMain.handle('workspace:choose', async () => {
     properties: ['openDirectory', 'createDirectory'],
   });
   if (res.canceled || !res.filePaths[0]) return { ok: false, error: t.cancelled };
-  const root = await workspace.open(res.filePaths[0]);
+  return openWorkspace(res.filePaths[0]);
+});
+
+async function openWorkspace(dir) {
+  const root = await workspace.open(dir);
   workspace.watch((paths) => send('fs:changed', paths));
   log('workspace:open', root, true);
+  await rememberRecent(root);
   return { ok: true, data: { root, name: path.basename(root) } };
+}
+
+// --- Recent projects (only folders the user already chose can be reopened from the window) ---
+const MAX_RECENT = 8;
+const recentFile = () => path.join(app.getPath('userData'), 'recent.json');
+
+async function readRecent() {
+  try {
+    const list = JSON.parse(await fs.readFile(recentFile(), 'utf8'));
+    return Array.isArray(list) ? list.filter((r) => typeof r?.root === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+async function rememberRecent(root) {
+  const list = (await readRecent()).filter((r) => r.root !== root);
+  list.unshift({ root, name: path.basename(root), at: new Date().toISOString() });
+  await fs.writeFile(recentFile(), JSON.stringify(list.slice(0, MAX_RECENT), null, 2)).catch(() => {});
+}
+
+ipcMain.handle('workspace:recent', async () => {
+  const list = await readRecent();
+  const alive = await Promise.all(list.map((r) => fs.stat(r.root).then((s) => s.isDirectory(), () => false)));
+  return { ok: true, data: list.filter((_r, i) => alive[i]) };
+});
+
+ipcMain.handle('workspace:openRecent', async (_e, root) => {
+  if (!(await readRecent()).some((r) => r.root === root)) return { ok: false, error: t.notRecent };
+  try {
+    return await openWorkspace(root);
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
 });
 
 ipcMain.handle('workspace:current', () => ({
@@ -198,7 +237,11 @@ async function confirm(message, detail) {
   return response === 1;
 }
 
-app.whenReady().then(() => {
+// `npx electron . --open=/path/to/project` opens that folder at start (the window restores it)
+const openArg = process.argv.find((a) => a.startsWith('--open='))?.slice('--open='.length);
+
+app.whenReady().then(async () => {
+  if (openArg) await openWorkspace(openArg).catch((err) => log('workspace:open', openArg, false, err.message));
   createWindow();
   startMcp();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });

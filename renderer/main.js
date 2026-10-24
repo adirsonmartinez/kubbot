@@ -12,6 +12,7 @@ import { SecurityModel } from './models/securityModel.js';
 import { SupabaseModel } from './models/supabaseModel.js';
 import { AgentModel } from './models/agentModel.js';
 import { AgentConnectionModel } from './models/agentConnectionModel.js';
+import { ModeModel } from './models/modeModel.js';
 
 import { CameraViewModel } from './viewmodels/cameraViewModel.js';
 import { TowerViewModel } from './viewmodels/towerViewModel.js';
@@ -20,6 +21,7 @@ import { MapViewModel } from './viewmodels/mapViewModel.js';
 import { ChatViewModel } from './viewmodels/chatViewModel.js';
 import { ShellViewModel } from './viewmodels/shellViewModel.js';
 import { GraphViewModel } from './viewmodels/graphViewModel.js';
+import { RepairViewModel } from './viewmodels/repairViewModel.js';
 
 import { createSceneView } from './views/scene/sceneView.js';
 import { createMapView } from './views/scene/mapView.js';
@@ -33,6 +35,11 @@ import { createChatView } from './views/ui/chatView.js';
 import { createShellView } from './views/ui/shellView.js';
 import { createGraphView } from './views/ui/graphView.js';
 import { createAgentConnectView } from './views/ui/agentConnectView.js';
+import { createAgentPickerView } from './views/ui/agentPickerView.js';
+import { createRepairPanelView } from './views/ui/repairPanelView.js';
+import { createHoverCardView } from './views/ui/hoverCardView.js';
+import { createRemiView } from './views/scene/remiView.js';
+import { remiJump } from './views/ui/remiJump.js';
 import { applyStrings } from './views/ui/domStrings.js';
 
 // --- Models ---
@@ -43,36 +50,66 @@ const securityModel = new SecurityModel();
 const supabaseModel = new SupabaseModel();
 const agentService = createAgentService();
 const connection = new AgentConnectionModel(agentService);
-const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection });
+const modeModel = new ModeModel();
+const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel });
 
 // --- ViewModels ---
 const cameraViewModel = new CameraViewModel();
 const towerViewModel = new TowerViewModel({ securityModel, camera: cameraViewModel, bus });
 const supabaseViewModel = new SupabaseViewModel({ supabaseModel, projectModel, camera: cameraViewModel, bus });
 const mapViewModel = new MapViewModel({ projectModel, securityModel, camera: cameraViewModel, towerViewModel, supabaseViewModel });
-const chatViewModel = new ChatViewModel({ agentModel, bus });
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
 const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
+const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, towerViewModel, connection, bus });
+
+// App actions shared by the chat, the menus and the sidebar
+const stage = document.getElementById('stage');
+const actions = {
+  // Remi hops from the button to the map, then walks to the building
+  repair(path, from = null) {
+    shellViewModel.setStage('map');
+    if (repairViewModel.busy || !from) return repairViewModel.start(path);
+    remiJump(from, stage).then(() => repairViewModel.start(path));
+  },
+  repairWorst(from = null) {
+    const worst = shellViewModel.store.state.risks.find((f) => f.level === 'red' || f.by !== 'remi');
+    if (!worst) return chatViewModel.sayFromMap({ text: strings.repair.nothing });
+    actions.repair(worst.path, from);
+  },
+  showRisks: () => shellViewModel.store.state.side === 'risks' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('risks'),
+  showGraph: () => shellViewModel.setStage('graph'),
+};
+const chatViewModel = new ChatViewModel({ agentModel, bus, actions });
 
 // --- Views ---
 applyStrings();
 const sceneView = createSceneView(cameraViewModel, document.getElementById('stage')); // the map lives in the IDE stage
 const labels = createLabelLayer(document.getElementById('map-labels'), sceneView);
-const mapView = createMapView({ sceneView, labels, mapViewModel });
+const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
 const towerView = createTowerView({ sceneView, labels, towerViewModel, cameraViewModel, mapView });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
+createRemiView({ sceneView, repairViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
+const hoverCard = createHoverCardView({ card: document.getElementById('hover-card'), stage, mapViewModel, modeModel });
 
 createInputController({
   sceneView,
   cameraViewModel,
   mapViewModel,
   pickTargets: () => [...supabaseView.pickTargets(), ...mapView.pickTargets(), ...towerView.pickTargets()],
+  onHover: (pick, x, y) => hoverCard.show(pick, x, y),
 });
 createControlsView({ cameraViewModel });
 createPanelsView({ mapViewModel, towerViewModel, supabaseViewModel });
 createChatView({ chatViewModel, connection });
-createShellView({ shellViewModel, cameraViewModel });
+createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, actions });
+createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel });
+createAgentPickerView({
+  container: document.getElementById('agent-picker'),
+  connectorsButton: document.getElementById('chat-connectors'),
+  connection,
+  onMore: () => shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen || shellViewModel.setSide('agent'),
+});
 createGraphView({ graphViewModel, shellViewModel, mapViewModel });
 createAgentConnectView({ container: document.getElementById('agent-connect'), connection });
 connectMcpBridge({ agentService, securityModel, shellViewModel });

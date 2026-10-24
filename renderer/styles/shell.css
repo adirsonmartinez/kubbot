@@ -300,8 +300,8 @@ body.stage-graph #folder-panel, body.stage-graph #schema-panel, body.stage-graph
 #chat .chat-input input { border: 0; background: transparent; color: var(--ink); padding: 6px 6px; }
 #chat .chat-input input:focus { box-shadow: none; }
 #chat .chat-input input::placeholder { color: var(--faint); }
-#chat .chat-input button { width: 30px; height: 30px; align-self: flex-end; border: 0; border-radius: 50%; background: var(--ink); color: #0b0a1f; }
-#chat .chat-input button:hover { background: #fff; }
+#chat .chat-input #chat-send { width: 30px; height: 30px; align-self: flex-end; border: 0; border-radius: 50%; background: var(--ink); color: #0b0a1f; display: grid; place-items: center; cursor: pointer; }
+#chat .chat-input #chat-send:hover { background: #fff; }
 
 /* ---------- Status bar ---------- */
 #statusbar {
@@ -323,3 +323,298 @@ body.stage-graph #folder-panel, body.stage-graph #schema-panel, body.stage-graph
 @media (prefers-reduced-motion: reduce) {
   .map-label.sb-label.vuln { animation: none; }
 }
+
+/* =====================================================================
+   Iteration 3: tags, Vibe/Dev, hover cards, tabs with icons, project map,
+   Remi (card, jump, cracks on the map labels), chat composer, motion.
+   ===================================================================== */
+
+/* ---------- Vibe / Dev toggle ---------- */
+.mode-toggle { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--panel); border: 1px solid var(--line); -webkit-app-region: no-drag; app-region: no-drag; }
+#titlebar > .mode-toggle { margin-left: auto; }
+.mode-toggle button {
+  padding: 3px 10px; border: 0; border-radius: 7px; background: transparent;
+  color: var(--faint); font: 600 11px var(--font); cursor: pointer; transition: background .18s, color .18s;
+}
+.mode-toggle button.active { background: var(--panel-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.mode-toggle button[data-mode="tech"].active { color: var(--ok); font-family: var(--mono); }
+.sidebar-actions .mode-toggle { transform: scale(.92); transform-origin: right center; }
+.sidebar-actions [hidden] { display: none; }
+
+/* ---------- Hover cards on icon buttons (name + what it is for) ---------- */
+#rail { position: relative; z-index: 20; }
+#rail button, #stage-tabs button { position: relative; }
+.tip {
+  position: absolute; z-index: 80; pointer-events: none;
+  display: flex; flex-direction: column; gap: 2px; width: max-content; max-width: 230px;
+  padding: 8px 10px; border-radius: 10px; text-align: left;
+  background: var(--glass-pop); border: 1px solid var(--line-strong);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .45);
+  opacity: 0; transition: opacity .14s ease, transform .14s ease;
+}
+.tip strong { color: var(--ink); font: 600 12px var(--font); }
+.tip small { color: var(--muted); font: 11px/1.4 var(--font); white-space: normal; }
+#rail .tip { left: 46px; top: 50%; transform: translate(-4px, -50%); }
+#rail button:hover .tip, #rail button:focus-visible .tip { opacity: 1; transform: translate(0, -50%); }
+#stage-tabs .tip { top: calc(100% + 8px); left: 50%; transform: translate(-50%, -4px); }
+#stage-tabs button:hover .tip, #stage-tabs button:focus-visible .tip { opacity: 1; transform: translate(-50%, 0); }
+/* Active rail item: a small accent bar on the left */
+#rail button::before {
+  content: ""; position: absolute; left: -8px; top: 50%; width: 3px; height: 0; border-radius: 2px;
+  background: var(--accent); transform: translateY(-50%); transition: height .2s ease;
+}
+#rail button.active::before { height: 18px; }
+
+/* ---------- Stage tabs with icons and badges ---------- */
+.stage-tabs button { display: inline-flex; align-items: center; gap: 6px; transition: background .18s, color .18s; }
+.stage-tabs button svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tab-badge {
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  display: inline-grid; place-items: center; font: 600 10px var(--font); font-style: normal;
+  background: rgba(255, 90, 106, .18); color: var(--danger);
+}
+.tab-badge[hidden] { display: none; }
+
+/* ---------- Tags ---------- */
+.tag-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, transparent); color: var(--c);
+  background: transparent; font: 500 10px var(--font); white-space: nowrap;
+}
+.tag-chip::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--c); }
+button.tag-chip { cursor: pointer; }
+.tag-chip.active { background: color-mix(in srgb, var(--c) 18%, transparent); }
+.counters { display: inline-flex; gap: 3px; margin-left: auto; }
+.count { min-width: 16px; padding: 0 4px; border-radius: 6px; font: 600 10px var(--font); text-align: center; }
+.count.red { background: rgba(255, 90, 106, .16); color: var(--danger); }
+.count.yellow { background: rgba(255, 194, 74, .14); color: var(--warn); }
+
+/* ---------- Explorer: Vibe guide ---------- */
+.guide-card {
+  display: flex; flex-direction: column; gap: 5px; width: 100%; margin-bottom: 4px; padding: 10px 11px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  transition: border-color .18s, background .18s, transform .18s;
+}
+.guide-card:hover { border-color: var(--line-strong); background: var(--panel-2); transform: translateY(-1px); }
+.guide-head { display: flex; align-items: center; gap: 7px; }
+.guide-head strong { font-size: 12.5px; font-weight: 600; }
+.guide-folder { font: 10.5px var(--mono); color: var(--faint); }
+.guide-summary { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.guide-subs { display: flex; flex-direction: column; margin: 0 0 8px 12px; padding-left: 8px; border-left: 1px solid var(--line); }
+.guide-sub {
+  display: flex; align-items: center; gap: 7px; padding: 4px 6px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--muted); font: 11.5px var(--font); text-align: left; cursor: pointer;
+}
+.guide-sub:hover { background: var(--panel); color: var(--ink); }
+.guide-sub i { width: 6px; height: 6px; border-radius: 2px; flex: none; }
+
+/* ---------- Explorer: Dev tree ---------- */
+.side-row .chevron { display: inline-block; width: 10px; color: var(--faint); transition: transform .15s ease; }
+.side-row.folder.open .chevron { transform: rotate(90deg); }
+.side-row .tag-chip { margin-left: auto; }
+body.mode-tech .side-name { font-family: var(--mono); }
+
+/* ---------- Risks: "Reparar" ---------- */
+.risk-card { position: relative; }
+.risk-head .pill.repair { margin-left: auto; padding: 2px 10px; font-size: 11px; border-color: rgba(245, 197, 66, .45); color: #f5c542; }
+.risk-head .pill.repair:hover { background: rgba(245, 197, 66, .12); }
+.risk-head .pill.repair.active { background: #f5c542; color: #1b1a2e; border-color: #f5c542; }
+
+/* ---------- Empty state: recent projects ---------- */
+.empty-recent { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; min-width: 260px; text-align: left; }
+.empty-recent .side-label { margin: 0 2px 4px; }
+.recent-row {
+  display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border: 2px solid #1b1a2e; border-radius: 10px;
+  background: #fff; color: #1b1a2e; font: inherit; text-align: left; cursor: pointer; transition: transform .15s, box-shadow .15s;
+}
+.recent-row:hover { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 #1b1a2e; }
+.recent-row strong { font-size: 13px; }
+.recent-row span { font: 11px var(--mono); color: #6b6890; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Map labels: tags and cracks ---------- */
+.map-label .tags { display: flex; gap: 3px; margin-top: 3px; }
+.map-label .tags em {
+  font: 600 9px var(--font); font-style: normal; padding: 0 5px; border-radius: 4px;
+  color: #1b1a2e; background: color-mix(in srgb, var(--c) 55%, #fff);
+}
+.map-label .cracks { margin-top: 3px; color: #d81f35 !important; font-weight: 700; }
+.map-label.cracked { border-color: #ff3b4e; box-shadow: 3px 3px 0 #ff3b4e; animation: label-shake 3.2s ease-in-out infinite; }
+@keyframes label-shake { 0%, 92%, 100% { translate: 0 0; } 94% { translate: -2px 0; } 96% { translate: 2px 0; } 98% { translate: -1px 0; } }
+
+/* ---------- Hover card on the map ---------- */
+.hover-card {
+  position: absolute; left: 0; top: 0; z-index: 7; pointer-events: none;
+  display: flex; flex-direction: column; gap: 5px; width: 250px; padding: 10px 12px;
+  border-radius: 12px; background: var(--glass-pop); border: 1px solid var(--line-strong);
+  color: var(--ink); box-shadow: 0 18px 44px rgba(0, 0, 0, .4);
+  animation: pop-in .14s ease;
+}
+.hover-card[hidden] { display: none; }
+.hc-head { display: flex; align-items: center; gap: 7px; }
+.hc-head strong { font-size: 13px; }
+.hc-sub { color: var(--faint); font-size: 10.5px; overflow-wrap: anywhere; }
+.hc-text { margin: 0; color: var(--muted); font-size: 11.5px; line-height: 1.45; }
+.hc-text.danger { color: var(--danger); }
+.hc-hint { margin: 0; color: var(--faint); font-size: 10.5px; }
+.mono { font-family: var(--mono); }
+
+/* ---------- Project map (stage) ---------- */
+body.stage-project #stage { background: #11141b; }
+body.stage-project #stage > canvas, body.stage-project #map-labels, body.stage-project #controls,
+body.stage-project #folder-panel, body.stage-project #schema-panel, body.stage-project #empty-state,
+body.stage-project #hover-card { visibility: hidden; }
+.project-panel { position: absolute; inset: 0; z-index: 4; overflow-y: auto; padding: 60px 24px 24px; }
+.project-panel[hidden] { display: none; }
+.project-head h2 { margin: 0; font-size: 16px; color: var(--ink); }
+.project-head p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+.filters { margin: 14px 0; align-items: center; }
+.filter-label { color: var(--muted); font-size: 11px; margin-right: 4px; }
+.link { border: 0; background: none; color: var(--muted); font: 11px var(--font); text-decoration: underline; cursor: pointer; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.project-card {
+  display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px;
+  border: 1px solid var(--line); border-radius: 14px; background: var(--panel);
+  animation: rise .35s ease both; animation-delay: calc(var(--i) * 25ms);
+  transition: border-color .18s, transform .18s;
+}
+.project-card:hover { border-color: var(--line-strong); transform: translateY(-2px); }
+.project-card.cracked { border-color: rgba(255, 90, 106, .4); }
+.project-card-top { display: flex; align-items: flex-start; gap: 8px; }
+.project-card-top > div:first-child { min-width: 0; flex: 1; }
+.project-card h3 { margin: 0; font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
+.project-card p.mono { margin: 2px 0 0; font-size: 10.5px; color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-summary { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.size-bar { height: 4px; border-radius: 3px; background: var(--panel-2); overflow: hidden; margin-top: auto; }
+.size-bar i { display: block; height: 100%; border-radius: 3px; transition: width .5s ease; }
+.project-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.project-card-foot .mono { font-size: 10.5px; color: var(--muted); }
+
+/* ---------- Remi's card (brutalist, bottom-right of the stage) ---------- */
+.remi-layer { position: absolute; right: 14px; bottom: 14px; z-index: 8; }
+.remi-card {
+  width: 330px; max-width: calc(100vw - 32px); border: 2px solid #000; background: #f4f1e8; color: #000;
+  box-shadow: 6px 6px 0 #f5c542; animation: remi-in .35s cubic-bezier(.2, 1.4, .4, 1) both;
+}
+.remi-card[hidden] { display: none; }
+.remi-card.done { box-shadow: 6px 6px 0 #3ddc97; }
+.remi-head {
+  display: flex; justify-content: space-between; padding: 5px 10px; background: #000; color: #f5c542;
+  font: 700 10px var(--mono); text-transform: uppercase; letter-spacing: .14em;
+}
+.remi-progress { color: rgba(255, 255, 255, .7); }
+.remi-top { display: flex; gap: 12px; padding: 10px; }
+.remi-frame { display: grid; place-items: center; flex: none; width: 72px; height: 82px; border: 2px solid #000; background: #e6e1d3; }
+.remi-avatar { image-rendering: pixelated; }
+.remi-info { min-width: 0; }
+.remi-info p { margin: 0; }
+.remi-kicker { font: 700 10px var(--mono); text-transform: uppercase; letter-spacing: .08em; color: rgba(0, 0, 0, .55); }
+.remi-title { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
+.remi-step { margin-top: 4px !important; font-size: 12px; }
+.remi-step.ok { color: #0f7a4f; font-weight: 700; }
+.remi-reason { margin-top: 4px !important; font: 10.5px/1.4 var(--mono); color: rgba(0, 0, 0, .65); }
+.remi-plan { padding: 8px 10px; border-top: 2px solid #000; }
+.remi-plan ol { margin: 6px 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.remi-plan li { display: flex; gap: 7px; font-size: 12px; line-height: 1.35; animation: rise .3s ease both; }
+.remi-plan li.ok span:last-child { color: rgba(0, 0, 0, .55); text-decoration: line-through; text-decoration-color: rgba(0, 0, 0, .3); }
+.remi-check { display: grid; place-items: center; flex: none; width: 16px; height: 16px; border: 2px solid #000; background: #fff; font: 700 9px var(--mono); }
+.remi-plan li.ok .remi-check { background: #000; color: #3ddc97; }
+.remi-honest { margin: 0; padding: 6px 10px; border-top: 2px solid #000; font-size: 11px; color: rgba(0, 0, 0, .7); }
+.remi-actions { display: flex; gap: 8px; padding: 8px 10px; border-top: 2px solid #000; }
+.remi-btn { padding: 5px 12px; border: 2px solid #000; background: #fff; color: #000; font: 700 12px var(--font); cursor: pointer; box-shadow: 2px 2px 0 #000; }
+.remi-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 #000; }
+.remi-btn.primary { background: #3ddc97; }
+.remi-strip { display: flex; margin: 0; padding: 0; list-style: none; border-top: 2px solid #000; }
+.remi-strip li { flex: 1; height: 8px; background: #fff; border-right: 2px solid #000; transition: background .3s; }
+.remi-strip li:last-child { border-right: 0; }
+.remi-strip li.past { background: #000; }
+.remi-strip li.now { background: #f5c542; animation: blink-strip 1s steps(2) infinite; }
+.remi-card.done .remi-strip li.now { background: #3ddc97; animation: none; }
+.remi-jumper { position: fixed; left: 0; top: 0; z-index: 200; pointer-events: none; image-rendering: pixelated; filter: drop-shadow(2px 3px 0 rgba(0, 0, 0, .35)); }
+
+/* ---------- Chat composer (as in Obra) ---------- */
+#chat .chat-input.composer { flex-direction: column; align-items: stretch; padding: 6px; gap: 2px; }
+#chat .composer textarea {
+  display: block; width: 100%; min-height: 44px; max-height: 160px; resize: none; padding: 8px 8px 4px;
+  border: 0; background: transparent; color: var(--ink); font: 13px/1.45 var(--font); outline: none;
+}
+#chat .composer textarea::placeholder { color: var(--faint); }
+.composer-bar { display: flex; align-items: center; gap: 6px; }
+#chat .composer .composer-icon {
+  width: 28px; height: 28px; border-radius: 8px; background: transparent; color: var(--faint); border: 0;
+  display: grid; place-items: center; cursor: pointer;
+}
+#chat .composer .composer-icon:hover { background: var(--panel-2); color: var(--ink); }
+#chat .composer svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#chat .composer #chat-send { width: 28px; height: 28px; align-self: center; margin-left: 2px; }
+#chat .composer #chat-send:disabled { opacity: .3; }
+.agent-picker { position: relative; margin-left: auto; }
+.picker-pill {
+  max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: transparent;
+  color: var(--muted); font: 11.5px var(--font); cursor: pointer;
+}
+.picker-pill.live::before { content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--ok); }
+.picker-pill:hover, .picker-pill.open { color: var(--ink); border-color: var(--line-strong); }
+.picker-menu {
+  position: absolute; right: 0; bottom: calc(100% + 8px); z-index: 60; width: 270px; padding: 6px;
+  border-radius: 14px; display: flex; flex-direction: column; gap: 2px; animation: pop-in .14s ease;
+}
+.picker-menu[hidden] { display: none; }
+.picker-label { margin: 8px 6px 4px; color: var(--faint); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.picker-option {
+  display: grid; grid-template-columns: 10px 1fr; column-gap: 8px; align-items: center; padding: 6px 8px;
+  border: 0; border-radius: 9px; background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.picker-option:hover { background: var(--panel-2); }
+.picker-option:disabled { opacity: .4; cursor: default; }
+.picker-option strong { font-size: 12px; font-weight: 500; }
+.picker-option small { grid-column: 2; color: var(--faint); font-size: 10.5px; }
+.picker-option small:empty { display: none; }
+.picker-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--line-strong); }
+.picker-option.active .picker-dot { background: var(--accent); border-color: var(--accent); }
+.picker-menu .chip-row, .picker-menu .segmented { margin: 0 4px; }
+.picker-more { margin-top: 6px; padding: 7px 8px; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--muted); font: 11.5px var(--font); text-align: left; cursor: pointer; }
+.picker-more:hover { color: var(--ink); }
+#chat .msg.tool { align-self: flex-start; display: flex; align-items: center; gap: 7px; padding: 0 2px; border: 0; background: none; color: var(--faint); font-size: 11px; }
+#chat .msg.tool::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+#chat .chips button.action { color: #f5c542; border-color: rgba(245, 197, 66, .4); }
+
+/* ---------- Status bar extras ---------- */
+#statusbar .status-remi { color: #f5c542; }
+#statusbar .status-mode { margin-left: auto; }
+
+/* ---------- Motion ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pop-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes remi-in { from { opacity: 0; transform: translate(20px, 20px) rotate(2deg); } to { opacity: 1; transform: none; } }
+@keyframes blink-strip { 50% { opacity: .45; } }
+@keyframes pulse { 50% { opacity: .35; transform: scale(.8); } }
+.sidebar-body.enter > * { animation: rise .28s ease both; }
+.sidebar-body.enter > :nth-child(2) { animation-delay: 30ms; }
+.sidebar-body.enter > :nth-child(3) { animation-delay: 60ms; }
+.sidebar-body.enter > :nth-child(4) { animation-delay: 90ms; }
+.sidebar-body.enter > :nth-child(5) { animation-delay: 120ms; }
+.sidebar-body.enter > :nth-child(n+6) { animation-delay: 150ms; }
+#chat .msg { animation: rise .22s ease both; }
+.menu.open .menu-list { animation: pop-in .14s ease; }
+.menu-sep { margin: 4px 6px 2px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--faint); font-size: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.menu-sep:empty { padding-top: 0; margin: 4px 6px; }
+.menu-item:disabled { color: var(--faint); cursor: default; }
+.menu-item:disabled:hover { background: transparent; }
+#graph-panel:not([hidden]), #project-panel:not([hidden]) { animation: pop-in .2s ease; }
+.risk-card { transition: border-color .18s, background .18s, transform .18s; }
+.risk-card:hover { transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-body.enter > *, #chat .msg, .project-card, .remi-card, .remi-plan li, .hover-card,
+  .map-label.cracked, .remi-strip li.now, #chat .msg.tool::before { animation: none !important; }
+}
+
+/* Panels on the map start below the stage tabs; thin dark scrollbars everywhere */
+#stage #folder-panel, #stage #schema-panel { top: 62px; }
+.sidebar-body, .project-panel, #chat .chat-body { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .14) transparent; }
+/* The stage sizes every canvas to fill it (the 3D map); Remi's avatar is a small exception */
+#stage canvas.remi-avatar { position: static; inset: auto; width: 64px !important; height: 72px !important; }
+.risk-card, .guide-card, .project-card, .remi-card, .hover-card { box-sizing: border-box; }

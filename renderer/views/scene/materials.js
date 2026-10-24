@@ -35,6 +35,12 @@ export const materials = {
   // Alerts
   get alert()             { return material('alert', 0xff3b4e, { roughness: 0.5 }); },
   get alertLit()          { return material('alertLit', 0xff3b4e, { emissive: 0xff2238, emissiveIntensity: 0.9, roughness: 0.3 }); },
+  // Cracks (the glow pulses: mapView animates its emissiveIntensity)
+  get crack()             { return material('crack', 0x14121f, { roughness: 0.9 }); },
+  get crackGlow()         { return material('crackGlow', 0xff3b4e, { emissive: 0xff2238, emissiveIntensity: 1, roughness: 0.4 }); },
+  get rubble()            { return material('rubble', 0x8f89c9, { roughness: 0.95 }); },
+  // Remi's sparks
+  get spark()             { return material('spark', 0xffd25a, { emissive: 0xffb020, emissiveIntensity: 1.4, roughness: 0.3 }); },
 };
 
 const geometries = {
