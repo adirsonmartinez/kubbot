@@ -1,11 +1,12 @@
 // Turns one output line of an agent CLI into simple events for the chat. Pure (no I/O), so it is tested
 // on its own (agentEvents.test.js). Formats: Claude Code and Grok Build "stream JSON" (system /
-// assistant / user / result) and Codex "exec --json" JSONL items.
+// assistant / user / result), Codex "exec --json" JSONL items and OpenCode "run --format json" events.
 //
 // Events:
 //   { type: 'session', id }                       conversation id (to continue it later)
 //   { type: 'text' | 'thinking', delta, parent }  answer / reasoning; parent = subagent id or null
-//   { type: 'tool', id, name, target, parent }    a Platanus tool starts (name without prefix)
+//   { type: 'tool', id, name, target, level?, parent }  a Platanus tool starts (name without prefix;
+//                                                  level: the traffic light set_file_score sets)
 //   { type: 'tool_done', id, error }              that tool (or subagent) finished
 //   { type: 'subagent', id, description, kind, parent }  the agent launched a helper agent
 //   { type: 'result', durationMs, turns, inputTokens, outputTokens }
@@ -22,6 +23,14 @@ const toolName = (raw) => {
 };
 // What the tool works on (shown next to its name): a path when there is one
 const targetOf = (input) => String(input?.path ?? input?.arguments?.path ?? '').slice(0, 160);
+const LEVELS = new Set(['green', 'yellow', 'red']);
+// A Platanus tool step; the traffic light it sets goes along so the chat can say "en rojo"
+function toolEvent(id, name, input, parent) {
+  const event = { type: 'tool', id, name, target: targetOf(input), parent };
+  const level = input?.level ?? input?.arguments?.level;
+  if (LEVELS.has(level)) event.level = level;
+  return event;
+}
 
 function fromStream(e) {
   const out = [];
@@ -40,7 +49,7 @@ function fromStream(e) {
       const raw = b.name === 'use_tool' ? b.input?.tool_name : b.name;
       const input = b.name === 'use_tool' ? b.input?.arguments ?? b.input : b.input;
       const name = toolName(raw);
-      if (name) out.push({ type: 'tool', id: b.id, name, target: targetOf(input), parent });
+      if (name) out.push(toolEvent(b.id, name, input, parent));
     }
   }
   if (e.type === 'user') {
@@ -75,10 +84,30 @@ function fromCodex(e) {
   if (item.type === 'mcp_tool_call') {
     if (e.type === 'item.completed') return [{ type: 'tool_done', id: item.id, error: item.status === 'failed' || Boolean(item.error) }];
     const name = toolName(`platanus__${String(item.tool || item.name || '')}`);
-    return name ? [{ type: 'tool', id: item.id, name, target: targetOf(item.arguments), parent: null }] : [];
+    return name ? [toolEvent(item.id, name, item.arguments, null)] : [];
   }
   if (item.type === 'error') return [{ type: 'error', message: String(item.message || '') }];
   return [];
+}
+
+// OpenCode `run --format json` (v1.19): one {type, sessionID, part|error} per line. Text and reasoning
+// arrive whole (not token by token) and a tool only once it finished, so each tool is reported as
+// started and done at once. MCP tools are named "<server>_<tool>" (platanus_platanus_read_file).
+function fromOpencode(e) {
+  const part = e.part ?? {};
+  switch (e.type) {
+    case 'step_start': return e.sessionID ? [{ type: 'session', id: e.sessionID }] : [];
+    case 'text': return part.text ? [{ type: 'text', delta: part.text, parent: null }] : [];
+    case 'reasoning': return part.text ? [{ type: 'thinking', delta: part.text, parent: null }] : [];
+    case 'tool_use': {
+      const name = toolName(part.tool);
+      if (!name) return [];
+      const id = part.callID ?? part.id ?? '';
+      return [toolEvent(id, name, part.state?.input, null), { type: 'tool_done', id, error: part.state?.status === 'error' }];
+    }
+    case 'error': return [{ type: 'error', message: String(e.error?.data?.message ?? e.error?.message ?? e.error?.name ?? '') }];
+    default: return [];
+  }
 }
 
 function parseAgentLine(agent, line) {
@@ -89,7 +118,9 @@ function parseAgentLine(agent, line) {
     return [];
   }
   if (!e || typeof e !== 'object') return [];
-  return agent === 'codex' ? fromCodex(e) : fromStream(e);
+  if (agent === 'codex') return fromCodex(e);
+  if (agent === 'opencode') return fromOpencode(e);
+  return fromStream(e);
 }
 
 module.exports = { parseAgentLine };

@@ -6,3 +6,4 @@ Cada función de Platanus tiene su página en `docs/features/<nombre>/README.md`
 |---|---|---|---|
 | Servidores | [features/running-servers](features/running-servers/README.md) | [001-running-servers](../spec/001-running-servers.md) | `feature/server` |
 | Mover el mapa con la mano | [features/hand-gestures](features/hand-gestures/README.md) | — | `develop` |
+| Editor de archivos | [features/file-editor](features/file-editor/README.md) | — | `feature/file-viewer` |

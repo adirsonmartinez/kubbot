@@ -8,7 +8,7 @@ import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
 import { allFiles, baseName, countDirs, countFiles, findNode } from '../models/fileTree.js';
-import { LEVEL_RANK, worstLevel } from '../models/securityModel.js';
+import { LEVEL_RANK, worstLevel, securityScore, scoreLevel } from '../models/securityModel.js';
 import { fileTags, folderGuide } from '../models/folderTags.js';
 import { fitView, folderHeight, INTEGRATION_ROW, integrationV, INTEGRATIONS, plazaGrid, screenOf, toWorld, TREE, treeBlock } from './layout.js';
 
@@ -358,7 +358,8 @@ export class MapViewModel {
         dirs: countDirs(tree),
         ...project,
         // Share of evaluated files that are safe (100 when there is nothing to evaluate)
-        securityScore: total ? Math.round((project.counts.green / total) * 100) : 100,
+        securityScore: securityScore(project.counts),
+        scoreLevel: scoreLevel(project.counts),
       },
       // The project's plaza; counts are the open folder's (at any depth), or the whole project's
       plaza: {

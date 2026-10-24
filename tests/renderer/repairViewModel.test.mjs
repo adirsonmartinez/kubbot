@@ -6,7 +6,7 @@ import { RepairHistoryModel } from '../../renderer/models/repairHistoryModel.js'
 import { SecurityModel } from '../../renderer/models/securityModel.js';
 import { createEventBus, EVENTS } from '../../renderer/core/eventBus.js';
 
-function setup({ live = false, answer = { text: '- Paso uno\n- Paso dos' }, writes = [], hold = false } = {}) {
+function setup({ live = false, answer = { text: '- Paso uno\n- Paso dos' }, writes = [], scores = [], hold = false } = {}) {
   const security = new SecurityModel();
   const history = new RepairHistoryModel();
   history.load(`p-${Math.random()}`);
@@ -25,6 +25,7 @@ function setup({ live = false, answer = { text: '- Paso uno\n- Paso dos' }, writ
       signal?.addEventListener('abort', () => { entry.aborted = true; resolve({ text: '', error: 'cancelled' }); });
       onStart?.(String(asks.length));
       writes.forEach((w) => changed(w));
+      scores.forEach(([path, level, reason]) => security.setScore(path, level, reason, 'agent')); // platanus_set_file_score
       if (!hold) resolve(answer);
     }),
   };
@@ -175,5 +176,33 @@ test('undo survives a missing history entry and a created file counts as undoabl
     assert.equal(await vm.undo(entry.id, created), true);
     assert.equal(history.get(entry.id).status, 'planned');
     assert.equal(await vm.undo(999, created), true); // entry gone: no crash
+  } finally { mock.timers.reset(); }
+});
+
+test('a false alarm: the agent changes nothing and marks it green, so it stays green ("clear")', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const path = 'tests/secrets.test.mjs';
+    const { vm, security, history, events } = setup({ live: true, answer: { text: 'Es una falsa alarma.' }, scores: [[path, 'green', 'Es un vigilante, no guarda claves']] });
+    security.setScore(path, 'red', 'Parece una clave', 'demo');
+    vm.start(path);
+    await runAll();
+    const [entry] = history.store.state.entries;
+    assert.equal(entry.status, 'clear');
+    assert.equal(security.scoreOf(path).level, 'green');
+    assert.equal(vm.store.state.job.outcome, 'clear');
+    assert.equal(events.at(-1)[1].entry.status, 'clear');
+  } finally { mock.timers.reset(); }
+});
+
+test('a repair cancelled midway says so (repairFinished, failed), so the chat card closes', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const { vm, events } = setup();
+    vm.start('a.js');
+    vm.close();
+    const finished = events.filter((e) => e[0] === 'repairFinished');
+    assert.equal(finished.length, 1);
+    assert.equal(finished[0][1].entry.status, 'failed');
   } finally { mock.timers.reset(); }
 });

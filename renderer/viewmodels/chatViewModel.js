@@ -1,5 +1,7 @@
 // Chat with the agent: visible messages, "typing…" state, suggestion chips and minimize.
 // Messages coming from the map (alerts, a folder was opened…) are queued while the agent is typing.
+import { opensInBrowser, isSecretFile, previewOf, fileKind } from '../models/fileOpen.js';
+import { folderGuide } from '../models/folderTags.js';
 import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { strings } from '../i18n/es.js';
@@ -10,11 +12,21 @@ const CHAT = strings.chat;
 const CARDS = CHAT.cards;
 const RECENT_MESSAGES = 6;
 const nameOf = (path) => path.split('/').filter(Boolean).at(-1) ?? path;
+// A Platanus tool's short name, whatever prefix the agent CLI adds (mcp__platanus__platanus_read_file -> read_file)
+const toolKey = (name) => String(name).replace(/^(?:mcp__)?platanus(?:__|_)?(?:platanus_)?/, '');
+// Text the agent writes after using a tool: a new paragraph (unless the text so far is empty or already breaks)
+const paragraph = (before, delta) => (before && !/\n\s*$/.test(before) && !/^\s*\n/.test(delta) ? `\n\n${delta}` : delta);
+// The newest write step for `path` in a run, changed by fn (the proposed or the applied diff)
+const withWriteStep = (run, path, fn) => {
+  const index = run.steps.findLastIndex((x) => x.name === 'write_file' && x.target === path);
+  return index < 0 ? run : { ...run, steps: run.steps.map((x, i) => (i === index ? fn(x) : x)) };
+};
 const typingDelay = (reply) => 600 + Math.min((reply.text ?? reply.html ?? '').length * 10, 1600);
 
 export class ChatViewModel {
   #agent;
   #queue = [];
+  #showing = null; // the queued reply in its "typing" pause
   #nextId = 1;
 
   #actions;
@@ -29,6 +41,7 @@ export class ChatViewModel {
 
   #connection;
 
+  #shownFromChat = null; // a file the chat asked the map to show (its map card is not repeated)
   constructor({ agentModel, bus, actions = {}, connection = null }) {
     this.#agent = agentModel;
     this.#connection = connection;
@@ -48,38 +61,113 @@ export class ChatViewModel {
       this.#push({ role: 'sys', text: CHAT.projectClosed(name) });
     });
 
-    // Repairs: the agent's explanation streams into its own bubble, then a summary closes the task
+    // Repairs: one card per repair, shaped like the agent's run card (run.kind 'repair'): Remi's steps,
+    // the agent's explanation streaming in, and the result at the end. Nothing else is posted around it.
     const RC = strings.repair.chat;
-    let repairBubble = null;
+    let repairId = null;
+    let repairStep = 0;
+    const repair = (fn) => repairId !== null && this.#update(repairId, (m) => ({ ...m, run: fn(m.run) }));
+    const settle = (status = 'done') => repair((r) => ({ ...r, steps: r.steps.map((x) => (x.status === 'running' ? { ...x, status, endedAt: Date.now() } : x)) }));
     bus.on(EVENTS.repairStarted, ({ path, agent }) => {
-      repairBubble = null;
-      this.store.set({ minimized: false });
-      this.#push({ role: 'sys', text: RC.started(path, agent) });
+      this.store.set({ minimized: false, chips: null, welcome: false });
+      // The map card Remi's flight just queued (waiting, or already in its "typing" pause) is not shown
+      this.#queue = this.#queue.filter((reply) => !reply.card);
+      if (this.#showing?.card) this.#showing.dropped = true;
+      repairId = this.#push({
+        role: 'bot', text: '',
+        run: { kind: 'repair', path, agent: RC.title(agent), agentId: 'remi', startedAt: Date.now(), endedAt: null, status: 'running', steps: [], result: null },
+      });
     });
+    let repairBreak = false; // a tool ran since the last text: the next text starts a new paragraph
     bus.on(EVENTS.repairText, ({ delta }) => {
-      if (repairBubble === null) repairBubble = this.#push({ role: 'bot', tone: 'repair', text: '' });
-      this.#append(repairBubble, delta);
+      if (repairId === null) return;
+      settle();
+      this.#append(repairId, repairBreak ? paragraph(this.#textOf(repairId), delta) : delta);
+      repairBreak = false;
     });
-    bus.on(EVENTS.repairTool, ({ name }) => { repairBubble = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); });
-    bus.on(EVENTS.repairChanged, ({ change }) => this.#push({ role: 'sys', text: RC.changed(change.path, change.reason) }));
+    bus.on(EVENTS.repairTool, ({ name, target = '', level = null }) => {
+      settle();
+      repairBreak = true;
+      repair((r) => ({ ...r, steps: [...r.steps, { id: `r${++repairStep}`, kind: 'tool', name: toolKey(name), target, level, parent: null, status: 'running', startedAt: Date.now(), endedAt: null }] }));
+    });
+    bus.on(EVENTS.repairChanged, ({ change }) => {
+      repair((r) => {
+        const saved = (x) => ({ ...x, status: 'done', endedAt: Date.now(), diff: change.diff ?? null, reason: change.reason });
+        // its write step (started by the tool call) is completed; a change with no step gets one
+        if (r.steps.some((x) => x.name === 'write_file' && x.target === change.path)) return withWriteStep(r, change.path, saved);
+        return { ...r, steps: [...r.steps, saved({ id: `r${++repairStep}`, kind: 'tool', name: 'write_file', target: change.path, parent: null, startedAt: Date.now() })] };
+      });
+    });
     bus.on(EVENTS.repairFinished, ({ entry }) => {
-      repairBubble = null;
       const done = RC.finished;
       const text = {
         fixed: () => done.fixed(entry.path, entry.changes.length),
         planned: () => `${done.planned(entry.path)}${entry.summary ? '' : `\n${RC.planTitle}\n${entry.plan.map((s, i) => `${i + 1}. ${s}`).join('\n')}`}`,
         failed: () => done.failed(entry.path, entry.error),
+        clear: () => done.clear(entry.path),
         verified: () => done.verified(entry.path),
       }[entry.status]?.();
       if (!text) return;
       const chips = this.#actions.showRepairs ? [{ label: strings.repair.history.title, run: this.#actions.showRepairs }] : undefined;
-      this.sayFromMap({ text, tone: entry.status === 'failed' ? 'alert' : entry.status === 'verified' ? '' : 'repair', chips });
+      const card = repairId !== null && this.store.state.messages.find((m) => m.id === repairId)?.run;
+      if (card?.status === 'running' && card.path === entry.path) {
+        const failed = entry.status === 'failed';
+        settle(failed ? 'error' : 'done');
+        repair((r) => ({ ...r, status: failed ? 'error' : 'done', endedAt: Date.now(), result: { status: entry.status, text } }));
+        repairId = null;
+        if (chips) this.store.set({ chips });
+        return;
+      }
+      // A result with no card on screen (verifying later from the history): one row with its icon
+      this.sayFromMap({ text, result: entry.status, tone: entry.status === 'failed' ? 'alert' : '', chips });
+    });
+    // Another project opens (or this one closes): a repair card still working stops there, and the map
+    // cards it was hiding come back
+    const dropRepair = () => {
+      const card = repairId !== null && this.store.state.messages.find((m) => m.id === repairId)?.run;
+      if (card?.status === 'running') {
+        settle('error');
+        repair((r) => ({ ...r, status: 'error', endedAt: Date.now(), result: { status: 'failed', text: RC.finished.failed(card.path, strings.repair.cancelled) } }));
+      }
+      repairId = null;
+    };
+    bus.on(EVENTS.projectOpened, dropRepair);
+    bus.on(EVENTS.projectClosed, dropRepair);
+
+    // The agent waits for the person to approve a change (Manual mode): the working card says so
+    // …and the change it proposes is shown on its write step, so the person sees what they approve
+    // (the card that is writing that file; a question waiting its turn never gets it)
+    bus.on(EVENTS.agentAwaiting, ({ path, waiting, diff }) => {
+      if (!waiting) {
+        for (const m of this.store.state.messages.filter((x) => x.run?.awaiting === path)) this.#update(m.id, (x) => ({ ...x, run: { ...x.run, awaiting: null } }));
+        return;
+      }
+      const card = this.#writingCard(path);
+      if (card) this.#update(card.id, (m) => ({ ...m, run: { ...withWriteStep(m.run, path, (x) => (diff ? { ...x, proposed: diff } : x)), awaiting: path } }));
+    });
+    // A change the agent saved: its diff goes on the write step of the card that asked for it. Agents that
+    // report a tool only after it ends (OpenCode) get the step here; their tool event joins it later.
+    bus.on(EVENTS.agentChanged, (change) => {
+      const card = this.#writingCard(change.path, { chatOnly: true });
+      if (!card) return;
+      const saved = (x) => ({ ...x, diff: change.diff ?? null, reason: change.reason });
+      this.#update(card.id, (m) => {
+        if (m.run.steps.some((x) => x.name === 'write_file' && x.target === change.path)) return { ...m, run: withWriteStep(m.run, change.path, saved) };
+        const step = saved({ id: `change-${this.#nextId++}`, kind: 'tool', name: 'write_file', target: change.path, parent: null, status: 'done', fromChange: true, startedAt: Date.now(), endedAt: Date.now() });
+        return { ...m, run: { ...m.run, steps: [...m.run.steps, step] } };
+      });
     });
 
     // Editors and tools write temporary files (x.tmp.123, x~, .swp…): they are not changes worth a message
     bus.on(EVENTS.diskChanged, ({ paths }) => {
       const real = paths.filter((p) => !/(\.tmp(\.|$)|~$|\.sw[op]$|(^|\/)\.![0-9]+!|\.DS_Store$|(^|\/)\.atl\/)/.test(p));
-      if (real.length) this.#push({ role: 'sys', text: CHAT.diskChanged(real) });
+      if (!real.length) return;
+      // A card with a button per file (up to three); saves in a row join the last card instead of piling up
+      const last = this.store.state.messages.at(-1);
+      const all = [...new Set([...(last?.card?.kind === 'changes' ? last.card.paths : []), ...real])];
+      const card = { kind: 'changes', paths: all, actions: this.#actions.entryOf ? all.slice(0, 3).map((p) => ({ kind: 'open', label: CHAT.suggest.open(nameOf(p)), run: () => this.openFile(p), quiet: true })) : [] };
+      if (last?.card?.kind === 'changes') this.#update(last.id, (m) => ({ ...m, card }));
+      else this.#push({ card });
     });
 
     bus.on(EVENTS.supabaseVulnerable, () =>
@@ -95,9 +183,15 @@ export class ChatViewModel {
       }
     });
 
-    bus.on(EVENTS.folderOpened, (detail) => this.sayFromMap({ card: this.#folderCard(detail), tone: detail.counts.red ? 'alert' : '' }));
+    // While a repair runs, Remi moves the map: its folder and file cards would only interrupt the repair's card
+    bus.on(EVENTS.folderOpened, (detail) => repairId === null && this.sayFromMap({ card: this.#folderCard(detail), tone: detail.counts.red ? 'alert' : '' }));
 
-    bus.on(EVENTS.fileSelected, (file) => this.sayFromMap({ card: this.#fileCard(file), tone: file.level === 'red' ? 'alert' : '' }));
+    bus.on(EVENTS.fileSelected, (file) => {
+      if (repairId !== null) return;
+      // "Ver en el mapa" from a card already in the chat: the map shows it, no second card
+      if (file.path === this.#shownFromChat) { this.#shownFromChat = null; return; }
+      this.sayFromMap({ card: this.#fileCard(file), tone: file.level === 'red' ? 'alert' : '' });
+    });
 
     bus.on(EVENTS.commitSelected, (commit) => {
       const lane = strings.git.laneNames[commit.lane] ?? commit.lane;
@@ -146,8 +240,9 @@ export class ChatViewModel {
     try {
       reply = await this.#agent.reply(text, {
         recent,
-        onTool: (name) => { streamId = null; this.#push({ role: 'tool', text: CHAT.toolUsed(name) }); },
+        onTool: (name) => { streamId = null; this.#startStep({ tool: toolKey(name) }, CHAT.toolUsed(name)); },
         onText: (delta) => {
+          this.#finishSteps();
           if (streamId === null) { streamId = this.#push({ role: 'bot', text: '' }); this.store.set({ typing: false }); }
           streamed = true;
           this.#append(streamId, delta);
@@ -163,6 +258,7 @@ export class ChatViewModel {
       reply = { html: strings.agent.git.failed(escapeHtml(String(error?.message ?? error))), tone: 'alert' };
     }
     this.store.set({ typing: false });
+    this.#finishSteps();
     if (!streamed || reply.tone === 'alert') this.#enqueue(reply);
     else {
       this.store.set({ chips: this.#suggestionChips(reply.text) ?? reply.chips ?? null });
@@ -174,6 +270,13 @@ export class ChatViewModel {
   // subagents and their tools), the answer as it streams, and time/turns/tokens at the end.
   // run: { agent, model, effort, startedAt, endedAt, status: 'running'|'done'|'error', steps, result }
   // step: { id, kind: 'tool'|'subagent', name?, target?, description?, agentKind?, parent, status, startedAt, endedAt, output? }
+  // The running card (not one waiting its turn) that writes `path`: the one with its write step, else
+  // the newest one working. chatOnly: repairs get their changes through repairChanged.
+  #writingCard(path, { chatOnly = false } = {}) {
+    const working = this.store.state.messages.filter((m) => m.run?.status === 'running' && !m.run.queued && !(chatOnly && m.run.kind === 'repair'));
+    return working.findLast((m) => m.run.steps.some((x) => x.name === 'write_file' && x.target === path)) ?? working.at(-1) ?? null;
+  }
+
   async #sendLive(text, otherAgent = null, recent = []) {
     const state = this.#connection.store.state;
     const agentId = otherAgent ?? state.selected;
@@ -182,10 +285,12 @@ export class ChatViewModel {
     const effort = otherAgent ? null : state.effort;
     const id = this.#push({
       role: 'bot', text: '', thinking: '',
-      run: { agent: label, agentId, model, effort: effort ?? state.effort, compare: Boolean(state.compareWith), startedAt: Date.now(), endedAt: null, status: 'running', steps: [], result: null },
+      // queued: waiting in line behind another run of the same agent (a repair…) until onStart
+      run: { agent: label, agentId, model, effort: effort ?? state.effort, compare: Boolean(state.compareWith), startedAt: Date.now(), endedAt: null, status: 'running', queued: true, steps: [], result: null },
     });
     const run = (fn) => this.#update(id, (m) => ({ ...m, run: fn(m.run) }));
     const step = (stepId, fn) => run((r) => ({ ...r, steps: r.steps.map((x) => (x.id === stepId ? fn(x) : x)) }));
+    let textBreak = false; // a tool ran since the last text: the next text starts a new paragraph
     const onEvent = (e) => {
       switch (e.type) {
         case 'thinking':
@@ -196,7 +301,14 @@ export class ChatViewModel {
           if (e.parent) step(e.parent, (x) => ({ ...x, output: (x.output ?? '') + e.delta }));
           break;
         case 'tool':
-          run((r) => ({ ...r, steps: [...r.steps, { id: e.id, kind: 'tool', name: e.name, target: e.target ?? '', parent: e.parent ?? null, status: 'running', startedAt: Date.now(), endedAt: null }] }));
+          if (!e.parent) textBreak = true;
+          run((r) => {
+            if (r.steps.some((x) => x.id === e.id)) return r; // the same call reported twice
+            // a write the app already showed (its change arrived first): the tool event takes that step
+            const early = r.steps.findIndex((x) => x.fromChange && x.name === e.name && x.target === (e.target ?? ''));
+            if (early >= 0) return { ...r, steps: r.steps.map((x, i) => (i === early ? { ...x, id: e.id, fromChange: false, status: 'running' } : x)) };
+            return { ...r, steps: [...r.steps, { id: e.id, kind: 'tool', name: e.name, target: e.target ?? '', level: e.level ?? null, parent: e.parent ?? null, status: 'running', startedAt: Date.now(), endedAt: null }] };
+          });
           break;
         case 'subagent':
           run((r) => ({ ...r, steps: [...r.steps, { id: e.id, kind: 'subagent', description: e.description, agentKind: e.kind ?? '', parent: e.parent ?? null, status: 'running', startedAt: Date.now(), endedAt: null, output: '' }] }));
@@ -213,7 +325,8 @@ export class ChatViewModel {
     const reply = await this.#agent.reply(text, {
       recent,
       onEvent,
-      onText: (delta) => this.#append(id, delta),
+      onStart: () => run((r) => ({ ...r, queued: false, startedAt: Date.now() })),
+      onText: (delta) => { this.#append(id, textBreak ? paragraph(this.#textOf(id), delta) : delta); textBreak = false; },
       ...(otherAgent ? { agent: otherAgent } : {}),
     });
     const failed = reply.tone === 'alert';
@@ -244,6 +357,7 @@ export class ChatViewModel {
         case 'repair': return a.repair && { kind: 'repair', label: CHAT.suggest.repair(name), run: (from) => a.repair(s.path, from) };
         case 'audit': return { kind: 'audit', label: CHAT.suggest.audit(name), prompt: CHAT.auditPrompt(s.path, '') };
         case 'locate': return a.locate && { kind: 'locate', label: CHAT.suggest.locate(name), run: () => a.locate(s.path) };
+        case 'open': return a.entryOf && { kind: 'open', label: CHAT.suggest.open(name), run: () => this.openFile(s.path) };
         default: return { kind: 'ask', label: s.text };
       }
     }).filter(Boolean);
@@ -264,18 +378,52 @@ export class ChatViewModel {
     };
   }
 
-  #fileCard({ path, level, reason, by }) {
+  // fromChat: opened from the chat (a file name, a chip): it also offers to show it on the map
+  #fileCard({ path, level: scored, reason, by }, { fromChat = false } = {}) {
     const a = this.#actions;
+    // Green only by the demo rule means nobody checked it yet: it says so instead of "Seguro"
+    const unchecked = by === 'demo' && scored === 'green';
+    const level = unchecked ? 'grey' : scored;
     const risky = level === 'red' || level === 'yellow';
+    const open = (how) => () => a.openFile(path, how).then((r) => { if (!r?.ok) this.#push({ role: 'sys', text: r?.error && r.error !== 'desktop-only' ? r.error : CARDS.openFailed }); });
     return {
       kind: 'file', path, name: nameOf(path), level, reason,
-      source: { agent: strings.security.byAgent, remi: strings.security.byRemi }[by] ?? strings.security.byDemo,
+      source: unchecked ? CARDS.notReviewed : { agent: strings.security.byAgent, remi: strings.security.byRemi }[by] ?? strings.security.byDemo,
       actions: [
+        a.openFile && opensInBrowser(path) && !isSecretFile(path) && { kind: 'open', label: CARDS.openBrowser, run: open('default'), quiet: true },
         { kind: 'ask', label: CARDS.whatIsIt, prompt: CARDS.whatIsItPrompt(path) },
         risky && a.repair && { kind: 'repair', label: strings.repair.chip, run: (from) => a.repair(path, from) },
         risky && { kind: 'audit', label: CARDS.audit, prompt: CHAT.auditPrompt(path, reason) },
+        level === 'grey' && { kind: 'audit', label: CARDS.reviewIt, prompt: CHAT.auditPrompt(path, '') },
+        // The map (a security radar) only draws files with problems
+        fromChat && risky && a.locate && { kind: 'locate', label: CARDS.onMap, run: () => { this.#shownFromChat = path; a.locate(path); }, quiet: true },
+        a.openFile && { kind: 'reveal', label: CARDS.reveal, run: open('reveal'), quiet: true },
       ].filter(Boolean),
     };
+  }
+
+  // A file name tapped in the chat (or an "Abrir x" chip): its card with the first lines and what can be
+  // done with it. A folder goes to the map; secrets are never shown.
+  async openFile(path) {
+    const a = this.#actions;
+    const entry = await a.entryOf?.(path);
+    if (entry?.type === 'dir') return a.locate?.(path);
+    if (!entry) return this.#push({ role: 'sys', text: CHAT.notInProject(path) });
+    const secret = isSecretFile(path);
+    const parent = path.split('/').slice(0, -1).join('/');
+    const card = {
+      ...this.#fileCard({ ...a.fileInfo?.(path), path }, { fromChat: true }),
+      fileKind: fileKind(path), // Modo Vibe says what it is instead of showing code
+      where: parent ? strings.describeFolder(folderGuide(parent), nameOf(parent)).name : null,
+      preview: secret ? 'secret' : 'loading',
+    };
+    const id = this.#push({ card, tone: card.level === 'red' ? 'alert' : '' });
+    if (secret || !a.readFile) return id;
+    a.readFile(path).then((r) => {
+      const preview = r?.ok ? previewOf(r.data) ?? 'binary' : 'error';
+      this.#update(id, (m) => ({ ...m, card: { ...m.card, preview } }));
+    });
+    return id;
   }
 
   #update(id, fn) {
@@ -290,7 +438,7 @@ export class ChatViewModel {
     if (!chip.run) return this.send(chip.prompt ?? chip.label);
     chip.run(source); // first, while the button is still on screen
     this.store.set({ chips: null, welcome: false });
-    this.#push({ role: 'user', text: chip.label });
+    if (!chip.quiet) this.#push({ role: 'user', text: chip.label }); // opening or showing a file says nothing
   }
 
   suggestions() {
@@ -318,6 +466,22 @@ export class ChatViewModel {
     setTimeout(() => this.store.set({ gitPrefill: '' }), 0);
   }
 
+  // Activity rows ("Leyendo un archivo…"): only the newest one works (an orb in the view), the rest are done
+  #startStep(step, text) {
+    this.#finishSteps();
+    return this.#push({ role: 'step', text, step: { ...step, status: 'running', startedAt: Date.now() } });
+  }
+
+  #finishSteps(status = 'done') {
+    const { messages } = this.store.state;
+    if (!messages.some((m) => m.step?.status === 'running')) return;
+    this.store.set({ messages: messages.map((m) => (m.step?.status === 'running' ? { ...m, step: { ...m.step, status, endedAt: Date.now() } } : m)) });
+  }
+
+  #textOf(id) {
+    return this.store.state.messages.find((m) => m.id === id)?.text ?? '';
+  }
+
   #push(message) {
     const id = this.#nextId++;
     this.store.set({ messages: [...this.store.state.messages, { id, ...message }] });
@@ -340,12 +504,16 @@ export class ChatViewModel {
   // Shows "typing…", then the reply after a delay that depends on its length
   #next() {
     const reply = this.#queue.shift();
+    this.#showing = reply ?? null;
     if (!reply) return;
     this.store.set({ typing: true });
     setTimeout(() => {
-      this.#push({ role: 'bot', text: reply.text, html: reply.html, tone: reply.tone, card: reply.card });
-      this.store.set({ typing: false, chips: reply.chips ?? this.store.state.chips });
-      reply.then?.();
+      if (reply.dropped) this.store.set({ typing: false });
+      else {
+        this.#push({ role: 'bot', text: reply.text, html: reply.html, tone: reply.tone, card: reply.card, result: reply.result });
+        this.store.set({ typing: false, chips: reply.chips ?? this.store.state.chips });
+        reply.then?.();
+      }
       this.#next();
     }, typingDelay(reply));
   }

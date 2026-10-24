@@ -40,7 +40,7 @@ function addTip(button, title, info) {
   button.appendChild(tip);
 }
 
-export function createShellView({ shellViewModel: vm, modeModel, repairViewModel, repairHistory, serversViewModel, actions }) {
+export function createShellView({ shellViewModel: vm, modeModel, approval = null, repairViewModel, repairHistory, serversViewModel, actions }) {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
   const devTree = createDevTree({
@@ -646,6 +646,10 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
       ...(state.open ? [] : [el('span', 'status-strong', S.status.noProject)]), // when open, the breadcrumb names it
       ...(job ? [el('span', 'status-remi', `${strings.repair.name}: ${(job.source === 'agent' ? strings.repair.stepsAgent(job.agentLabel) : strings.repair.steps)[job.step]}`)] : []),
       el('span', 'status-mode', `${strings.mode.title}: ${strings.mode[modeModel.store.state.mode]}`),
+      // Only when changes are not approved one by one, so the person always knows
+      ...(approval && approval.store.state.mode !== 'manual'
+        ? [el('span', `status-perm ${approval.store.state.mode}`, strings.chat.permissions.status(strings.chat.permissions.names[approval.store.state.mode]))]
+        : []),
       el('span', 'status-agent', S.status.agent),
     );
   }
@@ -662,6 +666,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     }
   }, { immediate: true });
   modeModel.store.subscribe(() => render(vm.store.state));
+  approval?.store.subscribe(() => render(vm.store.state));
   repairViewModel.store.subscribe(() => render(vm.store.state));
   repairHistory.store.subscribe(() => render(vm.store.state));
   serversViewModel.store.subscribe(() => (vm.store.state.side === 'servers' ? render(vm.store.state) : syncServerMenu()));

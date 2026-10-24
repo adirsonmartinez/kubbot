@@ -176,6 +176,10 @@
   cursor: default;
   pointer-events: none;
 }
+/* "Probando…": the connecting orb beside the text, at full opacity (the orb is the state) */
+.hub-btn-test { display: inline-flex; align-items: center; gap: 6px; }
+.hub-btn-test .orb { margin: -3px 0 -3px -4px; }
+.hub-btn-test.disabled { opacity: 1; color: var(--muted); }
 
 /* Compare button — segmented style */
 .hub-btn-compare.active {

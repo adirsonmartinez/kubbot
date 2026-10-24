@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { loadVoice, composePrompt, styleHints } = require('./agentVoice');
+const { loadVoice, composePrompt, composeRefinePrompt, styleHints } = require('./agentVoice');
 
 const voice = loadVoice(path.join(__dirname, '..', 'agent'));
 
@@ -50,4 +50,19 @@ test("the person's words never reach the prompt (only our hints do)", () => {
 test('bad input is cleaned: not a list, too many, too long, not text', () => {
   assert.doesNotThrow(() => composePrompt(voice, { mode: 'vibe', recent: 'hola' }));
   assert.doesNotThrow(() => composePrompt(voice, { mode: 'vibe', recent: [1, null, { a: 1 }, 'x'.repeat(10000)] }));
+});
+
+test('refine: turns a message into a test-first spec as JSON only, in the voice of the mode', () => {
+  const vibe = composeRefinePrompt(voice, { mode: 'vibe' });
+  for (const key of ['objective', 'problem', 'scope', 'constraints', 'tasks', 'accept', 'red', 'green', 'refactor']) assert.ok(vibe.includes(`"${key}"`), key);
+  assert.ok(vibe.includes(voice.config.refine.modes.vibe));
+  assert.ok(composeRefinePrompt(voice, { mode: 'dev' }).includes(voice.config.refine.modes.dev));
+  assert.ok(!vibe.includes(voice.skills.vibe.slice(0, 80)), 'no chat answer format: only the JSON');
+  assert.ok(composeRefinePrompt(voice, { mode: 'nope' }).includes(voice.config.refine.modes.vibe));
+});
+
+test('the chat format teaches the agent to work a spec task by task, test first', () => {
+  const prompt = composePrompt(voice, { mode: 'vibe' });
+  assert.ok(prompt.includes('T1'));
+  assert.ok(/prueba/i.test(voice.config.format.join(' ')));
 });

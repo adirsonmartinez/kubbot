@@ -94,7 +94,12 @@ body::after {
 .hud-ring circle { fill: none; stroke-width: 5; }
 .hud-ring .track { stroke: rgba(255, 255, 255, 0.08); }
 .hud-ring .value { stroke: var(--accent); stroke-linecap: round; filter: drop-shadow(0 0 4px var(--accent)); transition: stroke-dashoffset 0.6s ease; }
-#hud.has-risk .hud-ring .value { stroke: var(--warn); filter: drop-shadow(0 0 4px var(--warn)); }
+#hud[data-level="red"] .hud-ring .value { stroke: var(--danger); filter: drop-shadow(0 0 4px var(--danger)); }
+#hud[data-level="yellow"] .hud-ring .value { stroke: var(--warn); filter: drop-shadow(0 0 4px var(--warn)); }
+#hud[data-level="green"] .hud-ring .value { stroke: var(--ok); filter: drop-shadow(0 0 4px var(--ok)); }
+#hud[data-level="red"] [data-field="score"] { color: var(--danger); }
+#hud[data-level="yellow"] [data-field="score"] { color: var(--warn); }
+#hud[data-level="green"] [data-field="score"] { color: var(--ok); }
 #hud strong { display: block; font: 600 18px var(--mono); font-variant-numeric: tabular-nums; color: var(--text); }
 #hud span { display: block; font-size: 11px; color: var(--muted); }
 .hud-stat.risk strong { color: var(--danger); }
@@ -242,9 +247,6 @@ body::after {
 .msg.alert { background: var(--danger-soft); border-color: rgba(255, 90, 106, 0.4); }
 .msg.alert strong { color: var(--danger); }
 .msg.typing { display: flex; gap: 4px; padding: 11px 13px; }
-.msg.typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1s infinite ease-in-out; }
-.msg.typing i:nth-child(2) { animation-delay: 0.15s; }
-.msg.typing i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes blink { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chips button {
@@ -253,19 +255,6 @@ body::after {
 }
 .chips button:hover { border-color: rgba(139, 131, 255, 0.5); color: var(--accent); }
 .chat-input { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
-.chat-input input {
-  flex: 1; min-width: 0; padding: 9px 11px; border: 1px solid var(--line-strong); border-radius: 9px;
-  font: inherit; color: var(--text); background: rgba(0, 0, 0, 0.2); outline: none;
-}
-.chat-input input::placeholder { color: var(--faint); }
-.chat-input input:focus { border-color: rgba(139, 131, 255, 0.5); box-shadow: 0 0 0 3px rgba(139, 131, 255, 0.12); }
-.chat-input > button {
-  width: 40px; flex: none; border: 0; border-radius: 9px; background: var(--accent); color: #0b0a1f;
-  cursor: pointer; display: grid; place-items: center;
-}
-.chat-input > button:hover { filter: brightness(1.08); }
-.chat-input > button:disabled { opacity: 0.35; cursor: default; }
-.chat-input svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 
 @media (max-width: 600px) {
   /* leave room for the map controls at the bottom */
