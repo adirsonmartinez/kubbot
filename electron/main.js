@@ -1,13 +1,13 @@
 // Electron main process: creates the window and is the only part that touches the disk.
 // The window (renderer) asks for things over IPC and they are validated here before running.
 
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, systemPreferences } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, systemPreferences, session } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs/promises');
 const { existsSync } = require('node:fs');
 const { Workspace } = require('./workspace');
-const { readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort } = require('./git');
+const { readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort, gitInit } = require('./git');
 const t = require('./strings');
 const agents = require('./agents');
 const { loadVoice, composePrompt } = require('./agentVoice');
@@ -119,6 +119,9 @@ ipcMain.handle('workspace:create', async () => {
     await fs.mkdir(dir, { recursive: true });
   }
   log('workspace:create', dir, true);
+  // Its own git repository from the start (no git installed: the project still opens, just without history)
+  const init = await gitInit(dir);
+  log('git:init', dir, init.ok);
   return openWorkspace(dir);
 });
 
@@ -551,8 +554,10 @@ ipcMain.handle('mcp:info', () => ({ ok: true, data: mcp }));
 // --- Agents with the user's own subscription ---
 ipcMain.handle('agents:detect', async () => ({ ok: true, data: await agents.detect() }));
 ipcMain.handle('agents:login', (_e, id) => ({ ok: agents.login(String(id)) }));
-ipcMain.handle('agents:run', (_e, req) => {
+ipcMain.handle('agents:run', async (_e, req) => {
   if (!mcp.running) return { ok: false, error: t.mcp.windowClosed };
+  // The system proxy, asked on every run: VPN apps like Psiphon change their port each time they start
+  const proxyEnv = agents.proxyEnvFor(await session.defaultSession.resolveProxy('https://api.anthropic.com').catch(() => ''));
   const runId = `${Date.now()}-${++requestSeq}`;
   const model = /^[a-zA-Z0-9.\-_]{0,40}$/.test(String(req?.model ?? '')) ? String(req.model ?? '') : '';
   const effort = ['low', 'medium', 'high', 'xhigh', 'max'].includes(req?.effort) ? req.effort : 'low';
@@ -568,7 +573,7 @@ ipcMain.handle('agents:run', (_e, req) => {
   }
   const child = agents.run(
     String(req?.agent),
-    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: req?.session === 'repair' ? 'repair' : 'chat' },
+    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: req?.session === 'repair' ? 'repair' : 'chat', proxyEnv },
     (event) => {
       if (event.type === 'done') agentRuns.delete(runId);
       send('agents:event', { runId, ...event });

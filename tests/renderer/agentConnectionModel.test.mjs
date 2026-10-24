@@ -21,6 +21,14 @@ function fakeService() {
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
+test('no agent is picked by itself: the person chooses (each answer spends their subscription)', async () => {
+  localStorage.clear();
+  const m = new AgentConnectionModel(fakeService());
+  await m.refresh();
+  assert.equal(m.store.state.selected, null);
+  assert.equal(m.live, false);
+});
+
 test('runs are serialized: the second starts only after the first is done', async () => {
   const svc = fakeService();
   const m = new AgentConnectionModel(svc);

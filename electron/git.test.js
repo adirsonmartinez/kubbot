@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const {
-  isSafeRev, isSafeBranch, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort,
+  isSafeRev, isSafeBranch, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort, gitInit,
 } = require('./git');
 const { isBlockedPath } = require('./mcpServer');
 
@@ -23,6 +23,18 @@ function repo() {
   git('commit', '-q', '-m', 'first');
   return { dir, git };
 }
+
+test('a new project gets its own repository on main, even inside another repository', async () => {
+  const { dir: outer } = repo();
+  const dir = path.join(outer, 'nuevo-proyecto');
+  fs.mkdirSync(dir);
+  assert.equal((await gitInit(dir)).ok, true);
+  const top = execFileSync('git', ['rev-parse', '--show-toplevel'], { cwd: dir, encoding: 'utf8' }).trim();
+  assert.equal(fs.realpathSync(top), fs.realpathSync(dir));
+  const branch = execFileSync('git', ['symbolic-ref', '--short', 'HEAD'], { cwd: dir, encoding: 'utf8' }).trim();
+  assert.equal(branch, 'main');
+  assert.equal((await gitInit(null)).code, 'noWorkspace');
+});
 
 test('revisions: hashes and HEAD pass, anything that looks like an option does not', () => {
   for (const ok of ['HEAD', 'HEAD~2', 'a1b2c3d', 'A1B2C3D4', 'f'.repeat(40)]) assert.equal(isSafeRev(ok), true, ok);

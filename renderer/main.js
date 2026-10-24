@@ -38,6 +38,7 @@ import { createInputController } from './views/scene/inputController.js';
 import { createGitView } from './views/scene/gitView.js';
 import { createRemiView } from './views/scene/remiView.js';
 import { createRobotView } from './views/scene/robotView.js';
+import { RobotDialogViewModel } from './viewmodels/robotDialogViewModel.js';
 import { createHudView } from './views/ui/hudView.js';
 import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
@@ -120,8 +121,35 @@ const actions = {
   },
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
+  openChat() {
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+  },
+  // The welcome robot hands a ready-made request to the agent (scaffold, .gitignore, README). Without a chosen
+  // agent the scripted demo would answer, so the request waits until the person picks one (never automatic:
+  // it spends their subscription)
+  askAgent(prompt) {
+    actions.openChat();
+    if (connection.live) return chatViewModel.send(prompt);
+    pendingAgentPrompt = prompt;
+    actions.showConnect();
+    chatViewModel.sayFromMap({ text: strings.map.welcome.pickAgent });
+  },
+  // The robot's "save my progress": a commit understood by the chat itself (git asks before writing)
+  saveProgress() {
+    actions.openChat();
+    chatViewModel.send(strings.map.welcome.saveProgressPhrase);
+  },
 };
+let pendingAgentPrompt = null;
+connection.store.subscribe(() => {
+  if (!connection.live || !pendingAgentPrompt) return;
+  const prompt = pendingAgentPrompt;
+  pendingAgentPrompt = null;
+  chatViewModel.send(prompt);
+});
 const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection });
+const robotDialogViewModel = new RobotDialogViewModel({ mapViewModel, projectModel, securityModel, actions });
 
 // The stage tab drives which 3D view is on screen: the git tab shows the branches, the rest the map
 shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 'git' ? 'git' : 'map'), { immediate: true });
@@ -135,7 +163,7 @@ const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
 const gitView = createGitView({ sceneView, labels, gitViewModel });
 createRemiView({ sceneView, labels, repairViewModel });
-createRobotView({ sceneView, labels, mapViewModel });
+createRobotView({ sceneView, labels, mapViewModel, robotDialogViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
 appViewModel.store.subscribe(({ view }) => {
   sceneView.setActiveLayer(view);

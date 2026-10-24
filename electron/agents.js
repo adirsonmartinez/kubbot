@@ -21,6 +21,21 @@ const AGENTS = {
   codex: { label: t.agents.codex, bin: "codex", login: "codex login" },
 };
 
+// The CLIs only read proxy environment variables, not the system proxy that VPN apps (Psiphon, corporate
+// clients) set, so without this they connect directly and fail with ECONNREFUSED. `resolved` is Electron's
+// session.resolveProxy() answer ("PROXY host:port; DIRECT"); a proxy already in the environment wins.
+// The local MCP server never goes through the proxy.
+const PROXY_VARS = ["HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY"];
+function proxyEnvFor(resolved, env = process.env) {
+  if (PROXY_VARS.some((name) => env[name] || env[name.toLowerCase()])) return {};
+  const entry = String(resolved ?? "").split(";").map((s) => s.trim()).find((s) => /^(PROXY|HTTPS) /i.test(s));
+  const hostPort = entry?.split(/\s+/)[1] ?? "";
+  const m = /^([a-zA-Z0-9.-]+):(\d{1,5})$/.exec(hostPort);
+  if (!m || Number(m[2]) > 65535 || entry.split(/\s+/).length !== 2) return {};
+  const url = `http://${m[1]}:${m[2]}`;
+  return { HTTPS_PROXY: url, HTTP_PROXY: url, NO_PROXY: "127.0.0.1,localhost,::1" };
+}
+
 // Runs a quick CLI command without blocking the app (the old spawnSync froze the window for seconds)
 function quick(bin, args, timeout = 6000) {
   return new Promise((resolve) => {
@@ -29,18 +44,29 @@ function quick(bin, args, timeout = 6000) {
   });
 }
 
+// Looks the CLI up in PATH without a shell (there is no /bin/sh on Windows). On Windows only a real .exe
+// counts: Node cannot start a .cmd shim without a shell, and the official installers ship an .exe.
+const BIN_EXTENSIONS = process.platform === "win32" ? [".exe"] : [""];
 async function which(bin) {
-  const r = await quick("/bin/sh", ["-c", `command -v ${bin}`]);
-  return r.ok ? r.stdout.trim() : null;
+  for (const dir of ENV.PATH.split(path.delimiter).filter(Boolean)) {
+    for (const ext of BIN_EXTENSIONS) {
+      const candidate = path.join(dir, bin + ext);
+      try {
+        await fs.promises.access(candidate, fs.constants.X_OK);
+        if ((await fs.promises.stat(candidate)).isFile()) return candidate;
+      } catch { /* not here */ }
+    }
+  }
+  return null;
 }
 
-async function loginStatus(id) {
+async function loginStatus(id, bin) {
   if (id === "claude") {
-    const r = await quick("claude", ["auth", "status"], 8000);
+    const r = await quick(bin, ["auth", "status"], 8000);
     try { return JSON.parse(r.stdout).loggedIn === true; } catch { return false; }
   }
   if (id === "codex") {
-    const r = await quick("codex", ["login", "status"], 8000);
+    const r = await quick(bin, ["login", "status"], 8000);
     return r.ok && !/not logged in/i.test(r.out);
   }
   return null; // Grok exposes no login status: known on first use
@@ -51,12 +77,16 @@ async function version(bin) {
   return (/\d+\.\d+(\.\d+)?/.exec(r.out) ?? [""])[0];
 }
 
+// Absolute path of each CLI found by detect(), used to start it
+const binPaths = {};
+
 // [{ id, label, installed, loggedIn, version, path }], checked in parallel
 function detect() {
   return Promise.all(Object.entries(AGENTS).map(async ([id, a]) => {
     const path_ = await which(a.bin);
     if (!path_) return { id, label: a.label, installed: false, loggedIn: false, version: "", path: "" };
-    const [loggedIn, v] = await Promise.all([loginStatus(id), version(a.bin)]);
+    binPaths[id] = path_;
+    const [loggedIn, v] = await Promise.all([loginStatus(id, path_), version(path_)]);
     return { id, label: a.label, installed: true, loggedIn, version: v, path: path_ };
   }));
 }
@@ -167,7 +197,8 @@ function run(id, opts, emit) {
   const session = opts.session === "repair" ? "repair" : "chat";
   const key = `${id}:${session}`;
   running.get(key)?.kill("SIGTERM");
-  const child = spawn(AGENTS[id].bin, argsFor(id, { ...opts, session }), { env: ENV, cwd: WORKDIR, stdio: ["ignore", "pipe", "pipe"] });
+  const env = { ...ENV, ...opts.proxyEnv };
+  const child = spawn(binPaths[id] ?? AGENTS[id].bin, argsFor(id, { ...opts, session }), { env, cwd: WORKDIR, stdio: ["ignore", "pipe", "pipe"] });
   running.set(key, child);
   let buffer = "";
   let stderr = "";
@@ -192,4 +223,4 @@ function run(id, opts, emit) {
   return child;
 }
 
-module.exports = { detect, login, run };
+module.exports = { detect, login, run, proxyEnvFor };
