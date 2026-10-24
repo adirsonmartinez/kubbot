@@ -758,7 +758,7 @@ body.chat-min #chat.card.min {
 /* ---------- Floating chat button (chat minimized or closed) with the options menu ---------- */
 .chat-launcher { position: fixed; right: 18px; bottom: 40px; z-index: 35; display: none; }
 body.chat-min .chat-launcher, body.chat-closed .chat-launcher { display: block; }
-/* Start screen (no project): no dock, no side panel and no chat button, nothing to navigate yet */
+/* Start screen (no project): no dock, no side panel, no chat and no chat button, nothing to navigate yet */
 body.no-project #stage-tabs, body.no-project #sidebar-toggle, body.no-project #sidebar, body.no-project .chat-launcher { display: none; }
 body.chat-min #chat.card.min { display: none; }
 .chat-launcher-button {
@@ -1021,7 +1021,7 @@ body:not(.chat-closed):not(.chat-min) { --shift-r: -194px; }
   transform-origin: right center;
   transition: transform .28s cubic-bezier(.2, .8, .2, 1), opacity .2s ease, visibility 0s linear 0s;
 }
-body.chat-closed #workspace > #chat.card {
+body.chat-closed #workspace > #chat.card, body.no-project #workspace > #chat.card {
   display: flex; transform: translateX(24px) scale(.98); opacity: 0; visibility: hidden; pointer-events: none;
   transition: transform .22s ease, opacity .18s ease, visibility 0s linear .22s;
 }
