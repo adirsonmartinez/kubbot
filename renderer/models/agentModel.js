@@ -40,8 +40,9 @@ export class AgentModel {
   // agent: ask another agent than the selected one (compare answers)
   // recent: the person's last messages (the agent adapts to how they write; see agent/voice.json)
   // onStart: called when the agent really starts (a question can wait in line behind a repair)
-  async reply(text, { onTool, onText, onThinking, onEvent, onStart, agent, recent = [] } = {}) {
-    if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, onStart, recent, ...(agent ? { agent } : {}) });
+  // readOnly: the person only wants to understand; the agent's tools can only read this time
+  async reply(text, { onTool, onText, onThinking, onEvent, onStart, agent, recent = [], readOnly = false } = {}) {
+    if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, onStart, recent, readOnly, ...(agent ? { agent } : {}) });
     return (await this.#gitCommand(text)) ?? (await this.#fileCommand(text)) ?? this.#scripted(text);
   }
 
