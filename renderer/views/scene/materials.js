@@ -28,13 +28,14 @@ export const materials = {
   get body()       { return material('body', 0xc9ced4); },
   get bodyLight()  { return material('bodyLight', 0xe6e9ec); },
   get bodyDark()   { return material('bodyDark', 0x8d959e); },
-  get glass()      { return material('glass', 0x2a2f35, { roughness: 0.25, metalness: 0.4 }); },
+  // Windows, doors and screens: a cool mid grey, never black
+  get glass()      { return material('glass', 0x7a8592, { roughness: 0.3, metalness: 0.35 }); },
   get metal()      { return material('metal', 0x6b737c, { roughness: 0.4, metalness: 0.7 }); },
   get white()      { return material('white', 0xf4f6f8, { roughness: 0.4, metalness: 0.1 }); },
   // Ground pieces
-  get slab()       { return material('slab', 0x1e2227, { roughness: 0.8, metalness: 0.1 }); },
-  get slabEdge()   { return material('slabEdge', 0x343a41, { roughness: 0.6, metalness: 0.3 }); },
-  get road()       { return material('road', 0x30353b, { roughness: 0.9, metalness: 0 }); },
+  get slab()       { return material('slab', 0x3b4048, { roughness: 0.8, metalness: 0.1 }); },
+  get slabEdge()   { return material('slabEdge', 0x4d545d, { roughness: 0.6, metalness: 0.3 }); },
+  get road()       { return material('road', 0x41474f, { roughness: 0.9, metalness: 0 }); },
   get roof()       { return material('roof', 0xdfe3e7, { roughness: 0.6, metalness: 0.15 }); },
   // Lit windows: faint cyan, below the bloom threshold so they do not compete with alerts
   get windowLit()  { return material('windowLit', 0x7fe9da, { emissive: PALETTE.accent, emissiveIntensity: 0.25, roughness: 0.3, metalness: 0 }); },
