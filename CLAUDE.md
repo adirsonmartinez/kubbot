@@ -38,6 +38,7 @@ renderer/
                   repairPanel, remiJump, panels (breadcrumb, schema, git), controls, labels
                   floating layout: iconBar (reorderable icons), draggable (side panel / chat by
                   header), floater (map cards: move, minimize, dock), chatDock (pinned chat column)
+  views/icons.js  icon('name') / <i data-icon> from icons/hugeicons.js (generated, see Visual style)
   views/remiSprite.js  Remi's pixel art (card and jump)
   assets/remi/    optional 3D model for Remi (see its README for source and license)
   styles/         main.css (scene overlays, dark tokens), shell.css (glass IDE; floating layout at the end),
@@ -74,6 +75,7 @@ docs/INTERFAZ.md  the interface: layout, chat and agents, repairs, where each pi
 - **Only problems glow**: safe stays calm (silver, no glow). Glowing = emissive above the bloom threshold (`materials.*Lit`, `glowPad`); small pieces use the `*Solid` variants so they do not blob.
 - Colors and materials live in `views/scene/materials.js` (`PALETTE`) and `views/theme.js` (`LEVEL_STYLE`); UI tokens in `styles/main.css` (`:root`). Do not hardcode new colors elsewhere.
 - UI: dark glass panels (blur, 1px border), small purple dot in titles, mono font for paths and numbers.
+- **Icons: Hugeicons only** (free, stroke rounded). Pick one at hugeicons.com, add it to `renderer/icons/iconNames.js`, run `npm run icons` (regenerates `renderer/icons/hugeicons.js` with just those icons; the package itself is a dev dependency), then use `<i data-icon="name"></i>` in `index.html` or `icon('name')` in views (`views/icons.js`). No hand-drawn SVG icons.
 
 ## Map navigation
 

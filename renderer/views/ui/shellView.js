@@ -4,13 +4,14 @@
 import { strings } from '../../i18n/es.js';
 import { TAG_COLOR, TAGS } from '../../models/folderTags.js';
 import { createDevTree } from './devTreeView.js';
+import { icon } from '../icons.js';
 
 const S = strings.shell;
 const P = S.project;
 const LEVEL_LABEL = strings.security.levels;
 const RISK_ICON = {
-  red: '<svg viewBox="0 0 24 24"><path d="M12 3 22 20H2z"/><path d="M12 10v4M12 17v.5"/></svg>',
-  yellow: '<svg viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.5"/></svg>',
+  red: icon('alert'),
+  yellow: icon('eye'),
 };
 
 const el = (tag, className, text) => {

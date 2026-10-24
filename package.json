@@ -9,6 +9,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
+    "icons": "node scripts/build-icons.mjs",
     "build:web": "node scripts/build-web.js",
     "dist:mac": "electron-builder --mac --publish never",
     "dist:win": "electron-builder --win --publish never",
@@ -56,6 +57,7 @@
     }
   },
   "devDependencies": {
+    "@hugeicons/core-free-icons": "^4.3.5",
     "electron": "^45.0.0",
     "electron-builder": "^26.18.0"
   },

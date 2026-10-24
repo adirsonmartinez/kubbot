@@ -50,6 +50,7 @@ import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { remiJump } from './views/ui/remiJump.js';
 import { applyStrings } from './views/ui/domStrings.js';
+import { applyIcons } from './views/icons.js';
 
 // --- Models ---
 const bus = createEventBus();
@@ -107,6 +108,7 @@ shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 
 
 // --- Views ---
 applyStrings();
+applyIcons();
 const sceneView = createSceneView(cameraViewModel, stage); // the map lives in the IDE stage
 const labels = createLabelLayer(document.getElementById('map-labels'), sceneView);
 const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
