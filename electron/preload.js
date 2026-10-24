@@ -16,6 +16,7 @@ const on = (channel) => (callback) => {
 
 contextBridge.exposeInMainWorld('platanus', {
   chooseWorkspace: () => ipcRenderer.invoke('workspace:choose'),
+  createWorkspace: () => ipcRenderer.invoke('workspace:create'),
   currentWorkspace: () => ipcRenderer.invoke('workspace:current'),
   recentWorkspaces: () => ipcRenderer.invoke('workspace:recent'),
   openRecentWorkspace: (root) => ipcRenderer.invoke('workspace:openRecent', root),

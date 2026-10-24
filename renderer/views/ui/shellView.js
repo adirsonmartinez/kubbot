@@ -56,6 +56,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     {
       key: 'file',
       items: () => [
+        { label: S.actions.newProject, run: () => vm.newProject() },
         { label: S.actions.openProject, run: () => vm.openProject() },
         { separator: true, label: S.actions.openRecent },
         ...(vm.store.state.recent.length

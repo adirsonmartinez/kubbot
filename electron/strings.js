@@ -2,6 +2,11 @@
 module.exports = {
   windowTitle: 'Platanus',
   chooseFolder: 'Elige la carpeta del proyecto',
+  newProject: 'Crear un proyecto nuevo',
+  newProjectMessage: 'Elige el nombre y dónde guardar tu proyecto.',
+  create: 'Crear',
+  defaultProjectName: 'mi-proyecto',
+  folderNotEmpty: 'Esa carpeta ya existe y tiene archivos. Elige otro nombre, o ábrela con "Abrir proyecto".',
   cancelled: 'cancelado',
   notRecent: 'Esa carpeta no está en tus proyectos recientes.',
   cancel: 'Cancelar',

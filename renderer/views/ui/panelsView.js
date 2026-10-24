@@ -8,6 +8,7 @@ export function createPanelsView({ appViewModel, mapViewModel, supabaseViewModel
   const onMap = () => appViewModel.view === 'map';
 
   // Empty state: no project open (shown in both views)
+  $('new-project').addEventListener('click', () => mapViewModel.createProject());
   $('open-project').addEventListener('click', () => mapViewModel.openProject());
   const renderEmpty = () => { $('empty-state').hidden = mapViewModel.store.state.status === 'ready'; };
 

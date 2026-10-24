@@ -26,6 +26,9 @@ export class ChatViewModel {
     this.#connection = connection;
     this.#actions = actions;
 
+    bus.on(EVENTS.projectCreated, ({ name }) => this.sayFromMap({ text: CHAT.projectCreated(name) }));
+    bus.on(EVENTS.projectCreateFailed, ({ error }) => this.sayFromMap({ text: CHAT.projectCreateFailed(error), tone: 'alert' }));
+
     bus.on(EVENTS.projectOpened, ({ name }) => {
       this.store.set({ chips: null, projectName: name });
       this.#push({ role: 'sys', text: CHAT.projectOpened(name) });

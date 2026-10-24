@@ -75,6 +75,29 @@ ipcMain.handle('workspace:choose', async () => {
   return openWorkspace(res.filePaths[0]);
 });
 
+// New project: the person picks a name and a place, Platanus creates the empty folder and opens it.
+// An existing folder is only reused when it is empty, so nothing of the person's is touched.
+ipcMain.handle('workspace:create', async () => {
+  const res = await dialog.showSaveDialog(win, {
+    title: t.newProject,
+    message: t.newProjectMessage,
+    buttonLabel: t.create,
+    defaultPath: path.join(app.getPath('documents'), t.defaultProjectName),
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+  });
+  if (res.canceled || !res.filePath) return { ok: false, cancelled: true, error: t.cancelled };
+  const dir = res.filePath;
+  try {
+    const entries = await fs.readdir(dir);
+    if (entries.some((name) => name !== '.DS_Store')) return { ok: false, error: t.folderNotEmpty };
+  } catch (err) {
+    if (err.code !== 'ENOENT') return { ok: false, error: err.message };
+    await fs.mkdir(dir, { recursive: true });
+  }
+  log('workspace:create', dir, true);
+  return openWorkspace(dir);
+});
+
 async function openWorkspace(dir) {
   const root = await workspace.open(dir);
   workspace.watch((paths) => send('fs:changed', paths));

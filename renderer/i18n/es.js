@@ -41,7 +41,8 @@ export const strings = {
 
   emptyState: {
     title: 'Ningún proyecto abierto',
-    body: 'Elige la carpeta de tu proyecto para verlo en el mapa.',
+    body: 'Crea un proyecto nuevo o abre la carpeta de uno que ya tengas para verlo en el mapa.',
+    newAction: 'Nuevo proyecto',
     action: 'Abrir proyecto',
   },
 
@@ -284,6 +285,7 @@ export const strings = {
     searchShortcut: '⌘K',
     menus: { file: 'Archivo', view: 'Ver', agent: 'Agente', window: 'Ventana' },
     actions: {
+      newProject: 'Nuevo proyecto',
       openProject: 'Abrir proyecto',
       centerView: 'Centrar vista',
       zoomIn: 'Acercar',
@@ -434,6 +436,8 @@ export const strings = {
     greeting: '¡Hola! 👋 Soy el agente de seguridad. Abre un proyecto para empezar.',
     projectReady: 'Listo, ya veo tu proyecto en el mapa. ¿Qué hacemos?',
     projectOpened: (name) => `Proyecto abierto: ${name}`,
+    projectCreated: (name) => `Listo, creé «${name}» y está vacío 🌱\nCuéntame qué quieres construir y lo armamos juntos, de forma segura desde el primer archivo.`,
+    projectCreateFailed: (error) => `No pude crear el proyecto: ${error}`,
     diskChanged: (paths) => `Cambios en disco: ${paths.slice(0, 3).join(', ')}${paths.length > 3 ? ` y ${paths.length - 3} más` : ''}`,
 
     chips: {

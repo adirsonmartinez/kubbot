@@ -41,6 +41,13 @@ export class MapViewModel {
     return this.#project.choose();
   }
 
+  async createProject() {
+    const response = await this.#project.create();
+    if (response.ok) this.#bus.emit(EVENTS.projectCreated, { name: response.data.name });
+    else if (!response.cancelled) this.#bus.emit(EVENTS.projectCreateFailed, { error: response.error });
+    return response;
+  }
+
   // pick: { type: 'folder', path } | { type: 'file', path } | { type: 'supabase' } | { type: 'table', name }
   handlePick(pick) {
     switch (pick.type) {

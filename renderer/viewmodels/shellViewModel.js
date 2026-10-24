@@ -65,6 +65,10 @@ export class ShellViewModel {
     this.#mapViewModel.openProject();
   }
 
+  newProject() {
+    this.#mapViewModel.createProject();
+  }
+
   async refreshRecent() {
     this.store.set({ recent: await this.#projectModel.recent() });
   }

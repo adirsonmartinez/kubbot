@@ -22,6 +22,13 @@ export class ProjectModel {
     return response;
   }
 
+  // New project: the person picks a name and a place, an empty folder is created and opened
+  async create() {
+    const response = await this.#workspace.create();
+    if (response.ok) await this.open(response.data);
+    return response;
+  }
+
   // [{ root, name, at }] most recent first
   async recent() {
     return (await this.#workspace.recent()).data ?? [];
