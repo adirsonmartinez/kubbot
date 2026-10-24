@@ -71,7 +71,7 @@ export function parseGitIntent(text) {
     if (m) found.push({ type, idx: m.index });
   }
   const mentionsBranch = /\b(rama|branch)\b/.test(n);
-  const isCheckout = /^(git )?(checkout|switch)\s+\S+/.test(n)
+  const isCheckout = /\b(checkout|switch)\s+\S+/.test(n)
     || (CHECKOUT_VERB.test(n) && mentionsBranch)
     || /^(cambia\w*|cambiate|ve|vete|ir|vamos|pasa\w*|muevete)\s+(a|hacia)\s+\S+$/.test(n);
   if (isCheckout) found.push({ type: 'checkout', idx: n.search(CHECKOUT_VERB) < 0 ? 0 : n.search(CHECKOUT_VERB) });
@@ -94,7 +94,7 @@ export function parseGitIntent(text) {
 
   if (type === 'checkout') {
     let rest = raw.replace(/^.*?\b(checkout|switch|cambia\w*|cámbiate|muévete|mueve\w*|pasa\w*|pásate|ir|ve|vete|vamos|salta\w*|entra\w*|usa\w*|selecciona\w*|trabaja\w*|activa\w*)\b/i, '');
-    rest = stripLead(rest, 'a|hacia|en|la|el|rama|branch|llamada|llamado|de nombre|nombre|-b');
+    rest = stripLead(rest, 'a|al|hasta|hacia|en|la|el|rama|branch|llamada|llamado|de nombre|nombre|-b');
     return { type, target: slugBranch(rest.split(/[,.;]/)[0]) };
   }
 

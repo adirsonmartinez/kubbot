@@ -41,6 +41,8 @@ test('branches', () => {
   assert.deepEqual(p('checkout feature/auth'), { type: 'checkout', target: 'feature/auth' });
   assert.deepEqual(p('cambia a la rama develop'), { type: 'checkout', target: 'develop' });
   assert.deepEqual(p('ve a main'), { type: 'checkout', target: 'main' });
+  assert.deepEqual(p('puedes hacer un checkout hasta feature/chat'), { type: 'checkout', target: 'feature/chat' });
+  assert.deepEqual(p('haz checkout a la rama develop'), { type: 'checkout', target: 'develop' });
 });
 
 test('names never start with "-" (option injection)', () => {
