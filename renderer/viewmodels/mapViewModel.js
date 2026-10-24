@@ -116,6 +116,7 @@ export class MapViewModel {
         dirs: countDirs(tree),
         height: hqHeight(total),
         counts: project.counts,
+        level: project.level,
         // Share of evaluated files that are safe (100 when there is nothing to evaluate)
         securityScore: total ? Math.round((project.counts.green / total) * 100) : 100,
       },

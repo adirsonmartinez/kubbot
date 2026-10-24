@@ -5,8 +5,15 @@ import * as THREE from 'three';
 import { groundLink, materials as M } from './materials.js';
 import { buildHeadquarters, HQ_BASE, HQ_TOWER } from './builders/headquartersBuilder.js';
 import { buildFolderBuilding } from './builders/folderBuilder.js';
+import { buildBlock } from './builders/blockBuilder.js';
+import { folderHeight } from '../../viewmodels/layout.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
+
+// 'blocks': plain cubes (temporary, while we define how buildings unfold); 'detailed': full buildings
+const BUILDING_STYLE = 'blocks';
+const ROOT_BLOCK_SIZE = 4.5;
+const FOLDER_BLOCK_SIZE = 3;
 
 const RISE_SPEED = 2.2;
 const PULSE_SPEED = 0.35; // road lengths per second
@@ -49,12 +56,17 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
     sceneView.layers.map.add(group);
 
     // Main building: the root folder
-    const hq = buildHeadquarters(state.root.height);
+    const blocks = BUILDING_STYLE === 'blocks';
+    const rootBlock = blocks
+      ? buildBlock({ size: ROOT_BLOCK_SIZE, height: state.root.height * 0.6, level: state.root.level })
+      : null;
+    const hq = rootBlock ? rootBlock.group : buildHeadquarters(state.root.height);
     hq.userData.pick = { type: 'folder', path: '' };
     group.add(hq);
+    const rootLabelY = rootBlock ? rootBlock.top + 1 : HQ_BASE + state.root.height + 5.6;
     const rootLabel = labels.add({
       html: `<strong>${escapeHtml(state.projectName)}</strong><span>${strings.map.rootSummary(state.root.total, state.root.dirs)}</span>${riskLine(state.root.counts)}`,
-      anchor: { x: HQ_TOWER.x, y: HQ_BASE + state.root.height + 5.6, z: HQ_TOWER.z },
+      anchor: rootBlock ? { x: 0, y: rootLabelY, z: 0 } : { x: HQ_TOWER.x, y: rootLabelY, z: HQ_TOWER.z },
       className: 'root',
     });
     entries.set('', { group: hq, label: rootLabel });
@@ -66,7 +78,9 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
       pulse.rotation.y = -Math.atan2(b.z, b.x);
       group.add(pulse);
       pulses.push({ mesh: pulse, to: { x: b.x, z: b.z }, phase: (b.order * 0.37) % 1 });
-      const building = buildFolderBuilding(b);
+      const building = blocks
+        ? buildBlock({ size: FOLDER_BLOCK_SIZE, height: folderHeight(b.files), level: b.level })
+        : buildFolderBuilding(b);
       building.group.position.set(b.x, 0, b.z);
       building.group.userData.pick = { type: 'folder', path: b.path };
       group.add(building.group);
