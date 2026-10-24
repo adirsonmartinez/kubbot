@@ -1,14 +1,16 @@
 // Electron main process: creates the window and is the only part that touches the disk.
 // The window (renderer) asks for things over IPC and they are validated here before running.
 
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const { existsSync } = require('node:fs');
 const { Workspace } = require('./workspace');
 const { readGitHistory } = require('./git');
 const t = require('./strings');
 const agents = require('./agents');
 const { startMcpServer, MAX_READ_BYTES, isBlockedRealPath } = require('./mcpServer');
+const servers = require('./servers');
 
 const workspace = new Workspace();
 const audit = []; // log of everything done on disk
@@ -123,6 +125,161 @@ ipcMain.handle('workspace:current', () => ({
 }));
 
 ipcMain.handle('audit:list', () => ({ ok: true, data: audit }));
+
+// --- Servers listening on this computer (the window polls the list, so listing is not audited) ---
+const serverError = (err) => t.servers[err?.code] ?? t.servers.failed;
+const pausedPids = new Map(); // pid -> { port }: processes Platanus paused (resumed on quit)
+const stoppedServers = servers.createStoppedRegistry(); // stopped from Platanus, with how to reactivate them
+
+// Servers Platanus started (reactivated). One that closes on its own goes to "Detenidos" with its exit code
+// and output; one that was still starting turns "exited" there. Stops made by the person are not crashes.
+const managedServers = servers.createManagedServers({
+  onExit(entry, { code, signal, expected, output }) {
+    const row = stoppedServers.findByPid(entry.pid);
+    if (row) {
+      stoppedServers.update(row.id, { state: expected ? 'stopped' : 'exited', exitCode: code, pid: null, output });
+    } else if (!expected) {
+      stoppedServers.add({ port: entry.port, process: entry.process, restart: entry.restart, state: 'exited', exitCode: code, output });
+    }
+    if (!expected) log('servers:exited', `${entry.process ?? '?'} :${entry.port}`, false, String(code ?? signal));
+  },
+});
+
+ipcMain.handle('servers:list', async () => {
+  try {
+    const data = await servers.listServers({
+      paused: pausedPids,
+      managed: managedServers.pids(),
+      onEntries: (entries) => servers.reconcileStarting(stoppedServers, entries),
+    });
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, code: err?.code ?? 'failed', error: serverError(err) };
+  }
+});
+
+// Runs a server action, audits it and answers { ok, data } or { ok: false, code, error } (Spanish text)
+function serverAction(channel, fn) {
+  ipcMain.handle(channel, async (_e, arg, ...rest) => {
+    try {
+      const { data, audit: target } = await fn(arg, ...rest);
+      log(channel, target, true);
+      return { ok: true, data };
+    } catch (err) {
+      log(channel, String(arg).slice(0, 40), false, err?.code);
+      return { ok: false, code: err?.code ?? 'failed', error: serverError(err) };
+    }
+  });
+}
+
+const doneWith = ({ port, processes }) => ({ data: { port, processes }, audit: `${processes.join(', ')} :${port}` });
+
+// Pause / resume need no dialog: both are undone with one click, and everything paused is resumed on quit
+serverAction('servers:pause', async (port) => doneWith(await servers.pauseServer(port, { paused: pausedPids })));
+serverAction('servers:resume', async (port) => doneWith(await servers.resumeServer(port, { paused: pausedPids })));
+
+// Servers stopped from Platanus: { id, port, process, canRestart, state, exitCode, hasOutput, at }
+// (the command, folder and output stay here)
+ipcMain.handle('servers:stopped', () => ({ ok: true, data: stoppedServers.list() }));
+serverAction('servers:forget', async (id) => {
+  if (stoppedServers.get(id)?.state === 'starting') throw Object.assign(new Error('starting'), { code: 'alreadyStarting' });
+  return { data: stoppedServers.forget(id), audit: String(id) };
+});
+
+const isPortBusy = async (port) => (await servers.readEntries()).some((e) => e.port === port);
+
+// Reactivate inside Platanus: asks first, then the server runs as a child of the app (no Terminal window)
+serverAction('servers:restart', async (id) => {
+  const result = await servers.restartServer(id, {
+    registry: stoppedServers,
+    isPortBusy,
+    start: (row) => managedServers.start({ port: row.port, process: row.process, restart: row.restart }),
+    confirm: (row) => confirm(
+      t.servers.confirmRestart(row.process ?? t.servers.unknownProcess, row.port),
+      t.servers.confirmRestartDetail(servers.maskSecrets(row.command), row.cwd),
+      t.servers.restartButton,
+    ),
+  });
+  return { data: result, audit: `${result.process ?? '?'} :${result.port}` };
+});
+
+// Cancel a reactivation that has not started listening yet (no dialog: Platanus started it a moment ago)
+serverAction('servers:cancelStart', async (id) => {
+  const row = stoppedServers.get(id);
+  if (!row || row.state !== 'starting' || !row.pid) throw Object.assign(new Error('notStarting'), { code: 'notStarting' });
+  const output = managedServers.output(row.pid);
+  managedServers.markExpected(row.pid);
+  try { servers.terminate(row.pid, { paused: pausedPids }); } catch { /* it already closed */ }
+  stoppedServers.update(id, { state: 'stopped', pid: null, output });
+  return { data: null, audit: `${row.process ?? '?'} :${row.port}` };
+});
+
+// Output of a server Platanus started: by port (running) or by the id of its row in "Detenidos"
+ipcMain.handle('servers:output', (_e, key) => {
+  if (Number.isInteger(key) && key >= 1 && key <= 65535) {
+    const pid = managedServers.pidOnPort(key);
+    return { ok: true, data: pid ? managedServers.output(pid) ?? '' : '' };
+  }
+  const row = stoppedServers.get(key);
+  if (!row) return { ok: false, code: 'unknownStopped', error: t.servers.unknownStopped };
+  return { ok: true, data: (row.state === 'starting' && row.pid ? managedServers.output(row.pid) : row.output) ?? '' };
+});
+
+const findBrowsers = () => servers.detectBrowsers({ exists: existsSync });
+
+// Installed browsers, without their paths: the page only chooses one by id
+ipcMain.handle('servers:browsers', () => ({ ok: true, data: findBrowsers().map(({ id, name }) => ({ id, name })) }));
+
+// "Elegir otra app…": the person picks the browser in the system dialog (the page never sends a path)
+async function pickBrowserApp() {
+  const mac = process.platform === 'darwin';
+  const res = await dialog.showOpenDialog(win, {
+    title: t.servers.chooseApp,
+    defaultPath: mac ? '/Applications' : process.env.ProgramFiles,
+    properties: ['openFile'],
+    filters: [{ name: t.servers.apps, extensions: [mac ? 'app' : 'exe'] }],
+  });
+  const file = res.canceled ? null : res.filePaths[0];
+  if (file && !servers.isAppPath(process.platform, file)) throw Object.assign(new Error('notAnApp'), { code: 'notAnApp' });
+  return file;
+}
+
+ipcMain.handle('servers:open', async (_e, port, browser) => {
+  try {
+    const url = await servers.openServer(port, {
+      browser: browser ?? 'default',
+      openExternal: (u) => shell.openExternal(u),
+      launch: (app, u) => servers.launchApp(app, u),
+      pickApp: pickBrowserApp,
+      findBrowsers,
+    });
+    log('servers:open', `${url} · ${String(browser ?? 'default').slice(0, 20)}`, true);
+    return { ok: true, data: url };
+  } catch (err) {
+    log('servers:open', String(port).slice(0, 40), false, err?.code);
+    return { ok: false, code: err?.code ?? 'failed', error: serverError(err) };
+  }
+});
+
+// Stopping always asks; the pid is found here from the port and checked again after the dialog. Before it
+// stops, the command and folder are kept here (never sent to the page) so it can be reactivated: for a
+// server Platanus started they are the ones it used, so it can always be reactivated again.
+serverAction('servers:stop', async (port) => {
+  const result = await servers.stopServer(port, {
+    kill: (pid) => {
+      managedServers.markExpected(pid);
+      servers.terminate(pid, { paused: pausedPids });
+    },
+    capture: async (pid) => managedServers.restartInfo(pid) ?? servers.captureRestart(pid),
+    confirm: (targets, p) => confirm(
+      t.servers.confirmStop(targets.map((x) => x.process ?? t.servers.unknownProcess).join(', '), p),
+      t.servers.confirmStopDetail,
+      t.servers.stopButton,
+    ),
+  });
+  for (const row of result.stopped) stoppedServers.add({ ...row, output: managedServers.output(row.pid) });
+  return doneWith(result);
+});
 
 // --- Git (read only) ---
 ipcMain.handle('git:history', async () => ({ ok: true, data: await readGitHistory(workspace.root) }));
@@ -311,10 +468,10 @@ ipcMain.handle('agents:cancel', (_e, runId) => {
   return { ok: true };
 });
 
-async function confirm(message, detail) {
+async function confirm(message, detail, okLabel = t.allow) {
   const { response } = await dialog.showMessageBox(win, {
     type: 'warning',
-    buttons: [t.cancel, t.allow],
+    buttons: [t.cancel, okLabel],
     defaultId: 0,
     cancelId: 0,
     message,
@@ -385,6 +542,13 @@ app.whenReady().then(async () => {
 // Closing from the system (kill, logout, a dev restart) quits normally, so the window's saved data
 // (chosen agent, stats, repair history, Vibe/Dev) is written to disk instead of being lost
 for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => app.quit());
+
+// Nothing stays frozen or hidden after Platanus closes: every server it paused continues, and every
+// server it started (which has no terminal) is stopped
+app.on('will-quit', () => {
+  servers.resumeAll(pausedPids);
+  managedServers.stopAll();
+});
 
 app.on('window-all-closed', () => {
   workspace.unwatch();

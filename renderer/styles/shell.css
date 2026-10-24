@@ -426,6 +426,84 @@ body.mode-tech .side-name { font-family: var(--mono); }
 .risk-head .pill.repair:hover { background: rgba(245, 197, 66, .12); }
 .risk-head .pill.repair.active { background: #f5c542; color: #1b1a2e; border-color: #f5c542; }
 
+/* ---------- Servers: minimal icons + a ⋯ menu; local ones stay calm ---------- */
+.server-card { cursor: default; }
+.risk-card.server-card:hover, .risk-card.server-card:active { transform: none; } /* rows with buttons do not move under the cursor */
+.risk-head .server-actions, .risk-head .server-demo { margin-left: auto; }
+.server-actions { display: flex; gap: 2px; }
+.icon-btn {
+  display: grid; place-items: center; width: 24px; height: 24px; padding: 0;
+  border: 1px solid transparent; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.icon-btn svg { width: 15px; height: 15px; fill: currentColor; stroke: none; }
+.icon-btn:hover:not(:disabled) { background: var(--panel-2); color: var(--ink); }
+.icon-btn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.icon-btn:disabled { opacity: .35; cursor: default; }
+.server-chip { padding: 1px 7px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--muted); font-size: 10px; }
+.server-card.paused .risk-path, .server-card.stopped .risk-path { color: var(--muted); }
+.server-card.stopped { background: transparent; border: 1px dashed var(--line-strong); }
+.server-chip.managed { border-color: var(--accent); color: var(--accent); }
+.server-chip.starting { border-style: dashed; animation: chip-pulse 1.4s ease-in-out infinite; }
+@keyframes chip-pulse { 50% { opacity: .45; } }
+.server-output {
+  margin: 6px 0 0; padding: 8px 10px; max-height: 180px; overflow: auto;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+  color: var(--muted); font: 11px/1.45 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.server-output:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.server-output-wrap { position: relative; }
+.server-output-close {
+  position: absolute; top: 12px; right: 6px; display: grid; place-items: center; width: 20px; height: 20px; padding: 0;
+  border: 0; border-radius: 6px; background: var(--panel-2); color: var(--muted); cursor: pointer;
+  opacity: 0; transition: opacity .15s ease, color .15s ease;
+}
+.server-output-close svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.server-output-wrap:hover .server-output-close, .server-output-close:focus-visible { opacity: 1; }
+.server-output-close:hover { color: var(--ink); }
+.server-output-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) { .server-chip.starting { animation: none; } }
+.server-notice {
+  display: flex; align-items: flex-start; gap: 8px; margin: 0 6px 8px; padding: 7px 10px;
+  border: 1px solid var(--line); border-radius: 9px; font-size: 12px; line-height: 1.4; color: var(--muted);
+}
+.server-notice.error { border-color: var(--line-strong); color: var(--ink); }
+.server-notice-close { margin-left: auto; border: 0; background: transparent; color: var(--muted); font-size: 14px; line-height: 1; cursor: pointer; }
+.server-demo { padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); font-size: 10px; }
+.server-process { font-weight: 400; color: var(--muted); }
+.server-address { font: 11px var(--mono); color: var(--faint); }
+
+/* ---------- Floating ⋯ menu (views/ui/floatingMenu.js): one layer above the app ---------- */
+.floating-menu {
+  position: fixed; top: 0; left: 0; z-index: 120; min-width: 224px; max-width: 280px;
+  max-height: calc(100vh - 16px); overflow-y: auto; padding: 5px;
+  display: flex; flex-direction: column; gap: 1px;
+  border: 1px solid var(--line-strong); border-radius: 12px; background: var(--glass-strong);
+  backdrop-filter: blur(18px) saturate(140%); -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .04), 0 18px 40px rgba(0, 0, 0, .5), 0 2px 8px rgba(0, 0, 0, .35);
+}
+.floating-menu[hidden] { display: none; }
+.floating-menu[data-placement="below"] { transform-origin: top right; }
+.floating-menu[data-placement="above"] { transform-origin: bottom right; }
+.floating-menu.enter { animation: menu-in .14s cubic-bezier(.2, .8, .2, 1); }
+@keyframes menu-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+.floating-menu-label { padding: 7px 10px 5px; color: var(--faint); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.floating-menu-sep { height: 1px; margin: 4px 8px; background: var(--line); }
+.floating-menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-height: 30px; padding: 0 10px;
+  border: 0; border-radius: 8px; background: transparent; color: var(--ink);
+  font: 12.5px var(--font); text-align: left; white-space: nowrap; cursor: pointer;
+}
+.floating-menu-item .mi-icon { display: grid; place-items: center; width: 15px; height: 15px; flex: none; color: var(--muted); }
+.floating-menu-item .mi-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.floating-menu-item .mi-label { overflow: hidden; text-overflow: ellipsis; }
+.floating-menu-item:hover, .floating-menu-item:focus-visible { background: var(--panel-2); outline: none; }
+.floating-menu-item:hover .mi-icon, .floating-menu-item:focus-visible .mi-icon { color: var(--ink); }
+.floating-menu-item:focus-visible { box-shadow: inset 0 0 0 1px var(--accent); }
+.floating-menu-item.primary .mi-label { color: var(--accent); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .floating-menu.enter { animation: none; } }
+
 /* ---------- Empty state: recent projects ---------- */
 .empty-recent { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; min-width: 260px; text-align: left; }
 .empty-recent .side-label { margin: 0 2px 4px; }

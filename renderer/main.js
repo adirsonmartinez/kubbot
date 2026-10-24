@@ -6,6 +6,9 @@ import { strings } from './i18n/es.js';
 import { createWorkspaceService } from './services/workspaceService.js';
 import { createAgentService } from './services/agentService.js';
 import { connectMcpBridge } from './services/mcpBridge.js';
+import { createServerService } from './services/serverService.js';
+import { ServersModel } from './models/serversModel.js';
+import { ServersViewModel } from './viewmodels/serversViewModel.js';
 
 import { ProjectModel } from './models/projectModel.js';
 import { SecurityModel } from './models/securityModel.js';
@@ -59,6 +62,7 @@ const agentService = createAgentService();
 const connection = new AgentConnectionModel(agentService);
 const modeModel = new ModeModel();
 const repairHistory = new RepairHistoryModel();
+const serversModel = new ServersModel(createServerService());
 const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel });
 
 // --- ViewModels ---
@@ -70,6 +74,9 @@ const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitVi
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
 const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
 const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus });
+const serversViewModel = new ServersViewModel({ serversModel });
+// The server list only refreshes while its side view is on screen
+shellViewModel.store.subscribe(({ side, sidebarOpen }) => serversViewModel.setVisible(sidebarOpen && side === 'servers'), { immediate: true });
 
 // App actions shared by the chat, the menus and the sidebar
 const stage = document.getElementById('stage');
@@ -138,7 +145,7 @@ createControlsView({ cameraViewModel });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
 createChatView({ chatViewModel, connection });
 createHudView({ appViewModel, mapViewModel, gitViewModel });
-createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, actions });
+createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, serversViewModel, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, onMore: actions.showConnect });
 createCracksCardView({

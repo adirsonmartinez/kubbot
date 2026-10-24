@@ -30,6 +30,24 @@ contextBridge.exposeInMainWorld('platanus', {
 
   auditLog: () => ipcRenderer.invoke('audit:list'),
 
+  // Servers listening on this computer: list, open at http://localhost:<port> (default browser, an installed
+  // one by id, or 'other' to pick an app) and stop (the main process asks first)
+  servers: {
+    list: () => ipcRenderer.invoke('servers:list'),
+    browsers: () => ipcRenderer.invoke('servers:browsers'),
+    open: (port, browser) => ipcRenderer.invoke('servers:open', port, browser),
+    stop: (port) => ipcRenderer.invoke('servers:stop', port),
+    pause: (port) => ipcRenderer.invoke('servers:pause', port),
+    resume: (port) => ipcRenderer.invoke('servers:resume', port),
+    // Stopped from Platanus: reactivate inside the app (asks first), cancel a start or forget, by the id
+    // the main process gave; output of a server Platanus started, by port or by that id
+    stopped: () => ipcRenderer.invoke('servers:stopped'),
+    restart: (id) => ipcRenderer.invoke('servers:restart', id),
+    cancelStart: (id) => ipcRenderer.invoke('servers:cancelStart', id),
+    forget: (id) => ipcRenderer.invoke('servers:forget', id),
+    output: (key) => ipcRenderer.invoke('servers:output', key),
+  },
+
   // The user's own agent (subscription CLIs) and the local MCP server it talks to
   agents: {
     detect: () => ipcRenderer.invoke('agents:detect'),
