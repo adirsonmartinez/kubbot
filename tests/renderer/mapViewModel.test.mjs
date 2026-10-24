@@ -28,7 +28,7 @@ const TREE = [
 
 function setup(tree = TREE) {
   const security = new SecurityModel();
-  const projectModel = { store: new Observable({ open: true, name: 'demo', tree, usesSupabase: false, session: 1 }) };
+  const projectModel = { store: new Observable({ open: true, name: 'demo', tree, usesSupabase: false, integrations: [], session: 1 }) };
   const flights = [];
   const supabase = { store: { state: { schemaOpen: false } }, openSchema() {}, setOnScreen() {}, selectTable() {} };
   const bus = createEventBus();
@@ -245,6 +245,21 @@ test('the integrations band runs across the top, above the plaza and as wide as 
   assert.ok(c.v + band.depth / 2 < -state().plaza.size / 2);
   const widest = Math.max(...buildings.map((b) => Math.abs(at(b).u)));
   assert.ok(band.width / 2 > widest);
+});
+
+test('integrations sit in the band, in a row to the right of Supabase', () => {
+  const { state, projectModel } = setup();
+  projectModel.store.set({ integrations: ['supabase', 'vercel', 'github', 'clerk', 'posthog'], usesSupabase: true, integrationStatus: { clerk: 'incident' } });
+  const { integrations, band } = state();
+  assert.deepEqual(integrations.map((i) => i.status), ['connected', 'connected', 'incident', 'connected']);
+  assert.deepEqual(integrations.map((i) => i.key), ['vercel', 'github', 'clerk', 'posthog']); // Supabase draws itself
+  const c = screenOf(band.x, band.z);
+  integrations.forEach((i) => {
+    assert.ok(Math.abs(at(i).v - c.v) < band.depth / 2);
+    assert.ok(at(i).u > 6 && at(i).u < band.width / 2);
+  });
+  const us = integrations.map((i) => at(i).u);
+  assert.deepEqual(us, [...us].sort((a, b) => a - b));
 });
 
 // A new project: the workspace creates an empty folder and opens it

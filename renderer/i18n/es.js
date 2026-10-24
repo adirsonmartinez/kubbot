@@ -105,6 +105,12 @@ export const strings = {
     welcome: { title: '¡Hola! Soy tu robot', question: '¿Qué quieres construir hoy?' },
   },
 
+  // Integration nodes in the band at the top of the map (brand names)
+  integrations: {
+    names: { vercel: 'Vercel', github: 'GitHub', clerk: 'Clerk', posthog: 'PostHog' },
+    status: { connected: 'conectado', incident: 'con una incidencia', disconnected: 'desconectado' },
+  },
+
   supabase: {
     connected: 'Supabase · conectado',
     vulnerable: 'Supabase · RLS desactivado',

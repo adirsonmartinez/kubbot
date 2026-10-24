@@ -197,7 +197,10 @@ body::after {
 .map-label.sb-label { flex-direction: row; align-items: center; gap: 8px; padding: 6px 10px; font: 600 11px var(--sans); }
 .sb-label span { color: inherit; font-size: inherit; }
 .sb-label b { color: var(--accent); font: 600 11px var(--mono); }
-.sb-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent); animation: blink 1.4s infinite; }
+.sb-label .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 8px var(--ok); animation: blink 1.4s infinite; }
+/* Integration states: connected (green, above), with an incident (amber), disconnected (red, steady) */
+.sb-label .dot.incident { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+.sb-label .dot.disconnected { background: var(--danger); box-shadow: none; animation: none; }
 .map-label.sb-label.vuln { border-color: rgba(255, 90, 106, 0.5); background: rgba(60, 18, 24, 0.9); animation: shake 0.5s infinite; }
 .sb-label.vuln b { color: #fff; background: var(--danger); padding: 2px 6px; border-radius: 4px; }
 .sb-label.vuln .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); animation-duration: 0.4s; }

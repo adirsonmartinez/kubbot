@@ -9,9 +9,10 @@ import { buildFolderBuilding } from './builders/folderBuilder.js';
 import { buildBlock } from './builders/blockBuilder.js';
 import { buildFolderIcon } from './builders/folderIconBuilder.js';
 import { buildFileIcons, buildPlaza } from './builders/plazaBuilder.js';
+import { buildIntegration } from './builders/integrationBuilder.js';
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
-import { BOX, boxHeight, FOLDER, SCREEN_ANGLE, screenOf, toWorld } from '../../viewmodels/layout.js';
+import { BOX, boxHeight, FOLDER, INTEGRATIONS, SCREEN_ANGLE, screenOf, toWorld } from '../../viewmodels/layout.js';
 
 // 'folders': isometric folders; 'blocks': plain cubes; 'detailed': full buildings
 const BUILDING_STYLE = 'blocks';
@@ -54,12 +55,14 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
   const risers = [];            // { group, k, to: final scale.y }
   const lastAt = new Map();     // 'folder:path' -> { x, z } where it was drawn last time
   const gliders = [];           // { group, from, to, k }
+  let emblems = [];             // integration nodes, for their spin
   function clear() {
     if (group) sceneView.layers.map.remove(group);
     ownLabels.forEach((l) => l.remove());
     ownLabels = [];
     risers.length = 0;
     gliders.length = 0;
+    emblems = [];
     group = null;
   }
 
@@ -114,13 +117,28 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
     group = new THREE.Group();
     sceneView.layers.map.add(group);
 
-    // The integrations band across the top, with its name at the left end
+    // The integrations band across the top, with its name next to the first node (the band's ends can be off screen)
     const { band } = state;
     box(group, M.band, band.width, 0.03, band.depth, band.x, 0, band.z, SCREEN_ANGLE).castShadow = false;
     const b0 = screenOf(band.x, band.z);
     const edge = toWorld(b0.u, b0.v + band.depth / 2);
     box(group, M.slabEdge, band.width, 0.05, 0.08, edge.x, 0, edge.z, SCREEN_ANGLE).castShadow = false;
-    ownLabels.push(labels.add({ html: `<span>${strings.map.integrations}</span>`, anchor: { ...toWorld(b0.u - band.width / 2 + 5, b0.v - band.depth / 2 + 1.5), y: 0.2 }, className: 'band', align: 'below' }));
+    ownLabels.push(labels.add({ html: `<span>${strings.map.integrations}</span>`, anchor: { ...toWorld(-9, b0.v - band.depth / 2 + 1.5), y: 0.2 }, className: 'band', align: 'below' }));
+
+    // The integrations' nodes (Supabase draws itself), turned like it
+    state.integrations.forEach((integration) => {
+      const node = buildIntegration(integration.key);
+      node.group.position.set(integration.x, 0, integration.z);
+      node.group.rotation.y = INTEGRATIONS.rotation;
+      group.add(node.group);
+      emblems.push(node);
+      const name = escapeHtml(strings.integrations.names[integration.key] ?? integration.key);
+      ownLabels.push(labels.add({
+        html: `<span class="dot ${integration.status}"></span><span>${name} · ${strings.integrations.status[integration.status]}</span>`,
+        anchor: { x: integration.x, y: node.labelY, z: integration.z },
+        className: 'sb-label',
+      }));
+    });
 
     // The roads of the tree
     state.links.forEach(([x1, z1, x2, z2, kind]) => {
@@ -185,6 +203,7 @@ export function createMapView({ sceneView, labels, mapViewModel }) {
   }, { immediate: true });
 
   sceneView.onFrame((t, dt) => {
+    emblems.forEach((node) => node.update(t));
     for (let i = gliders.length - 1; i >= 0; i--) {
       const g = gliders[i];
       g.k = Math.min(g.k + dt * GLIDE_SPEED, 1);

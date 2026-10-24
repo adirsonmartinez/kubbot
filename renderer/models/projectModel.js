@@ -1,5 +1,11 @@
-// The open project: its name, file tree and whether it uses Supabase.
+// The open project: its name, file tree and the integrations it uses (Supabase, Vercel, GitHub…).
 import { Observable } from '../core/observable.js';
+import { DEMO_INTEGRATIONS } from './demoIntegrations.js';
+
+// Every integration the map knows, in the order it shows them
+export const INTEGRATIONS = ['supabase', 'vercel', 'github', 'clerk', 'posthog'];
+// package.json dependencies that give an integration away
+const DEPENDENCY = { supabase: '@supabase/', vercel: '@vercel/', clerk: '@clerk/', posthog: 'posthog' };
 
 const RELOAD_DEBOUNCE_MS = 250;
 
@@ -9,7 +15,8 @@ export class ProjectModel {
 
   // `session` increases each time a project is opened (to reset per-project state);
   // `version` increases each time the tree is reloaded.
-  store = new Observable({ open: false, name: null, tree: [], usesSupabase: false, session: 0, version: 0 });
+  // integrations: keys in INTEGRATIONS order; integrationStatus: key -> 'connected' | 'incident' | 'disconnected'
+  store = new Observable({ open: false, name: null, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: 0, version: 0 });
 
   constructor(workspace) {
     this.#workspace = workspace;
@@ -48,7 +55,7 @@ export class ProjectModel {
 
   // The tree is loaded before publishing, so the map never draws a half-loaded project
   async open({ name }) {
-    const loaded = await this.#load();
+    const loaded = await this.#load(name);
     if (!loaded) return;
     const { session, version } = this.store.state;
     this.store.set({ open: true, name: name || null, ...loaded, session: session + 1, version: version + 1 });
@@ -60,19 +67,21 @@ export class ProjectModel {
     clearTimeout(this.#reloadTimer);
     await this.#workspace.close();
     const { session, version } = this.store.state;
-    this.store.set({ open: false, name: null, tree: [], usesSupabase: false, session: session + 1, version: version + 1 });
+    this.store.set({ open: false, name: null, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: session + 1, version: version + 1 });
   }
 
   async reload() {
     if (!this.store.state.open) return;
-    const loaded = await this.#load();
+    const loaded = await this.#load(this.store.state.name);
     if (loaded) this.store.set({ ...loaded, version: this.store.state.version + 1 });
   }
 
-  async #load() {
+  async #load(name) {
     const response = await this.#workspace.tree();
     if (!response.ok) return null;
-    return { tree: response.data, usesSupabase: await this.#detectSupabase(response.data) };
+    const integrationStatus = await this.#detectIntegrations(response.data, name);
+    const integrations = INTEGRATIONS.filter((key) => key in integrationStatus);
+    return { tree: response.data, integrations, integrationStatus, usesSupabase: integrations.includes('supabase') };
   }
 
   // Groups bursts of disk changes into a single reload
@@ -81,11 +90,20 @@ export class ProjectModel {
     this.#reloadTimer = setTimeout(() => this.reload(), RELOAD_DEBOUNCE_MS);
   }
 
-  // A supabase/ folder or an @supabase/ dependency in package.json
-  async #detectSupabase(tree) {
-    if (tree.some((n) => n.type === 'dir' && n.path === 'supabase')) return true;
-    if (!tree.some((n) => n.type === 'file' && n.path === 'package.json')) return false;
-    const response = await this.#workspace.read('package.json');
-    return response.ok && response.data.includes('@supabase/');
+  // key -> state. From the files (supabase/, vercel.json or .vercel/, .github/, package.json dependencies),
+  // all connected; a demo project (DEMO_INTEGRATIONS) shows its own list and states instead.
+  async #detectIntegrations(tree, name) {
+    const demo = DEMO_INTEGRATIONS[(name ?? '').toLowerCase()];
+    if (demo) return { ...demo };
+    const has = (type, path) => tree.some((n) => n.type === type && n.path === path);
+    const found = new Set();
+    if (has('dir', 'supabase')) found.add('supabase');
+    if (has('file', 'vercel.json') || has('dir', '.vercel')) found.add('vercel');
+    if (has('dir', '.github')) found.add('github');
+    if (has('file', 'package.json')) {
+      const response = await this.#workspace.read('package.json');
+      if (response.ok) Object.entries(DEPENDENCY).forEach(([key, prefix]) => { if (response.data.includes(`"${prefix}`)) found.add(key); });
+    }
+    return Object.fromEntries([...found].map((key) => [key, 'connected']));
   }
 }

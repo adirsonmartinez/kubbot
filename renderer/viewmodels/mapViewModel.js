@@ -10,7 +10,7 @@ import { strings } from '../i18n/es.js';
 import { allFiles, baseName, countDirs, countFiles, findNode } from '../models/fileTree.js';
 import { LEVEL_RANK, worstLevel } from '../models/securityModel.js';
 import { fileTags, folderGuide } from '../models/folderTags.js';
-import { fitView, folderHeight, INTEGRATIONS, plazaGrid, screenOf, toWorld, TREE, treeBlock } from './layout.js';
+import { fitView, folderHeight, INTEGRATION_ROW, integrationV, INTEGRATIONS, plazaGrid, screenOf, toWorld, TREE, treeBlock } from './layout.js';
 
 const WELCOME_ZOOM = 1.9; // close to the plaza of a new project, where the robot stands
 const emptyCounts = () => ({ green: 0, yellow: 0, red: 0, grey: 0 });
@@ -33,7 +33,7 @@ export class MapViewModel {
   // `welcome`: a new, empty project, where a robot on the plaza asks what to build
   store = new Observable({
     status: 'empty', session: 0, projectName: '', path: '', crumbs: [],
-    root: null, plaza: null, buildings: [], branches: [], opened: null, links: [], band: null, welcome: false, version: 0,
+    root: null, plaza: null, buildings: [], branches: [], opened: null, links: [], band: null, integrations: [], welcome: false, version: 0,
   });
 
   constructor({ projectModel, securityModel, camera, supabaseViewModel, bus }) {
@@ -203,14 +203,14 @@ export class MapViewModel {
   }
 
   #recompute({ path = this.store.state.path, announce = false } = {}) {
-    const { open, name, tree, session } = this.#project.store.state;
+    const { open, name, tree, session, integrations = [], integrationStatus = {} } = this.#project.store.state;
     const newSession = session !== this.#session;
     this.#session = session;
     if (newSession) path = '';
     path = open ? this.#existing(tree, path) : '';
 
     if (!open) {
-      this.store.set({ status: 'empty', path: '', crumbs: [], root: null, plaza: null, buildings: [], branches: [], opened: null, links: [], band: null, welcome: false, version: this.store.state.version + 1 });
+      this.store.set({ status: 'empty', path: '', crumbs: [], root: null, plaza: null, buildings: [], branches: [], opened: null, links: [], band: null, integrations: [], welcome: false, version: this.store.state.version + 1 });
       return;
     }
 
@@ -287,6 +287,16 @@ export class MapViewModel {
     }));
     const opened = branches.at(-1) ?? null;
 
+    // Integrations other than Supabase (it draws itself at u = 0): a row along the band, on a road
+    const others = integrations.filter((key) => key !== 'supabase');
+    const firstU = integrations.includes('supabase') ? INTEGRATION_ROW.firstU : 0;
+    const nodes = others.map((key, i) => ({ key, u: firstU + i * INTEGRATION_ROW.pitch }));
+    if (nodes.length) {
+      const last = nodes.at(-1).u;
+      addLinks({ links: [[0, 0, 0, INTEGRATION_ROW.busV], [0, INTEGRATION_ROW.busV, last, INTEGRATION_ROW.busV], ...nodes.map((n) => [n.u, INTEGRATION_ROW.busV, n.u, integrationV])] }, 'top');
+    }
+    const integrationNodes = nodes.map((n) => ({ key: n.key, status: integrationStatus[n.key] ?? 'connected', ...toWorld(n.u, integrationV) }));
+
     // The integrations band, across the top, as wide as the tree
     const treeU = [0, ...links.flatMap(([x1, z1, x2, z2]) => [screenOf(x1, z1).u, screenOf(x2, z2).u])];
     const halfWidth = Math.max(INTEGRATIONS.minWidth / 2, ...treeU.map(Math.abs)) + INTEGRATIONS.margin;
@@ -327,6 +337,7 @@ export class MapViewModel {
       opened,
       links,
       band,
+      integrations: integrationNodes,
       welcome: this.#welcomeSession !== null,
       version: this.store.state.version + 1,
     });
@@ -343,8 +354,8 @@ export class MapViewModel {
       // From the integrations (their nodes, not the empty ends of the band) down to the top-level folders
       const bottom = topBlock.endV + TREE.itemHalf.top;
       const width = Math.max(topBlock.width / 2, 6) + 3;
-      const nodes = (INTEGRATIONS.bandTop + INTEGRATIONS.bandBottom) / 2;
-      const view = fitView([toWorld(-6, nodes), toWorld(6, nodes), toWorld(-width, bottom), toWorld(width, bottom)]);
+      const lastNode = Math.max(6, ...nodes.map((n) => n.u + 4));
+      const view = fitView([toWorld(-6, integrationV), toWorld(lastNode, integrationV), toWorld(-width, bottom), toWorld(width, bottom)]);
       this.#camera.flyTo(view, view.zoom);
     }
     if (announce && path) this.#announce(path, findNode(tree, path).children ?? []);

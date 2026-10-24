@@ -77,6 +77,11 @@ export function integrationToWorld({ x, z }) {
   return { x: x * c + z * s, z: -x * s + z * c };
 }
 
+// The other integrations: nodes in a row along the band, right of Supabase (which sits at u = 0), joined
+// to the plaza by a road along the band's lower edge
+export const INTEGRATION_ROW = { firstU: 12, pitch: 11, busV: -10 };
+export const integrationV = (INTEGRATIONS.bandTop + INTEGRATIONS.bandBottom) / 2;
+
 // Supabase, in the integrations' own axes (+x away from the plaza, up the screen once rotated)
 export const SUPABASE_NODE = { x: 14, z: 0 };
 export const SCHEMA_CENTER = { x: SUPABASE_NODE.x - 0.4, z: SUPABASE_NODE.z - 13 };
