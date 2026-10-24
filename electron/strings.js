@@ -28,6 +28,24 @@ module.exports = {
   gitConfirmRevertDetail: 'Se crea un nuevo commit que deshace los cambios de ese commit. El historial no se modifica.',
   gitConfirmReset: (desc) => `¿Volver al commit "${desc}" con git reset --hard?`,
   gitConfirmResetDetail: 'CUIDADO: se descartan TODOS los cambios no guardados en disco. Esta acción no se puede deshacer.',
+  git: {
+    confirmCommit: (message, count) => `¿Crear el commit "${message}" con ${count === 1 ? '1 archivo' : `${count} archivos`}?`,
+    commitButton: 'Crear commit',
+    andMore: (n) => `… y ${n} más`,
+    confirmCheckout: (target) => `¿Cambiar a "${target}"?`,
+    confirmCheckoutDetail: 'Los archivos del proyecto pasan a la versión de esa rama o commit. Si tienes cambios sin guardar que chocan, git no cambia nada.',
+    checkoutButton: 'Cambiar',
+    errors: {
+      noWorkspace: 'No hay ningún proyecto abierto.',
+      invalidRev: 'Ese commit no es válido. Usa su código (por ejemplo a1b2c3d) o HEAD.',
+      invalidBranch: 'Ese nombre de rama no es válido. Usa letras, números, guiones o barras, sin espacios.',
+      invalidTarget: 'No reconozco esa rama o commit.',
+      emptyMessage: 'El commit necesita un mensaje.',
+      nothingToCommit: 'No hay cambios para guardar en un commit.',
+      secretFiles: (files) => `No hice el commit: ${files} ${files.includes(',') ? 'son archivos secretos' : 'es un archivo secreto'} que .gitignore no excluye. Agrégalo a .gitignore primero.`,
+      failed: 'Git no pudo hacerlo. Revisa que no haya cambios que choquen.',
+    },
+  },
 
   // Agents with the user's own subscription (electron/agents.js)
   // Native menu bar (macOS): only what the system needs; the app's menus are inside the window

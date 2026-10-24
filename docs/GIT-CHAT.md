@@ -37,6 +37,8 @@ Reglas:
 - Commit sin mensaje: el chat lo pide.
 - Rollback sin SHA: usa el último commit (`HEAD`).
 - **Reset nunca adivina el commit**: sin SHA lo pide. En Electron, reset/revert/checkout piden confirmación.
+- **Commit con confirmación**: muestra los archivos que entran y no se hace si alguno es secreto (`.env`, claves, credenciales) y `.gitignore` no lo excluye. Solo entran los archivos que se confirmaron.
+- **Valores validados en el proceso principal**: un commit tiene que ser HEAD, HEAD~n o su código; una rama, un nombre válido de git. Nada que empiece con `-` llega a git (sería una opción). Crear rama no pregunta (no cambia archivos), pero queda registrado.
 - Los nombres de rama con espacios pasan a guiones y nunca empiezan por `-` (evita que git lo lea como opción).
 - Si la frase habla de git (`commit`, `rama`, `reset`...) pero no se entiende, el chat muestra la ayuda con ejemplos. Las preguntas y otros temas siguen al chat normal.
 

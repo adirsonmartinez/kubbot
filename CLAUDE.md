@@ -87,6 +87,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 ## Agents and repairs (security rules)
 
+- Git from the chat (`models/gitIntent.js` parses what the person types; never the agent's output) only runs in the desktop app. `electron/git.js` validates every revision and branch name (a value starting with `-` would be a git option) and `main.js` asks before commit (shows the files; refuses if one is a secret per the MCP blocklist), revert, reset and switch. New branches are only logged. Tests: `electron/git.test.js`.
 - The agent only acts through the local MCP tools. `platanus_write_file` always opens a confirmation dialog and backs up the previous version to `~/.platanus/backups/` (undo from the repair history). Secrets (`.env*`, keys, `.git/`, `.ssh/`, `.npmrc`…) are refused on the normalized and the real path.
 - Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`; Codex read-only, without the user's config and with its shell, browser, computer use, plugins and subagents disabled (`CODEX_DISABLED`). Do not loosen these flags.
 - Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
@@ -110,7 +111,7 @@ Two floating docks on the map: the top one switches between the map and git; the
 
 The stage tabs (`ShellViewModel.stage`: map, git, project, graph) drive `AppViewModel`, which picks the 3D view: `git` shows the branches as lanes, every other tab uses the map. Each 3D view draws on its own layer (`sceneView.layers.map | git`, labels with `layer: 'git'`) and keeps its own camera. Clicks, hover and Esc are routed to the active view in `main.js`; G toggles Map/Git.
 
-Git is read only: `electron/git.js` runs fixed `git` commands with `execFile` (no shell) and returns commits, branches, tags and HEAD. `GitViewModel` assigns each commit to a lane (first-parent chains in git flow priority; deleted branches recovered from merge subjects) and flags commits that added red files (`.env`, keys) as risky.
+The git view reads the history: `electron/git.js` runs fixed `git` commands with `execFile` (no shell) and returns commits, branches, tags and HEAD. `GitViewModel` assigns each commit to a lane (first-parent chains in git flow priority; deleted branches recovered from merge subjects) and flags commits that added red files (`.env`, keys) as risky.
 
 ## Hooks for the AI agent
 

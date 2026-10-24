@@ -6,13 +6,13 @@ const path = require('node:path');
 const fs = require('node:fs/promises');
 const { existsSync } = require('node:fs');
 const { Workspace } = require('./workspace');
-const { readGitHistory, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort } = require('./git');
+const { readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort } = require('./git');
 const t = require('./strings');
 const agents = require('./agents');
 const { loadVoice, composePrompt } = require('./agentVoice');
 
 const AGENT_DIR = path.join(__dirname, '..', 'agent'); // voice.json + skills (packaged with the app)
-const { startMcpServer, MAX_READ_BYTES, isBlockedRealPath } = require('./mcpServer');
+const { startMcpServer, MAX_READ_BYTES, isBlockedPath, isBlockedRealPath } = require('./mcpServer');
 const servers = require('./servers');
 
 const workspace = new Workspace();
@@ -324,53 +324,55 @@ serverAction('servers:stop', async (port) => {
 // --- Git: read ---
 ipcMain.handle('git:history', async () => ({ ok: true, data: await readGitHistory(workspace.root) }));
 
-// --- Git: write (each operation is logged; destructive ones require a confirmation dialog) ---
+// --- Git: write (asked for from the chat). git.js validates every value; here each operation is
+// logged, anything that changes files or history asks first, and errors come back in Spanish. ---
+const MAX_LISTED_COMMIT_FILES = 12;
+const CANCELLED = { ok: false, error: 'cancelled' }; // the chat answers "cancelado" for this one
+
+function gitAnswer(op, target, result, extra = {}) {
+  log(`git:${op}`, String(target ?? '').slice(0, 60), result.ok, result.detail ?? result.code);
+  if (!result.ok) {
+    const text = t.git.errors[result.code] ?? t.git.errors.failed;
+    return { ok: false, code: result.code, error: typeof text === 'function' ? text(result.detail) : text };
+  }
+  send('git:changed', { op, ...extra, data: result.data });
+  return result;
+}
+
+// Commit: shows the files that go in and refuses if one is a secret (.env, keys…) that .gitignore lets through
 ipcMain.handle('git:commit', async (_e, message) => {
-  if (!workspace.root) return { ok: false, error: 'no-workspace' };
-  const result = await gitCommit(workspace.root, message);
-  log('git:commit', message?.slice(0, 60), result.ok, result.error);
-  if (result.ok) send('git:changed', { op: 'commit', data: result.data });
-  return result;
+  const plan = await planCommit(workspace.root, isBlockedPath);
+  if (!plan.ok) return gitAnswer('commit', message, plan);
+  const { files, secrets } = plan.data;
+  if (secrets.length) return gitAnswer('commit', message, { ok: false, code: 'secretFiles', detail: secrets.join(', ') });
+  if (!files.length) return gitAnswer('commit', message, { ok: false, code: 'nothingToCommit' });
+  const listed = files.slice(0, MAX_LISTED_COMMIT_FILES).join('\n') + (files.length > MAX_LISTED_COMMIT_FILES ? `\n${t.git.andMore(files.length - MAX_LISTED_COMMIT_FILES)}` : '');
+  if (!(await confirm(t.git.confirmCommit(String(message ?? '').trim(), files.length), listed, t.git.commitButton))) return CANCELLED;
+  return gitAnswer('commit', message, await gitCommit(workspace.root, message, files));
 });
 
-ipcMain.handle('git:revert', async (_e, sha) => {
-  if (!workspace.root) return { ok: false, error: 'no-workspace' };
-  const preview = await gitShowShort(workspace.root, sha);
-  const desc = preview.ok ? preview.data : sha;
-  const confirmed = await confirm(t.gitConfirmRevert(desc), t.gitConfirmRevertDetail);
-  if (!confirmed) return { ok: false, error: 'cancelled' };
-  const result = await gitRevert(workspace.root, sha);
-  log('git:revert', sha, result.ok, result.error);
-  if (result.ok) send('git:changed', { op: 'revert', sha, data: result.data });
-  return result;
+ipcMain.handle('git:revert', async (_e, rev) => {
+  const preview = await gitShowShort(workspace.root, rev);
+  if (!preview.ok) return gitAnswer('revert', rev, preview);
+  if (!(await confirm(t.gitConfirmRevert(preview.data), t.gitConfirmRevertDetail))) return CANCELLED;
+  return gitAnswer('revert', rev, await gitRevert(workspace.root, rev), { sha: rev });
 });
 
-ipcMain.handle('git:reset', async (_e, sha) => {
-  if (!workspace.root) return { ok: false, error: 'no-workspace' };
-  const preview = await gitShowShort(workspace.root, sha);
-  const desc = preview.ok ? preview.data : sha;
-  const confirmed = await confirm(t.gitConfirmReset(desc), t.gitConfirmResetDetail);
-  if (!confirmed) return { ok: false, error: 'cancelled' };
-  const result = await gitReset(workspace.root, sha);
-  log('git:reset', sha, result.ok, result.error);
-  if (result.ok) send('git:changed', { op: 'reset', sha, data: result.data });
-  return result;
+ipcMain.handle('git:reset', async (_e, rev) => {
+  const preview = await gitShowShort(workspace.root, rev);
+  if (!preview.ok) return gitAnswer('reset', rev, preview);
+  if (!(await confirm(t.gitConfirmReset(preview.data), t.gitConfirmResetDetail))) return CANCELLED;
+  return gitAnswer('reset', rev, await gitReset(workspace.root, rev), { sha: rev });
 });
 
-ipcMain.handle('git:createBranch', async (_e, name) => {
-  if (!workspace.root) return { ok: false, error: 'no-workspace' };
-  const result = await gitCreateBranch(workspace.root, name);
-  log('git:createBranch', name, result.ok, result.error);
-  if (result.ok) send('git:changed', { op: 'createBranch', name, data: result.data });
-  return result;
-});
+// A new branch keeps the files as they are: no dialog, only logged
+ipcMain.handle('git:createBranch', async (_e, name) =>
+  gitAnswer('createBranch', name, await gitCreateBranch(workspace.root, name), { name }));
 
+// Switching changes the files on disk: ask first
 ipcMain.handle('git:checkout', async (_e, target) => {
-  if (!workspace.root) return { ok: false, error: 'no-workspace' };
-  const result = await gitCheckout(workspace.root, target);
-  log('git:checkout', target, result.ok, result.error);
-  if (result.ok) send('git:changed', { op: 'checkout', target, data: result.data });
-  return result;
+  if (!(await confirm(t.git.confirmCheckout(String(target ?? '').trim()), t.git.confirmCheckoutDetail, t.git.checkoutButton))) return CANCELLED;
+  return gitAnswer('checkout', target, await gitCheckout(workspace.root, target), { target });
 });
 
 // --- Files (every path is relative to the workspace) ---

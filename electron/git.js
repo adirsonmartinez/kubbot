@@ -1,6 +1,6 @@
-// Git access: read-only history AND write operations (commit, rollback, branch, checkout, reset).
-// All calls use execFile with fixed arguments — no shell, no interpolation. Nothing from the
-// renderer's input ever lands in a command-line string directly.
+// Git for the open project: the history (read only) and the write operations the chat asks for
+// (commit, revert, reset, branch, switch). Every call uses execFile (no shell); values coming from
+// the window are validated below before they reach git, and main.js asks before anything risky.
 
 const { execFile } = require('node:child_process');
 
@@ -86,57 +86,99 @@ async function readGitHistory(cwd) {
 }
 
 // ---- Write operations ----
-// Every operation validates the workspace root exists and returns { ok, data } | { ok: false, error }.
+// Asked for from the chat ("haz un commit…", "cámbiate a main"). Every value that reaches a command
+// line is validated here first, whatever the window sent: a revision or branch that started with "-"
+// would be read by git as an option (e.g. `log --output=<file>` writes anywhere on disk).
+// Each one returns { ok, data } | { ok: false, code } (main.js turns the code into Spanish).
+
+const MAX_REF = 100;
+// A commit: HEAD, HEAD~n or 4-40 hex digits
+const REV = /^(HEAD(~\d{1,3})?|[0-9a-f]{4,40})$/i;
+// A branch name git accepts (check-ref-format rules, simplified): starts with a letter, digit or "_"
+const BRANCH = /^[A-Za-z0-9_][A-Za-z0-9_./-]*$/;
+
+const isSafeRev = (rev) => typeof rev === 'string' && REV.test(rev);
+
+function isSafeBranch(name) {
+  if (typeof name !== 'string' || !name || name.length > MAX_REF || !BRANCH.test(name)) return false;
+  return !/\.\.|\/\/|\/\.|@\{|\.lock$|[./]$/.test(name);
+}
 
 async function gitWrite(cwd, args) {
-  if (!cwd) return { ok: false, error: 'no-workspace' };
+  if (!cwd) return { ok: false, code: 'noWorkspace' };
   try {
     const out = await git(cwd, args);
     return { ok: true, data: out.trim() };
   } catch (err) {
-    return { ok: false, error: err.stderr?.trim() || err.message || String(err) };
+    return { ok: false, code: 'failed', detail: (err.message || String(err)).split('\n').slice(0, 3).join(' ') };
   }
 }
 
-// Stage all changes and create a commit with the given message.
-async function gitCommit(cwd, message) {
-  if (!message || !message.trim()) return { ok: false, error: 'empty-message' };
-  // Stage everything (including new files, respecting .gitignore).
-  const stage = await gitWrite(cwd, ['add', '--all']);
+// Files the next commit would take ("git add --all" respects .gitignore), and which of them are secrets.
+// isSecret(path) decides (the MCP blocklist: .env, keys, credentials…). A rename counts both paths.
+async function planCommit(cwd, isSecret) {
+  if (!cwd) return { ok: false, code: 'noWorkspace' };
+  let out;
+  try {
+    out = await git(cwd, ['status', '--porcelain=v1', '-z', '--untracked-files=all']);
+  } catch {
+    return { ok: false, code: 'failed' };
+  }
+  const parts = out.split('\0');
+  const files = [];
+  for (let i = 0; i < parts.length; i++) {
+    const entry = parts[i];
+    if (entry.length < 4) continue;
+    files.push(entry.slice(3));
+    if (entry[0] === 'R' || entry[0] === 'C') files.push(parts[++i]); // the original path follows
+  }
+  return { ok: true, data: { files, secrets: files.filter(isSecret) } };
+}
+
+// Commits exactly the files the person confirmed (literal pathspecs, so nothing else slips in)
+async function gitCommit(cwd, message, files) {
+  const text = typeof message === 'string' ? message.trim() : '';
+  if (!text) return { ok: false, code: 'emptyMessage' };
+  if (!Array.isArray(files) || !files.length) return { ok: false, code: 'nothingToCommit' };
+  const stage = await gitWrite(cwd, ['add', '--all', '--', ...files.map((f) => `:(literal)${f}`)]);
   if (!stage.ok) return stage;
-  return gitWrite(cwd, ['commit', '--message', message.trim()]);
+  return gitWrite(cwd, ['commit', '--message', text, '--', ...files.map((f) => `:(literal)${f}`)]);
 }
 
-// Create a revert commit for the given SHA (non-interactive, no auto-commit edits).
-async function gitRevert(cwd, sha) {
-  if (!sha) return { ok: false, error: 'no-sha' };
-  // --no-edit: don't open an editor. --no-gpg-sign: skip signing in CI/demo environments.
-  return gitWrite(cwd, ['revert', '--no-edit', '--no-gpg-sign', sha]);
+// A new commit that undoes the given one (history is kept)
+async function gitRevert(cwd, rev) {
+  if (!isSafeRev(rev)) return { ok: false, code: 'invalidRev' };
+  return gitWrite(cwd, ['revert', '--no-edit', '--no-gpg-sign', rev]);
 }
 
-// Hard reset HEAD to the given SHA. WARNING: discards all uncommitted changes.
-async function gitReset(cwd, sha) {
-  if (!sha) return { ok: false, error: 'no-sha' };
-  return gitWrite(cwd, ['reset', '--hard', sha]);
+// Moves the branch to the given commit and DISCARDS uncommitted changes (main.js always asks first)
+async function gitReset(cwd, rev) {
+  if (!isSafeRev(rev)) return { ok: false, code: 'invalidRev' };
+  return gitWrite(cwd, ['reset', '--hard', rev, '--']);
 }
 
-// Create a new local branch from the current HEAD.
+// New local branch from the current commit (the files on disk do not change)
 async function gitCreateBranch(cwd, name) {
-  if (!name || !name.trim()) return { ok: false, error: 'empty-name' };
-  // Validate: only alphanumeric, dash, underscore and slash (git flow prefixes)
-  if (!/^[\w./-]+$/.test(name.trim())) return { ok: false, error: 'invalid-name' };
-  return gitWrite(cwd, ['checkout', '-b', name.trim()]);
+  const branch = typeof name === 'string' ? name.trim() : '';
+  if (!isSafeBranch(branch)) return { ok: false, code: 'invalidBranch' };
+  return gitWrite(cwd, ['switch', '--create', branch]);
 }
 
-// Checkout an existing branch or SHA.
+// Switches to an existing branch, or to a commit (detached)
 async function gitCheckout(cwd, target) {
-  if (!target || !target.trim()) return { ok: false, error: 'empty-target' };
-  return gitWrite(cwd, ['checkout', target.trim()]);
+  const ref = typeof target === 'string' ? target.trim() : '';
+  if (isSafeBranch(ref) && !REV.test(ref)) return gitWrite(cwd, ['switch', ref]);
+  if (isSafeRev(ref)) return gitWrite(cwd, ['switch', '--detach', ref]);
+  return { ok: false, code: 'invalidTarget' };
 }
 
-// Returns the one-line log for a SHA (for confirmation messages).
-async function gitShowShort(cwd, sha) {
-  return gitWrite(cwd, ['log', '--oneline', '-1', sha]);
+// One line describing a commit, for the confirmation dialogs
+async function gitShowShort(cwd, rev) {
+  if (!isSafeRev(rev)) return { ok: false, code: 'invalidRev' };
+  return gitWrite(cwd, ['log', '--oneline', '-1', rev, '--']);
 }
 
-module.exports = { readGitHistory, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort };
+module.exports = {
+  readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort,
+  isSafeRev, isSafeBranch,
+};
