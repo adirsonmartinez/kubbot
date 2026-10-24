@@ -1,9 +1,10 @@
 // Electron main process: creates the window and is the only part that touches the disk.
 // The window (renderer) asks for things over IPC and they are validated here before running.
 
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
+const { existsSync } = require('node:fs');
 const { Workspace } = require('./workspace');
 const { readGitHistory } = require('./git');
 const t = require('./strings');
@@ -12,6 +13,7 @@ const { loadVoice, composePrompt } = require('./agentVoice');
 
 const AGENT_DIR = path.join(__dirname, '..', 'agent'); // voice.json + skills (packaged with the app)
 const { startMcpServer, MAX_READ_BYTES, isBlockedRealPath } = require('./mcpServer');
+const servers = require('./servers');
 
 const workspace = new Workspace();
 const audit = []; // log of everything done on disk
@@ -28,6 +30,9 @@ function createWindow() {
     backgroundColor: '#0a0b0f',
     // macOS: integrated title bar; the window buttons sit inside the app's 44px title bar
     ...(process.platform === 'darwin' ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 15 } } : {}),
+    // Windows/Linux: the app draws its own menus in the title bar; the native bar stays hidden
+    // (its shortcuts keep working)
+    autoHideMenuBar: process.platform !== 'darwin',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true, // the page sees neither Node nor Electron, only what preload exposes
@@ -78,11 +83,35 @@ ipcMain.handle('workspace:choose', async () => {
   return openWorkspace(res.filePaths[0]);
 });
 
+// New project: the person picks a name and a place, Platanus creates the empty folder and opens it.
+// An existing folder is only reused when it is empty, so nothing of the person's is touched.
+ipcMain.handle('workspace:create', async () => {
+  const res = await dialog.showSaveDialog(win, {
+    title: t.newProject,
+    message: t.newProjectMessage,
+    buttonLabel: t.create,
+    defaultPath: path.join(app.getPath('documents'), t.defaultProjectName),
+    properties: ['createDirectory', 'showOverwriteConfirmation'],
+  });
+  if (res.canceled || !res.filePath) return { ok: false, cancelled: true, error: t.cancelled };
+  const dir = res.filePath;
+  try {
+    const entries = await fs.readdir(dir);
+    if (entries.some((name) => name !== '.DS_Store')) return { ok: false, error: t.folderNotEmpty };
+  } catch (err) {
+    if (err.code !== 'ENOENT') return { ok: false, error: err.message };
+    await fs.mkdir(dir, { recursive: true });
+  }
+  log('workspace:create', dir, true);
+  return openWorkspace(dir);
+});
+
 async function openWorkspace(dir) {
   const root = await workspace.open(dir);
   workspace.watch((paths) => send('fs:changed', paths));
   log('workspace:open', root, true);
   await rememberRecent(root);
+  refreshMenu();
   return { ok: true, data: { root, name: path.basename(root) } };
 }
 
@@ -105,11 +134,14 @@ async function rememberRecent(root) {
   await fs.writeFile(recentFile(), JSON.stringify(list.slice(0, MAX_RECENT), null, 2)).catch(() => {});
 }
 
-ipcMain.handle('workspace:recent', async () => {
+// Recent folders that still exist
+async function aliveRecent() {
   const list = await readRecent();
   const alive = await Promise.all(list.map((r) => fs.stat(r.root).then((s) => s.isDirectory(), () => false)));
-  return { ok: true, data: list.filter((_r, i) => alive[i]) };
-});
+  return list.filter((_r, i) => alive[i]);
+}
+
+ipcMain.handle('workspace:recent', async () => ({ ok: true, data: await aliveRecent() }));
 
 ipcMain.handle('workspace:openRecent', async (_e, root) => {
   if (!(await readRecent()).some((r) => r.root === root)) return { ok: false, error: t.notRecent };
@@ -120,12 +152,174 @@ ipcMain.handle('workspace:openRecent', async (_e, root) => {
   }
 });
 
+ipcMain.handle('workspace:close', () => {
+  if (workspace.root) log('workspace:close', workspace.root, true);
+  workspace.close();
+  refreshMenu();
+  return { ok: true };
+});
+
 ipcMain.handle('workspace:current', () => ({
   ok: true,
   data: workspace.root ? { root: workspace.root, name: path.basename(workspace.root) } : null,
 }));
 
 ipcMain.handle('audit:list', () => ({ ok: true, data: audit }));
+
+// --- Servers listening on this computer (the window polls the list, so listing is not audited) ---
+const serverError = (err) => t.servers[err?.code] ?? t.servers.failed;
+const pausedPids = new Map(); // pid -> { port }: processes Platanus paused (resumed on quit)
+const stoppedServers = servers.createStoppedRegistry(); // stopped from Platanus, with how to reactivate them
+
+// Servers Platanus started (reactivated). One that closes on its own goes to "Detenidos" with its exit code
+// and output; one that was still starting turns "exited" there. Stops made by the person are not crashes.
+const managedServers = servers.createManagedServers({
+  onExit(entry, { code, signal, expected, output }) {
+    const row = stoppedServers.findByPid(entry.pid);
+    if (row) {
+      stoppedServers.update(row.id, { state: expected ? 'stopped' : 'exited', exitCode: code, pid: null, output });
+    } else if (!expected) {
+      stoppedServers.add({ port: entry.port, process: entry.process, restart: entry.restart, state: 'exited', exitCode: code, output });
+    }
+    if (!expected) log('servers:exited', `${entry.process ?? '?'} :${entry.port}`, false, String(code ?? signal));
+  },
+});
+
+ipcMain.handle('servers:list', async () => {
+  try {
+    const data = await servers.listServers({
+      paused: pausedPids,
+      managed: managedServers.pids(),
+      onEntries: (entries) => servers.reconcileStarting(stoppedServers, entries),
+    });
+    return { ok: true, data };
+  } catch (err) {
+    return { ok: false, code: err?.code ?? 'failed', error: serverError(err) };
+  }
+});
+
+// Runs a server action, audits it and answers { ok, data } or { ok: false, code, error } (Spanish text)
+function serverAction(channel, fn) {
+  ipcMain.handle(channel, async (_e, arg, ...rest) => {
+    try {
+      const { data, audit: target } = await fn(arg, ...rest);
+      log(channel, target, true);
+      return { ok: true, data };
+    } catch (err) {
+      log(channel, String(arg).slice(0, 40), false, err?.code);
+      return { ok: false, code: err?.code ?? 'failed', error: serverError(err) };
+    }
+  });
+}
+
+const doneWith = ({ port, processes }) => ({ data: { port, processes }, audit: `${processes.join(', ')} :${port}` });
+
+// Pause / resume need no dialog: both are undone with one click, and everything paused is resumed on quit
+serverAction('servers:pause', async (port) => doneWith(await servers.pauseServer(port, { paused: pausedPids })));
+serverAction('servers:resume', async (port) => doneWith(await servers.resumeServer(port, { paused: pausedPids })));
+
+// Servers stopped from Platanus: { id, port, process, canRestart, state, exitCode, hasOutput, at }
+// (the command, folder and output stay here)
+ipcMain.handle('servers:stopped', () => ({ ok: true, data: stoppedServers.list() }));
+serverAction('servers:forget', async (id) => {
+  if (stoppedServers.get(id)?.state === 'starting') throw Object.assign(new Error('starting'), { code: 'alreadyStarting' });
+  return { data: stoppedServers.forget(id), audit: String(id) };
+});
+
+const isPortBusy = async (port) => (await servers.readEntries()).some((e) => e.port === port);
+
+// Reactivate inside Platanus: asks first, then the server runs as a child of the app (no Terminal window)
+serverAction('servers:restart', async (id) => {
+  const result = await servers.restartServer(id, {
+    registry: stoppedServers,
+    isPortBusy,
+    start: (row) => managedServers.start({ port: row.port, process: row.process, restart: row.restart }),
+    confirm: (row) => confirm(
+      t.servers.confirmRestart(row.process ?? t.servers.unknownProcess, row.port),
+      t.servers.confirmRestartDetail(servers.maskSecrets(row.command), row.cwd),
+      t.servers.restartButton,
+    ),
+  });
+  return { data: result, audit: `${result.process ?? '?'} :${result.port}` };
+});
+
+// Cancel a reactivation that has not started listening yet (no dialog: Platanus started it a moment ago)
+serverAction('servers:cancelStart', async (id) => {
+  const row = stoppedServers.get(id);
+  if (!row || row.state !== 'starting' || !row.pid) throw Object.assign(new Error('notStarting'), { code: 'notStarting' });
+  const output = managedServers.output(row.pid);
+  managedServers.markExpected(row.pid);
+  try { servers.terminate(row.pid, { paused: pausedPids }); } catch { /* it already closed */ }
+  stoppedServers.update(id, { state: 'stopped', pid: null, output });
+  return { data: null, audit: `${row.process ?? '?'} :${row.port}` };
+});
+
+// Output of a server Platanus started: by port (running) or by the id of its row in "Detenidos"
+ipcMain.handle('servers:output', (_e, key) => {
+  if (Number.isInteger(key) && key >= 1 && key <= 65535) {
+    const pid = managedServers.pidOnPort(key);
+    return { ok: true, data: pid ? managedServers.output(pid) ?? '' : '' };
+  }
+  const row = stoppedServers.get(key);
+  if (!row) return { ok: false, code: 'unknownStopped', error: t.servers.unknownStopped };
+  return { ok: true, data: (row.state === 'starting' && row.pid ? managedServers.output(row.pid) : row.output) ?? '' };
+});
+
+const findBrowsers = () => servers.detectBrowsers({ exists: existsSync });
+
+// Installed browsers, without their paths: the page only chooses one by id
+ipcMain.handle('servers:browsers', () => ({ ok: true, data: findBrowsers().map(({ id, name }) => ({ id, name })) }));
+
+// "Elegir otra app…": the person picks the browser in the system dialog (the page never sends a path)
+async function pickBrowserApp() {
+  const mac = process.platform === 'darwin';
+  const res = await dialog.showOpenDialog(win, {
+    title: t.servers.chooseApp,
+    defaultPath: mac ? '/Applications' : process.env.ProgramFiles,
+    properties: ['openFile'],
+    filters: [{ name: t.servers.apps, extensions: [mac ? 'app' : 'exe'] }],
+  });
+  const file = res.canceled ? null : res.filePaths[0];
+  if (file && !servers.isAppPath(process.platform, file)) throw Object.assign(new Error('notAnApp'), { code: 'notAnApp' });
+  return file;
+}
+
+ipcMain.handle('servers:open', async (_e, port, browser) => {
+  try {
+    const url = await servers.openServer(port, {
+      browser: browser ?? 'default',
+      openExternal: (u) => shell.openExternal(u),
+      launch: (app, u) => servers.launchApp(app, u),
+      pickApp: pickBrowserApp,
+      findBrowsers,
+    });
+    log('servers:open', `${url} · ${String(browser ?? 'default').slice(0, 20)}`, true);
+    return { ok: true, data: url };
+  } catch (err) {
+    log('servers:open', String(port).slice(0, 40), false, err?.code);
+    return { ok: false, code: err?.code ?? 'failed', error: serverError(err) };
+  }
+});
+
+// Stopping always asks; the pid is found here from the port and checked again after the dialog. Before it
+// stops, the command and folder are kept here (never sent to the page) so it can be reactivated: for a
+// server Platanus started they are the ones it used, so it can always be reactivated again.
+serverAction('servers:stop', async (port) => {
+  const result = await servers.stopServer(port, {
+    kill: (pid) => {
+      managedServers.markExpected(pid);
+      servers.terminate(pid, { paused: pausedPids });
+    },
+    capture: async (pid) => managedServers.restartInfo(pid) ?? servers.captureRestart(pid),
+    confirm: (targets, p) => confirm(
+      t.servers.confirmStop(targets.map((x) => x.process ?? t.servers.unknownProcess).join(', '), p),
+      t.servers.confirmStopDetail,
+      t.servers.stopButton,
+    ),
+  });
+  for (const row of result.stopped) stoppedServers.add({ ...row, output: managedServers.output(row.pid) });
+  return doneWith(result);
+});
 
 // --- Git (read only) ---
 ipcMain.handle('git:history', async () => ({ ok: true, data: await readGitHistory(workspace.root) }));
@@ -324,10 +518,10 @@ ipcMain.handle('agents:cancel', (_e, runId) => {
   return { ok: true };
 });
 
-async function confirm(message, detail) {
+async function confirm(message, detail, okLabel = t.allow) {
   const { response } = await dialog.showMessageBox(win, {
     type: 'warning',
-    buttons: [t.cancel, t.allow],
+    buttons: [t.cancel, okLabel],
     defaultId: 0,
     cancelId: 0,
     message,
@@ -345,8 +539,46 @@ const openArg = process.argv.find((a) => a.startsWith('--open='))?.slice('--open
 // renaming the app would otherwise move it and the app would start as new.
 app.setPath('userData', path.join(app.getPath('appData'), 'platanus-ide'));
 app.setName('Platanus');
-function nativeMenu() {
+// macOS: the Project menu lives in the system menu bar (the window hides its own). Each item asks
+// the window to run the same action as its in-app button. Rebuilt when a project opens or closes,
+// so "Close project" and the recent list stay current.
+const menuAction = (action, extra = {}) => () => send('menu:action', { action, ...extra });
+
+async function projectMenu() {
   const m = t.menu;
+  const recent = await aliveRecent();
+  return {
+    label: m.project,
+    submenu: [
+      { label: m.newProject, accelerator: 'CmdOrCtrl+N', click: menuAction('newProject') },
+      { label: m.openProject, accelerator: 'CmdOrCtrl+O', click: menuAction('openProject') },
+      {
+        label: m.openRecent,
+        submenu: recent.length
+          ? recent.map((r) => ({ label: r.name, sublabel: r.root, click: menuAction('openRecent', { root: r.root }) }))
+          : [{ label: m.noRecent, enabled: false }],
+      },
+      { type: 'separator' },
+      { label: m.closeProject, accelerator: 'CmdOrCtrl+W', enabled: Boolean(workspace.root), click: menuAction('closeProject') },
+    ],
+  };
+}
+
+function refreshMenu() {
+  nativeMenu().catch((err) => log('menu', null, false, err.message));
+}
+
+async function nativeMenu() {
+  const m = t.menu;
+  const isMac = process.platform === 'darwin';
+  const editItems = [
+    { role: 'undo', label: m.undo },
+    { role: 'redo', label: m.redo },
+    { role: 'cut', label: m.cut },
+    { role: 'copy', label: m.copy },
+    { role: 'paste', label: m.paste },
+    { role: 'selectAll', label: m.selectAll },
+  ];
   const template = [
     ...(process.platform === 'darwin' ? [{
       label: 'Platanus',
@@ -358,37 +590,54 @@ function nativeMenu() {
         { role: 'unhide', label: m.unhide },
         { type: 'separator' },
         { role: 'quit', label: m.quit },
+        ...editItems.map((item) => ({ ...item, visible: false, acceleratorWorksWhenHidden: true })),
       ],
     }] : []),
-    {
-      label: m.edit,
-      submenu: [
-        { role: 'undo', label: m.undo },
-        { role: 'redo', label: m.redo },
-        { type: 'separator' },
-        { role: 'cut', label: m.cut },
-        { role: 'copy', label: m.copy },
-        { role: 'paste', label: m.paste },
-        { role: 'selectAll', label: m.selectAll },
-      ],
-    },
+    ...(isMac ? [await projectMenu()] : []),
+    // macOS fills any Edit menu with Writing Tools, AutoFill, Dictation and Emoji, so on the Mac
+    // there is no Edit menu: its shortcuts live as hidden items of the app menu and keep working
+    ...(isMac ? [] : [{ label: m.edit, submenu: editItems }]),
     {
       label: m.window,
       submenu: [
         { role: 'minimize', label: m.minimize },
         { role: 'zoom', label: m.zoom },
         { role: 'togglefullscreen', label: m.fullscreen },
-        ...(process.argv.includes('--dev') ? [{ role: 'toggleDevTools', label: m.devTools }] : []),
+        ...(process.argv.includes('--dev') || LIVE_RELOAD ? [
+          { role: 'reload', label: m.reload },
+          { role: 'toggleDevTools', label: m.devTools },
+        ] : []),
         { type: 'separator' },
-        { role: 'close', label: m.close },
+        // ⌘W closes the project (Project menu); the window closes with ⇧⌘W
+        { role: 'close', label: m.close, accelerator: isMac ? 'Shift+CmdOrCtrl+W' : 'CmdOrCtrl+W' },
       ],
     },
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
+// `npm run watch`: live reload while developing. Changes in renderer/ reload the window (the open
+// project is restored by the window itself); changes in electron/ restart the whole app.
+const LIVE_RELOAD = process.argv.includes('--watch');
+const RELOAD_DEBOUNCE_MS = 150;
+
+function watchSources() {
+  const watchFs = require('node:fs');
+  const watch = (dir, onChange) => {
+    let timer = null;
+    watchFs.watch(path.join(__dirname, '..', dir), { recursive: true }, (_event, file) => {
+      if (!file || file.endsWith('.test.js') || file.includes('.DS_Store')) return;
+      clearTimeout(timer);
+      timer = setTimeout(onChange, RELOAD_DEBOUNCE_MS);
+    });
+  };
+  watch('renderer', () => win && !win.isDestroyed() && win.webContents.reloadIgnoringCache());
+  watch('electron', () => { app.relaunch(); app.exit(0); });
+}
+
 app.whenReady().then(async () => {
-  nativeMenu();
+  await nativeMenu();
+  if (LIVE_RELOAD) watchSources();
   if (openArg) await openWorkspace(openArg).catch((err) => log('workspace:open', openArg, false, err.message));
   createWindow();
   startMcp();
@@ -398,6 +647,13 @@ app.whenReady().then(async () => {
 // Closing from the system (kill, logout, a dev restart) quits normally, so the window's saved data
 // (chosen agent, stats, repair history, Vibe/Dev) is written to disk instead of being lost
 for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => app.quit());
+
+// Nothing stays frozen or hidden after Platanus closes: every server it paused continues, and every
+// server it started (which has no terminal) is stopped
+app.on('will-quit', () => {
+  servers.resumeAll(pausedPids);
+  managedServers.stopAll();
+});
 
 app.on('window-all-closed', () => {
   workspace.unwatch();

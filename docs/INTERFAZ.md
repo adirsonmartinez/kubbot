@@ -85,7 +85,7 @@ falló. Desde ahí se marca como verificado, se deshace un cambio o se reintenta
 | `views/ui/chatDockView.js` | Pin del chat (columna a la derecha + zona de información arriba) y su ancho. |
 | `views/ui/chatView.js`, `runCardView.js`, `markdown.js` | Mensajes, tarjetas de respuesta en vivo, Markdown seguro (escapa todo antes) con tarjetas y enlaces a archivos, interruptor Vibe/Dev. |
 | `views/ui/chatCardsView.js` | Tarjetas de carpeta y archivo en el chat, botones de acción. |
-| `views/ui/icons.js` | Íconos [Hugeicons](https://hugeicons.com) (gratis, MIT): se nombran ahí y se usan con `icon('nombre')` o `<span data-icon="nombre">`. |
+| `icons/iconNames.js`, `views/icons.js` | Íconos [Hugeicons](https://hugeicons.com) (gratis, MIT): se nombran en `iconNames.js` y `npm run icons` copia solo esos. `views/ui/icons.js` los da como elementos para el chat. |
 | `views/ui/thinkingOrb.js` | Orbes de libraries.dev con el motor del paquete (sin React). |
 | `vendor/border-beam.js` | Generado por `scripts/vendor-ui.js` (border-beam + React en un archivo). No se sube a git. |
 | `models/answerFormat.js` | Lee el bloque de sugerencias de la respuesta (preguntas, reparar, auditar, ver). |

@@ -21,15 +21,17 @@ How the in-app agent talks lives in [`agent/`](agent/README.md), not in code:
 
 ## UI libraries
 
-- Icons: [Hugeicons](https://hugeicons.com) free set. Add the import and a name in
-  `renderer/views/ui/icons.js`, then `npm run vendor`. Use `icon('name')` or `<span data-icon="name">`.
+- Icons: [Hugeicons](https://hugeicons.com) free set. Add a name in `renderer/icons/iconNames.js`, then
+  `npm run icons`. Use `icon('name')` (views/icons.js, an svg string), `<i data-icon="name">` in HTML,
+  or the DOM helper in `views/ui/icons.js` for the chat views.
 - Effects: [libraries.dev](https://libraries.dev). The skill is in `.claude/skills/libraries-dev/`
   (read it before using an effect; follow its placement rules: orbs only for waits over 2 s, border
   beam over 3 s, never two effects on the same element). The renderer has no React: thinking orbs use
   the package engine (`views/ui/thinkingOrb.js`); border beam is bundled with React by
   `scripts/vendor-ui.js` into `renderer/vendor/border-beam.js`.
-- `renderer/vendor/` is generated **and committed** (`npm run vendor`): clones, the web demo and the
-  installers need no build step. The source packages are devDependencies.
+- `renderer/vendor/` (and `renderer/icons/hugeicons.js`) are generated **and committed** (`npm run vendor`,
+  `npm run icons`): clones, the web demo and the installers need no build step. The source packages are
+  devDependencies.
 
 ## Delegating (gentle-shell + Pi)
 

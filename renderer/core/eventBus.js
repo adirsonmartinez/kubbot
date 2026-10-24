@@ -2,6 +2,9 @@
 // Event names live in EVENTS so a typo fails loudly instead of silently never firing.
 export const EVENTS = Object.freeze({
   projectOpened: 'project:opened',     // { name }
+  projectClosed: 'project:closed',
+  projectCreated: 'project:created',   // { name } a new, empty project (after project:opened)
+  projectCreateFailed: 'project:create-failed', // { error }
   diskChanged: 'disk:changed',         // { paths }
   folderOpened: 'folder:opened',       // { name, files, floors, counts }
   fileSelected: 'file:selected',       // { path, level, reason, by }

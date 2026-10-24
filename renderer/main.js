@@ -6,6 +6,9 @@ import { strings } from './i18n/es.js';
 import { createWorkspaceService } from './services/workspaceService.js';
 import { createAgentService } from './services/agentService.js';
 import { connectMcpBridge } from './services/mcpBridge.js';
+import { createServerService } from './services/serverService.js';
+import { ServersModel } from './models/serversModel.js';
+import { ServersViewModel } from './viewmodels/serversViewModel.js';
 
 import { ProjectModel } from './models/projectModel.js';
 import { SecurityModel } from './models/securityModel.js';
@@ -50,7 +53,7 @@ import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
 import { remiJump } from './views/ui/remiJump.js';
 import { applyStrings } from './views/ui/domStrings.js';
-import { applyIcons } from './views/ui/icons.js';
+import { applyIcons } from './views/icons.js';
 
 // --- Models ---
 const bus = createEventBus();
@@ -63,6 +66,7 @@ const agentService = createAgentService();
 const connection = new AgentConnectionModel(agentService);
 const modeModel = new ModeModel();
 const repairHistory = new RepairHistoryModel();
+const serversModel = new ServersModel(createServerService());
 const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel });
 
 // --- ViewModels ---
@@ -74,6 +78,9 @@ const appViewModel = new AppViewModel({ camera: cameraViewModel, gitModel, gitVi
 const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapViewModel, compact: window.matchMedia('(max-width: 820px)').matches });
 const graphViewModel = new GraphViewModel({ projectModel, securityModel, supabaseModel });
 const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus, voiceMode: () => (modeModel.tech ? 'dev' : 'vibe') });
+const serversViewModel = new ServersViewModel({ serversModel });
+// The server list only refreshes while its side view is on screen
+shellViewModel.store.subscribe(({ side, sidebarOpen }) => serversViewModel.setVisible(sidebarOpen && side === 'servers'), { immediate: true });
 
 // App actions shared by the chat, the menus and the sidebar
 const stage = document.getElementById('stage');
@@ -113,7 +120,7 @@ shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 
 
 // --- Views ---
 applyStrings();
-applyIcons(); // Hugeicons into the static <span data-icon> slots, before the views look for them
+applyIcons(); // Hugeicons into the static <i data-icon> slots, before the views look for them
 const sceneView = createSceneView(cameraViewModel, stage); // the map lives in the IDE stage
 const labels = createLabelLayer(document.getElementById('map-labels'), sceneView);
 const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
@@ -148,10 +155,11 @@ createControlsView({ cameraViewModel });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
 createChatView({ chatViewModel, connection, modeModel, onLocate: (path) => actions.locate(path) });
 createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks: () => actions.showRisks() });
-createShellView({ shellViewModel, cameraViewModel, modeModel, repairViewModel, repairHistory, actions });
+createShellView({ shellViewModel, modeModel, repairViewModel, repairHistory, serversViewModel, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });
+createIconBarView({ bar: document.getElementById('side-dock'), vertical: true });
 // The side panel and the chat can be dragged by their header (double click: back in place)
 const workspaceEl = document.getElementById('workspace');
 makeDraggable({ el: document.getElementById('sidebar'), handle: document.querySelector('#sidebar .card-head'), key: 'sidebar', area: workspaceEl });
@@ -181,6 +189,11 @@ connection.refresh();
 projectModel.store.subscribe((state, previous) => {
   if (state.session === previous.session) return;
   repairViewModel.reset(); // nothing from the previous project keeps running
+  if (!state.open) { // closed: back to the start screen
+    gitModel.clear();
+    bus.emit(EVENTS.projectClosed, { name: previous.name ?? strings.map.defaultProjectName });
+    return;
+  }
   repairHistory.load(state.name ?? strings.map.defaultProjectName); // each project keeps its own history
   bus.emit(EVENTS.projectOpened, { name: state.name ?? strings.map.defaultProjectName });
   // Fresh git history and cameras for the new project
@@ -189,6 +202,15 @@ projectModel.store.subscribe((state, previous) => {
   gitModel.load();
   if (appViewModel.view === 'git') gitViewModel.centerOnHead();
 });
+
+// macOS: the Project menu of the system menu bar runs the same actions as the in-app one
+const MENU_ACTIONS = {
+  newProject: () => shellViewModel.newProject(),
+  openProject: () => shellViewModel.openProject(),
+  openRecent: ({ root }) => shellViewModel.openRecent(root),
+  closeProject: () => shellViewModel.closeProject(),
+};
+workspace.onMenuAction((payload) => MENU_ACTIONS[payload?.action]?.(payload));
 
 workspace.onChanged((paths) => {
   bus.emit(EVENTS.diskChanged, { paths });

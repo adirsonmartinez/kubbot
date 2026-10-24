@@ -13,10 +13,10 @@
   <link rel="stylesheet" href="styles/agents.css" />
   <link rel="stylesheet" href="styles/chat.css" />
   <script type="importmap">
-    { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/", "@hugeicons/": "./vendor/hugeicons/", "thinking-orbs/engine": "./vendor/thinking-orbs/engine.es.js" } }
+    { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/", "thinking-orbs/engine": "./vendor/thinking-orbs/engine.es.js" } }
   </script>
 </head>
-<body class="shell">
+<body class="shell no-project"><!-- start screen until a project opens (avoids a flash of the panels) -->
   <header id="titlebar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">P</span>
@@ -26,7 +26,7 @@
     <nav id="menu" class="menubar" aria-label="Menú"></nav>
     <div id="mode-toggle" class="mode-toggle" role="group"></div>
     <button id="search" class="search" type="button">
-      <span data-icon="search"></span>
+      <i data-icon="search"></i>
       <span id="search-label"></span>
       <kbd id="search-shortcut"></kbd>
     </button>
@@ -41,25 +41,24 @@
     </aside>
 
     <main id="stage" class="card">
-  <!-- Floating bar: side panels | views | chat -->
-  <!-- Floating icon bar: drag the icons to reorder them (the order is remembered) -->
+  <!-- Side dock (left edge of the map): side panels | other views. The side panel opens next to it. -->
+  <div id="side-dock" class="icon-bar side-dock" role="toolbar" aria-orientation="vertical">
+    <button type="button" draggable="true" data-side="explorer"><i data-icon="folder"></i></button>
+    <button type="button" draggable="true" data-side="risks"><i data-icon="alert"></i></button>
+    <button type="button" draggable="true" data-side="repairs"><i data-icon="wrench"></i><em class="rail-badge" id="rail-repairs-badge" hidden></em></button>
+    <button type="button" draggable="true" data-side="servers"><i data-icon="server"></i></button>
+    <button type="button" draggable="true" data-side="agent"><i data-icon="plug"></i></button>
+    <button type="button" draggable="true" role="tab" data-stage="project"><i data-icon="dashboard"></i><span data-i18n="graph.tabProject"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="graph"><i data-icon="graph"></i><span data-i18n="graph.tabGraph"></span><em class="tab-badge"></em><span class="tip"></span></button>
+  </div>
+  <!-- Floating view switcher: map | git (drag the icons to reorder them; the order is remembered) -->
   <div id="stage-tabs" class="stage-tabs icon-bar" role="toolbar">
-    <button type="button" draggable="true" data-side="explorer"><span data-icon="explorer"></span></button>
-    <button type="button" draggable="true" data-side="risks"><span data-icon="risks"></span></button>
-    <button type="button" draggable="true" data-side="repairs"><span data-icon="repairs"></span><em class="rail-badge" id="rail-repairs-badge" hidden></em></button>
-    <button type="button" draggable="true" data-side="agent"><span data-icon="agent"></span></button>
-    <button type="button" draggable="true" role="tab" data-stage="map"><span data-icon="map"></span><span data-i18n="graph.tabMap"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" draggable="true" role="tab" data-stage="git"><span data-icon="git"></span><span data-i18n="graph.tabGit"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" draggable="true" role="tab" data-stage="project"><span data-icon="project"></span><span data-i18n="graph.tabProject"></span><em class="tab-badge"></em><span class="tip"></span></button>
-    <button type="button" draggable="true" role="tab" data-stage="graph"><span data-icon="graph"></span><span data-i18n="graph.tabGraph"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="map"><i data-icon="home"></i><span data-i18n="graph.tabMap"></span><em class="tab-badge"></em><span class="tip"></span></button>
+    <button type="button" draggable="true" role="tab" data-stage="git"><i data-icon="gitBranch"></i><span data-i18n="graph.tabGit"></span><em class="tab-badge"></em><span class="tip"></span></button>
   </div>
   <section id="project-panel" class="project-panel" hidden></section>
   <div id="hover-card" class="hover-card" hidden></div>
   <div id="remi-layer" class="remi-layer"></div>
-  <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-controls="sidebar">
-    <span data-icon="sidebar"></span>
-    <span class="tip"></span>
-  </button>
   <section id="graph-panel" class="graph-panel" hidden>
     <header class="graph-head">
       <div>
@@ -77,23 +76,23 @@
   <div id="controls">
     <div class="group">
       <button id="zoom-in" data-i18n-title="controls.zoomIn" data-i18n-aria="controls.zoomIn">
-        <span data-icon="zoomIn"></span>
+        <i data-icon="plus"></i>
       </button>
       <button id="zoom-out" data-i18n-title="controls.zoomOut" data-i18n-aria="controls.zoomOut">
-        <span data-icon="zoomOut"></span>
+        <i data-icon="minus"></i>
       </button>
     </div>
     <div class="group">
       <button id="rotate-left" data-i18n-title="controls.rotateLeft" data-i18n-aria="controls.rotateLeft">
-        <span data-icon="rotateLeft"></span>
+        <i data-icon="rotateLeft"></i>
       </button>
       <button id="rotate-right" data-i18n-title="controls.rotateRight" data-i18n-aria="controls.rotateRight">
-        <span data-icon="rotateRight"></span>
+        <i data-icon="rotateRight"></i>
       </button>
     </div>
     <div class="group">
       <button id="reset-view" data-i18n-title="controls.reset" data-i18n-aria="controls.reset">
-        <span data-icon="reset"></span>
+        <i data-icon="center"></i>
       </button>
     </div>
   </div>
@@ -108,22 +107,21 @@
 
   <div id="empty-state">
     <div class="empty-card">
-      <div class="empty-icon">
-        <span data-icon="openFolder"></span>
-      </div>
+      <!-- Isometric folder on a map slab (illustration, not an icon: drawn here, not from Hugeicons) -->
+      <svg class="iso-empty" viewBox="0 0 160 120" aria-hidden="true"><polygon class="iso-slab-side" points="166.6,72.0 80.0,122.0 80.0,129.0 166.6,79.0"/><polygon class="iso-slab-side dark" points="-6.6,72.0 80.0,122.0 80.0,129.0 -6.6,79.0"/><polygon class="iso-slab" points="80.0,22.0 166.6,72.0 80.0,122.0 -6.6,72.0"/><line class="iso-grid" x1="101.7" y1="34.5" x2="15.0" y2="84.5"/><line class="iso-grid" x1="58.4" y1="34.5" x2="144.9" y2="84.5"/><line class="iso-grid" x1="123.3" y1="47.0" x2="36.7" y2="97.0"/><line class="iso-grid" x1="36.7" y1="47.0" x2="123.3" y2="97.0"/><line class="iso-grid" x1="144.9" y1="59.5" x2="58.4" y2="109.5"/><line class="iso-grid" x1="15.0" y1="59.5" x2="101.7" y2="109.5"/><polygon class="iso-ghost" points="21.1,63.9 35.0,71.9 21.1,79.9 7.3,71.9"/><polygon class="iso-ghost" points="80.0,97.9 93.9,105.9 80.0,113.9 66.1,105.9"/><polygon class="iso-ghost" points="138.9,63.9 152.7,71.9 138.9,79.9 125.0,71.9"/><polygon class="iso-folder back" points="59.2,59.5 107.7,87.5 107.7,45.5 80.0,29.5 75.7,20.5 59.2,11.0"/><polygon class="iso-folder side" points="59.2,59.5 107.7,87.5 100.8,91.5 52.3,63.5"/><polygon class="iso-folder side" points="107.7,87.5 107.7,45.5 100.8,49.5 100.8,91.5"/><polygon class="iso-folder side" points="107.7,45.5 80.0,29.5 73.1,33.5 100.8,49.5"/><polygon class="iso-folder side" points="80.0,29.5 75.7,20.5 68.7,24.5 73.1,33.5"/><polygon class="iso-folder side" points="75.7,20.5 59.2,11.0 52.3,15.0 68.7,24.5"/><polygon class="iso-folder side" points="59.2,11.0 59.2,59.5 52.3,63.5 52.3,15.0"/><polygon class="iso-folder front" points="52.3,63.5 100.8,91.5 100.8,49.5 73.1,33.5 68.7,24.5 52.3,15.0"/><line class="iso-folder-line" x1="56.6" y1="33.0" x2="96.5" y2="56.0"/></svg>
       <strong data-i18n="emptyState.title"></strong>
       <p data-i18n="emptyState.body"></p>
-      <button id="open-project" type="button" data-i18n="emptyState.action"></button>
+      <div class="empty-actions">
+        <button id="new-project" type="button" data-i18n="emptyState.newAction"></button>
+        <button id="open-project" type="button" data-i18n="emptyState.action"></button>
+      </div>
       <div id="empty-recent" class="empty-recent"></div>
     </div>
   </div>
 
   <div id="map-labels"></div>
 
-  <nav id="breadcrumb" hidden data-i18n-aria="panels.breadcrumbLabel">
-    <div class="crumbs" id="crumbs"></div>
-    <div class="fp-legend" id="level-legend"></div>
-  </nav>
+  <div id="level-legend" class="fp-legend" hidden></div>
 
   <div id="schema-panel" hidden>
     <div>
@@ -138,17 +136,17 @@
   <aside id="chat" class="card" data-i18n-aria="chat.ariaLabel">
     <header class="chat-head">
       <div class="chat-avatar">
-        <span data-icon="bot"></span>
+        <i data-icon="bot"></i>
       </div>
       <div class="chat-title">
         <strong data-i18n="chat.agentName"></strong>
         <span data-i18n="chat.online"></span>
       </div>
       <button class="chat-toggle chat-pin" id="chat-pin" type="button" aria-pressed="false">
-        <span data-icon="pin"></span>
+        <i data-icon="pin"></i>
       </button>
       <button class="chat-toggle" id="chat-toggle" data-i18n-aria="chat.minimize" aria-expanded="true">
-        <span data-icon="minimize"></span>
+        <i data-icon="minus"></i>
       </button>
     </header>
     <div class="chat-body" id="chat-body" aria-live="polite"></div>
@@ -158,13 +156,13 @@
       <div class="composer-bar">
         <div class="chat-more-wrap">
           <button type="button" id="chat-more" class="composer-icon" data-i18n-title="chat.more" data-i18n-aria="chat.more">
-            <span data-icon="plus"></span>
+            <i data-icon="plus"></i>
           </button>
           <div id="chat-more-menu" class="chat-menu glass-pop"></div>
         </div>
         <div id="agent-picker" class="agent-picker"></div>
         <button type="submit" id="chat-send" data-i18n-aria="chat.send">
-          <span data-icon="send"></span>
+          <i data-icon="arrowUp"></i>
         </button>
       </div>
     </form>
@@ -175,11 +173,16 @@
   <div id="chat-launcher" class="chat-launcher">
     <div id="chat-launcher-menu" class="chat-menu glass-pop"></div>
     <button type="button" id="chat-launcher-button" class="chat-launcher-button" data-i18n-title="chat.more" data-i18n-aria="chat.more">
-      <span data-icon="chat"></span>
+      <i data-icon="bot"></i>
     </button>
   </div>
 
-  <footer id="statusbar"></footer>
+  <footer id="statusbar">
+    <nav id="breadcrumb" hidden data-i18n-aria="panels.breadcrumbLabel">
+      <div class="crumbs" id="crumbs"></div>
+    </nav>
+    <div id="status-items"></div>
+  </footer>
 
   <script type="module" src="main.js"></script>
 </body>

@@ -22,6 +22,13 @@ export class ProjectModel {
     return response;
   }
 
+  // New project: the person picks a name and a place, an empty folder is created and opened
+  async create() {
+    const response = await this.#workspace.create();
+    if (response.ok) await this.open(response.data);
+    return response;
+  }
+
   // [{ root, name, at }] most recent first
   async recent() {
     return (await this.#workspace.recent()).data ?? [];
@@ -45,6 +52,15 @@ export class ProjectModel {
     if (!loaded) return;
     const { session, version } = this.store.state;
     this.store.set({ open: true, name: name || null, ...loaded, session: session + 1, version: version + 1 });
+  }
+
+  // Back to the start screen: the main process stops watching the folder and the agent loses access
+  async close() {
+    if (!this.store.state.open) return;
+    clearTimeout(this.#reloadTimer);
+    await this.#workspace.close();
+    const { session, version } = this.store.state;
+    this.store.set({ open: false, name: null, tree: [], usesSupabase: false, session: session + 1, version: version + 1 });
   }
 
   async reload() {

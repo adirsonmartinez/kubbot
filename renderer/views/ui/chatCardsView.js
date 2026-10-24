@@ -15,12 +15,12 @@ const el = (tag, className, text) => {
   return node;
 };
 
-export const CHIP_ICON = { ask: 'ask', repair: 'repairs', audit: 'audit', locate: 'locate', risks: 'risks' };
+export const CHIP_ICON = { ask: 'ask', repair: 'wrench', audit: 'audit', locate: 'locate', risks: 'alert' };
 
 export function actionButton(action, vm, className = 'card-action') {
   const b = el('button', `${className} ${action.kind ?? ''}`.trim());
   b.type = 'button';
-  b.append(icon(CHIP_ICON[action.kind] ?? 'arrow', { size: 15 }), el('span', '', action.label));
+  b.append(icon(CHIP_ICON[action.kind] ?? 'arrowRight', { size: 15 }), el('span', '', action.label));
   b.addEventListener('click', () => vm.choose(action, b));
   return b;
 }

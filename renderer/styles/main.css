@@ -31,7 +31,7 @@ body::after {
 }
 
 /* Shared glass surface */
-#controls .group, #breadcrumb, #schema-panel, #git-panel, #hud, #chat, .empty-card {
+#controls .group, #schema-panel, #git-panel, #hud, #chat, .empty-card {
   background: var(--glass);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -42,7 +42,7 @@ body::after {
 }
 
 /* Small purple dot in panel titles */
-#breadcrumb strong::before, #schema-panel strong::before, #git-panel strong::before {
+#schema-panel strong::before, #git-panel strong::before {
   content: ""; display: inline-block; width: 6px; height: 6px; margin-right: 8px; vertical-align: middle;
   border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent);
 }
@@ -77,42 +77,55 @@ body::after {
 .hud-stat.review strong { color: var(--warn); }
 
 /* --- Panels (top left, below the HUD) --- */
-#breadcrumb, #schema-panel, #git-panel {
+#schema-panel, #git-panel {
   position: fixed; top: 96px; left: 16px; z-index: 2; max-width: calc(50vw - 140px);
   display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 12px 12px 12px 16px;
   font: 13px/1.35 var(--sans);
 }
 #git-panel { top: 16px; flex-direction: column; align-items: flex-start; gap: 4px; padding-right: 20px; }
 #breadcrumb[hidden], #schema-panel[hidden], #git-panel[hidden] { display: none; }
-#breadcrumb strong, #schema-panel strong, #git-panel strong { display: block; font: 600 13px var(--mono); color: var(--text); }
-#breadcrumb .sub, #schema-panel span, #git-panel span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+#schema-panel strong, #git-panel strong { display: block; font: 600 13px var(--mono); color: var(--text); }
+#schema-panel span, #git-panel span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
 #schema-panel span.bad, #git-panel #git-risky { color: var(--danger); font-weight: 600; }
 #git-panel #git-risky[hidden] { display: none; }
 .fp-legend { display: flex; gap: 12px; }
 .fp-legend span { display: flex; align-items: center; gap: 6px; font: 12px var(--mono); color: var(--text); }
-#breadcrumb button, #schema-panel button {
+#schema-panel button {
   padding: 7px 12px; border: 1px solid rgba(139, 131, 255, 0.35); border-radius: 8px;
   background: var(--accent-soft); color: var(--accent); font: 600 12px var(--sans); cursor: pointer;
 }
-#breadcrumb button:hover, #schema-panel button:hover { background: rgba(139, 131, 255, 0.24); }
+#schema-panel button:hover { background: rgba(139, 131, 255, 0.24); }
 .lvl { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 
 /* --- Empty state --- */
 #empty-state { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; pointer-events: none; z-index: 1; }
 #empty-state[hidden] { display: none; }
 .empty-card { pointer-events: auto; width: min(340px, 100%); padding: 28px 24px; text-align: center; font: 14px/1.5 var(--sans); }
-.empty-icon {
-  width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 14px; display: grid; place-items: center;
-  background: var(--accent-soft); border: 1px solid rgba(139, 131, 255, 0.3);
-}
-.empty-icon svg { width: 24px; height: 24px; fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; }
+/* Isometric folder standing on a map slab, with a few ghost tiles */
+.iso-empty { width: 160px; height: 120px; display: block; margin: -6px auto 22px; overflow: visible; }
+.iso-empty * { stroke-linejoin: round; stroke-linecap: round; stroke-width: 1; }
+.iso-slab { fill: rgba(255, 255, 255, 0.03); stroke: var(--line-strong); }
+.iso-slab-side { fill: rgba(255, 255, 255, 0.05); stroke: var(--line-strong); }
+.iso-slab-side.dark { fill: rgba(255, 255, 255, 0.025); }
+.iso-grid { stroke: var(--line); }
+.iso-ghost { fill: rgba(255, 255, 255, 0.03); stroke: rgba(255, 255, 255, 0.1); }
+.iso-folder { stroke: var(--accent); stroke-width: 1.4; }
+.iso-folder.back { fill: color-mix(in srgb, var(--accent) 16%, var(--bg)); }
+.iso-folder.side { fill: color-mix(in srgb, var(--accent) 24%, var(--bg)); }
+.iso-folder.front { fill: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
+.iso-folder-line { stroke: var(--accent); stroke-width: 1.4; opacity: 0.6; }
 .empty-card strong { display: block; font-size: 16px; font-weight: 600; }
 .empty-card p { margin: 6px 0 18px; color: var(--muted); }
-.empty-card button {
-  padding: 10px 18px; border: 0; border-radius: 10px; background: var(--accent); color: #0b0a1f;
-  font: 700 13px var(--sans); cursor: pointer; box-shadow: 0 0 20px rgba(139, 131, 255, 0.35);
+/* Empty state actions: new project (primary) and open project (secondary). Scoped by id because
+   the recent-project rows are buttons too and keep their own style. */
+.empty-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+#new-project, #open-project {
+  padding: 10px 18px; border-radius: 10px; font: 700 13px var(--sans); cursor: pointer;
 }
-.empty-card button:hover { filter: brightness(1.08); }
+#new-project { border: 1px solid transparent; background: var(--accent); color: #0b0a1f; }
+#new-project:hover { filter: brightness(1.08); }
+#open-project { border: 1px solid var(--line-strong); background: transparent; color: var(--text); }
+#open-project:hover { border-color: rgba(139, 131, 255, 0.5); color: var(--accent); }
 
 /* --- Labels that follow objects on the map: small glass cards --- */
 #map-labels { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
@@ -224,7 +237,7 @@ body::after {
   #chat { height: auto; bottom: 76px; }
 }
 
-/* --- Breadcrumb (top left, below the HUD) --- */
+/* --- Breadcrumb (in the status bar) --- */
 .crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font: 600 13px var(--mono); }
 .crumbs strong { color: var(--text); }
 #breadcrumb .crumbs button {

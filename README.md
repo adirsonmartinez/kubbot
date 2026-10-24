@@ -86,7 +86,7 @@ renderer/
   views/ui/          HTML (shell, chat, selector de agente, grafo, mapa del proyecto, tarjeta de Remi)
   services/          puente con Electron (disco, agentes, MCP)
   styles/            main.css (mapa) + shell.css (IDE de vidrio) + chat.css (tarjetas, orbes, borde de luz)
-  vendor/            librerías de interfaz ya preparadas (íconos Hugeicons, efectos libraries.dev); `npm run vendor`
+  vendor/            efectos de libraries.dev ya preparados (orbes, borde de luz); `npm run vendor`
   i18n/es.js         todos los textos en español
 agent/               cómo habla el agente del chat: voice.json + skills modo-vibe y modo-dev
 ```

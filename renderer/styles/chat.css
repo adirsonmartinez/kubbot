@@ -11,9 +11,8 @@
   --tint-accent: rgba(139, 131, 255, .12);
 }
 
-/* ---------- Hugeicons ---------- */
-svg.hi { display: block; flex-shrink: 0; }
-[data-icon] { display: inline-flex; align-items: center; justify-content: center; }
+/* ---------- Icons in the chat (Hugeicons, views/icons.js) ---------- */
+#chat svg.icon { display: block; flex-shrink: 0; }
 canvas.orb { cursor: inherit; touch-action: auto; flex-shrink: 0; }
 
 /* ---------- Header avatar: the orb takes over after 2 s of work ---------- */
@@ -57,9 +56,10 @@ canvas.orb.late { animation: orb-in .35s var(--ease-out) both; }
 #chat .md .callout-step { --c: var(--accent); --t: rgba(139, 131, 255, .07); box-shadow: inset 0 0 0 1px rgba(139, 131, 255, .22), inset 3px 0 0 var(--accent); }
 #chat .md .callout-info { --c: var(--muted); --t: rgba(255, 255, 255, .03); }
 #chat .md .callout-head { display: flex; align-items: center; gap: 8px; }
+#chat .md .callout-icon svg { width: 16px; height: 16px; }
 #chat .md .callout-head strong { color: var(--ink); font-size: 12.5px; font-weight: 650; letter-spacing: -.005em; }
 #chat .md .callout-icon {
-  width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0;
+  width: 24px; height: 24px; border-radius: 8px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
   color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent);
 }
 #chat .md .callout-body { margin: 6px 0 0 32px; color: rgba(236, 236, 240, .82); font-size: 12.5px; line-height: 1.55; }

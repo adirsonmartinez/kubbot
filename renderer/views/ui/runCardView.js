@@ -6,7 +6,8 @@ import { strings } from '../../i18n/es.js';
 import { modelLabel } from '../../models/agentConnectionModel.js';
 import { markdownToHtml } from './markdown.js';
 import { splitAnswer } from '../../models/answerFormat.js';
-import { icon, applyIcons, TOOL_ICONS } from './icons.js';
+import { applyIcons } from '../icons.js';
+import { icon, TOOL_ICONS } from './icons.js';
 import { thinkingOrb, STEP_ORB } from './thinkingOrb.js';
 
 const R = strings.chat.run;
@@ -43,7 +44,7 @@ export function orbStateOf(message) {
 // Icon of a step: its tool's icon, and while it runs (longer than 2 s) an orb on top
 function stepIcon(step) {
   const box = el('span', `run-icon ${step.status}`);
-  const name = step.status === 'error' ? 'danger' : step.kind === 'subagent' ? 'subagent' : TOOL_ICONS[step.name] ?? 'arrow';
+  const name = step.status === 'error' ? 'danger' : step.kind === 'subagent' ? 'subagent' : TOOL_ICONS[step.name] ?? 'arrowRight';
   box.appendChild(icon(name, { size: 14 }));
   if (step.status === 'running') box.appendChild(delayedOrb(STEP_ORB[step.kind === 'subagent' ? 'subagent' : step.name] ?? 'working', step.startedAt));
   if (step.status === 'done') box.appendChild(el('span', 'run-check'));

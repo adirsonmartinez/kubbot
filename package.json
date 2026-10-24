@@ -8,16 +8,14 @@
   "type": "commonjs",
   "scripts": {
     "vendor": "node scripts/vendor-ui.js",
-    "prestart": "npm run vendor --silent",
     "start": "electron .",
-    "predev": "npm run vendor --silent",
     "dev": "electron . --dev",
+    "watch": "electron . --watch",
+    "icons": "node scripts/build-icons.mjs",
     "build:web": "node scripts/build-web.js",
-    "predist:mac": "npm run vendor --silent",
     "dist:mac": "electron-builder --mac --publish never",
-    "predist:win": "npm run vendor --silent",
     "dist:win": "electron-builder --win --publish never",
-    "test": "node --test electron/mcpServer.test.js electron/agentEvents.test.js electron/agentVoice.test.js tests/renderer/*.test.mjs tests/secrets.test.mjs"
+    "test": "node --test electron/mcpServer.test.js electron/agentEvents.test.js electron/agentVoice.test.js electron/servers.test.js tests/renderer/*.test.mjs tests/secrets.test.mjs"
   },
   "build": {
     "appId": "us.platan.hack26.team12.ide",

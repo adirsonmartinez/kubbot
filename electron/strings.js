@@ -2,6 +2,11 @@
 module.exports = {
   windowTitle: 'Platanus',
   chooseFolder: 'Elige la carpeta del proyecto',
+  newProject: 'Crear un proyecto nuevo',
+  newProjectMessage: 'Elige el nombre y dónde guardar tu proyecto.',
+  create: 'Crear',
+  defaultProjectName: 'mi-proyecto',
+  folderNotEmpty: 'Esa carpeta ya existe y tiene archivos. Elige otro nombre, o ábrela con "Abrir proyecto".',
   cancelled: 'cancelado',
   notRecent: 'Esa carpeta no está en tus proyectos recientes.',
   cancel: 'Cancelar',
@@ -21,6 +26,12 @@ module.exports = {
   // Agents with the user's own subscription (electron/agents.js)
   // Native menu bar (macOS): only what the system needs; the app's menus are inside the window
   menu: {
+    project: 'Proyecto',
+    newProject: 'Nuevo proyecto',
+    openProject: 'Abrir proyecto…',
+    openRecent: 'Abrir reciente',
+    noRecent: 'Sin proyectos recientes',
+    closeProject: 'Cerrar proyecto',
     about: 'Acerca de Platanus',
     hide: 'Ocultar Platanus',
     hideOthers: 'Ocultar otras',
@@ -38,6 +49,7 @@ module.exports = {
     zoom: 'Ajustar',
     fullscreen: 'Pantalla completa',
     devTools: 'Herramientas de desarrollo',
+    reload: 'Recargar',
     close: 'Cerrar ventana',
   },
   agents: {
@@ -50,6 +62,46 @@ module.exports = {
     loginHint: ' Inicia sesión desde "Conecta tu agente".',
     exitCode: (code) => `El agente terminó con código ${code}.`,
     interrupted: 'Se interrumpió la respuesta anterior del agente.',
+  },
+  // Servers listening on this computer (electron/servers.js), keyed by error code
+  servers: {
+    unsupported: 'La lista de servidores funciona en macOS y Windows.',
+    unavailable: 'No encontré la herramienta del sistema que lista los puertos.',
+    timeout: 'El sistema tardó demasiado en responder. Lo intento de nuevo en unos segundos.',
+    failed: 'No pude leer la lista de servidores.',
+    invalidPort: 'Ese puerto no es válido.',
+    // Opening in a browser
+    cancelled: 'cancelado',
+    unknownBrowser: 'Ese navegador ya no está instalado.',
+    notAnApp: 'Eso no es una aplicación. Elige un navegador.',
+    launchFailed: 'No pude abrir ese navegador.',
+    chooseApp: 'Elige el navegador para abrir el servidor',
+    apps: 'Aplicaciones',
+    // Stopping
+    confirmStop: (names, port) => `¿Detener ${names} en el puerto ${port}?`,
+    confirmStopDetail: 'Se cierra ese programa. Si tenía trabajo sin guardar, se pierde. Si lo arrancaste desde una terminal, verás que se detuvo ahí.',
+    stopButton: 'Detener',
+    unknownProcess: 'un proceso desconocido',
+    stopRejected: 'cancelado',
+    notRunning: 'Ese servidor ya no está corriendo.',
+    protected: 'Ese proceso es Platanus o del sistema: no se detiene desde aquí.',
+    notAllowed: 'No tienes permiso para detener ese proceso (es del sistema o de otro usuario).',
+    stopFailed: 'No pude detener el servidor.',
+    // Pause and resume
+    pauseFailed: 'No pude pausar o reanudar ese servidor.',
+    notPaused: 'Ese servidor no está en pausa.',
+    invalidPid: 'Proceso inválido.',
+    // Reactivate inside Platanus
+    unknownStopped: 'Ese servidor ya no está en la lista de detenidos.',
+    cannotRestart: 'No sé cómo volver a arrancar ese servidor: arráncalo desde tu terminal.',
+    restartRejected: 'cancelado',
+    alreadyStarting: 'Ese servidor ya se está iniciando.',
+    notStarting: 'Ese servidor ya no se está iniciando.',
+    portInUse: 'Ese puerto ya está en uso: otro programa lo ocupa.',
+    startFailed: 'No pude iniciar el servidor.',
+    confirmRestart: (name, port) => `¿Reactivar ${name} en el puerto ${port}?`,
+    confirmRestartDetail: (command, cwd) => `Se inicia dentro de Platanus, en segundo plano, en la carpeta:\n${cwd}\n\nComando:\n${command}\n\nVerás su salida en la app y se detiene al cerrar Platanus. Las variables que hayas exportado en la terminal original no se copian.`,
+    restartButton: 'Reactivar',
   },
   mcp: {
     noProject: 'No hay ningún proyecto abierto en Platanus.',

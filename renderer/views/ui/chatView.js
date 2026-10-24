@@ -10,7 +10,8 @@ import { splitAnswer } from '../../models/answerFormat.js';
 import { markdownToHtml } from './markdown.js';
 import { renderRunCard, tickRunTimers, orbStateOf } from './runCardView.js';
 import { renderChatCard, actionButton } from './chatCardsView.js';
-import { icon, applyIcons } from './icons.js';
+import { applyIcons } from '../icons.js';
+import { icon } from './icons.js';
 import { thinkingOrb } from './thinkingOrb.js';
 
 const MAX_INPUT_PX = 160;
@@ -150,7 +151,7 @@ export function createChatView({ chatViewModel: vm, connection = null, modeModel
     toggle.title = state.minimized ? strings.chat.expand : strings.chat.minimize;
     if (toggle.dataset.min !== String(state.minimized)) {
       toggle.dataset.min = String(state.minimized);
-      toggle.replaceChildren(icon(state.minimized ? 'expand' : 'minimize', { size: 16 }));
+      toggle.replaceChildren(icon(state.minimized ? 'plus' : 'minus', { size: 16 }));
     }
     working(state);
   }

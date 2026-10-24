@@ -5,7 +5,7 @@
 // dockArea (optional): a function returning a place where the card docks (e.g. above the pinned chat)
 // or null when there is none. While there is one, the card lives there unless it was dragged out;
 // dropping it back over that column docks it again.
-import { icon } from './icons.js';
+import { icon } from '../icons.js';
 
 const KEY = (key) => `platanus.float.v1:${key}`;
 
@@ -21,7 +21,7 @@ export function makeFloating({ el: card, key, stage, title, labels, dockArea = (
   wrap.id = `${card.id}-float`;
   const bar = el('div', 'floater-bar');
   const grip = el('span', 'floater-grip');
-  grip.appendChild(icon('drag', { size: 14 }));
+  grip.innerHTML = icon('grip'); // static icon
   grip.title = labels.move;
   const name = el('span', 'floater-title', title);
   const min = el('button', 'floater-min');

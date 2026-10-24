@@ -4,8 +4,8 @@
 // stay as written, which keeps a streaming answer readable while it arrives.
 //
 // Callouts (the agent's "cards", see agent/voice.json): "> [!riesgo] Título" + "> detalle" lines.
-// Kinds: riesgo/peligro, ok/bien, idea/consejo, paso/pasos, nota/info. Their icon is a
-// <span data-icon> slot that the view fills (views/ui/icons.js).
+// Kinds: riesgo/peligro, ok/bien, idea/consejo, paso/pasos, nota/info. Their icon is an
+// <i data-icon> slot that the view fills (applyIcons in views/icons.js).
 // File names in inline code (`src/db.js`) become <code class="file-ref" data-path> for the view to link.
 import { escapeHtml } from '../../core/format.js';
 import { strings } from '../../i18n/es.js';
@@ -37,7 +37,7 @@ function quote(lines) {
   if (!kind) return `<blockquote>${markdownToHtml(lines.join('\n'))}</blockquote>`;
   const title = head[2].trim() || strings.chat.callouts[kind];
   const body = lines.slice(1).join('\n').trim();
-  return `<div class="callout callout-${kind}"><div class="callout-head"><span class="callout-icon" data-icon="${kind}" data-size="16"></span><strong>${inline(title)}</strong></div>${body ? `<div class="callout-body">${markdownToHtml(body)}</div>` : ''}</div>`;
+  return `<div class="callout callout-${kind}"><div class="callout-head"><span class="callout-icon"><i data-icon="${kind}"></i></span><strong>${inline(title)}</strong></div>${body ? `<div class="callout-body">${markdownToHtml(body)}</div>` : ''}</div>`;
 }
 
 export function markdownToHtml(source) {

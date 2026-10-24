@@ -3,7 +3,8 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-// Lets the CSS leave room for the macOS window buttons (see styles/shell.css)
+// Lets the CSS leave room for the macOS window buttons and hide the in-app menu, which lives in the
+// system menu bar on macOS (see styles/shell.css)
 window.addEventListener('DOMContentLoaded', () => {
   if (process.platform === 'darwin') document.documentElement.classList.add('is-mac');
 });
@@ -16,7 +17,9 @@ const on = (channel) => (callback) => {
 
 contextBridge.exposeInMainWorld('platanus', {
   chooseWorkspace: () => ipcRenderer.invoke('workspace:choose'),
+  createWorkspace: () => ipcRenderer.invoke('workspace:create'),
   currentWorkspace: () => ipcRenderer.invoke('workspace:current'),
+  closeWorkspace: () => ipcRenderer.invoke('workspace:close'),
   recentWorkspaces: () => ipcRenderer.invoke('workspace:recent'),
   openRecentWorkspace: (root) => ipcRenderer.invoke('workspace:openRecent', root),
 
@@ -29,6 +32,24 @@ contextBridge.exposeInMainWorld('platanus', {
   gitHistory: () => ipcRenderer.invoke('git:history'),
 
   auditLog: () => ipcRenderer.invoke('audit:list'),
+
+  // Servers listening on this computer: list, open at http://localhost:<port> (default browser, an installed
+  // one by id, or 'other' to pick an app) and stop (the main process asks first)
+  servers: {
+    list: () => ipcRenderer.invoke('servers:list'),
+    browsers: () => ipcRenderer.invoke('servers:browsers'),
+    open: (port, browser) => ipcRenderer.invoke('servers:open', port, browser),
+    stop: (port) => ipcRenderer.invoke('servers:stop', port),
+    pause: (port) => ipcRenderer.invoke('servers:pause', port),
+    resume: (port) => ipcRenderer.invoke('servers:resume', port),
+    // Stopped from Platanus: reactivate inside the app (asks first), cancel a start or forget, by the id
+    // the main process gave; output of a server Platanus started, by port or by that id
+    stopped: () => ipcRenderer.invoke('servers:stopped'),
+    restart: (id) => ipcRenderer.invoke('servers:restart', id),
+    cancelStart: (id) => ipcRenderer.invoke('servers:cancelStart', id),
+    forget: (id) => ipcRenderer.invoke('servers:forget', id),
+    output: (key) => ipcRenderer.invoke('servers:output', key),
+  },
 
   // The user's own agent (subscription CLIs) and the local MCP server it talks to
   agents: {
@@ -47,6 +68,7 @@ contextBridge.exposeInMainWorld('platanus', {
     onChanged: on('agent:changed'), // ({ path, reason, created, backup, at }) => ...
     undo: (change) => ipcRenderer.invoke('agent:undo', change),
   },
+  onMenuAction: on('menu:action'), // ({ action: 'newProject'|'openProject'|'openRecent'|'closeProject', root? }) => ...
   onChanged: on('fs:changed'), // (paths) => ...
   onAudit: on('audit'),        // (entry) => ...
 });

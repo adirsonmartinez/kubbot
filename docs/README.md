@@ -1,0 +1,7 @@
+# Documentación de funciones
+
+Cada función de Platanus tiene su página en `docs/features/<nombre>/README.md`: cómo se usa, sus estados, sus reglas de seguridad, los archivos que la componen y cómo probarla. La spec de cada una (qué tiene que hacer y por qué) está en `spec/`.
+
+| Función | Documentación | Spec | Rama |
+|---|---|---|---|
+| Servidores | [features/running-servers](features/running-servers/README.md) | [001-running-servers](../spec/001-running-servers.md) | `feature/server` |

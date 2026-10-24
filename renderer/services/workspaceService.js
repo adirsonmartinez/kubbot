@@ -7,26 +7,39 @@ const DESKTOP_ONLY = { ok: false, error: 'desktop-only' };
 
 export function createWorkspaceService(bridge = window.platanus) {
   if (!bridge) {
+    // A new project in the browser is an empty folder without git; opening one brings the demo back
+    let demo = { tree: DEMO_TREE, git: DEMO_GIT };
     return {
       isDesktop: false,
-      choose: async () => ({ ok: true, data: { name: 'demo', root: null } }),
+      choose: async () => {
+        demo = { tree: DEMO_TREE, git: DEMO_GIT };
+        return { ok: true, data: { name: 'demo', root: null } };
+      },
+      create: async () => {
+        demo = { tree: [], git: { isRepo: false } };
+        return { ok: true, data: { name: 'nuevo-proyecto', root: null } };
+      },
       current: async () => ({ ok: true, data: null }),
+      close: async () => ({ ok: true }),
       recent: async () => ({ ok: true, data: [] }),
       openRecent: async () => DESKTOP_ONLY,
-      tree: async () => ({ ok: true, data: DEMO_TREE }),
+      tree: async () => ({ ok: true, data: demo.tree }),
       read: async () => DESKTOP_ONLY,
       mkdir: async () => DESKTOP_ONLY,
       write: async () => DESKTOP_ONLY,
       remove: async () => DESKTOP_ONLY,
-      gitHistory: async () => ({ ok: true, data: DEMO_GIT }),
+      gitHistory: async () => ({ ok: true, data: demo.git }),
       onChanged: () => () => {},
+      onMenuAction: () => () => {},
     };
   }
 
   return {
     isDesktop: true,
     choose: () => bridge.chooseWorkspace(),
+    create: () => bridge.createWorkspace(),
     current: () => bridge.currentWorkspace(),
+    close: () => bridge.closeWorkspace(),
     recent: () => bridge.recentWorkspaces(),
     openRecent: (root) => bridge.openRecentWorkspace(root),
     tree: (path = '.') => bridge.tree(path),
@@ -36,5 +49,7 @@ export function createWorkspaceService(bridge = window.platanus) {
     remove: (path) => bridge.remove(path),
     gitHistory: () => bridge.gitHistory(),
     onChanged: (callback) => bridge.onChanged(callback),
+    // macOS system menu bar (Project menu): { action, root? }
+    onMenuAction: (callback) => bridge.onMenuAction(callback),
   };
 }

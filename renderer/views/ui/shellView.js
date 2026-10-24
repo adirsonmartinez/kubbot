@@ -4,13 +4,16 @@
 import { strings } from '../../i18n/es.js';
 import { TAG_COLOR, TAGS } from '../../models/folderTags.js';
 import { createDevTree } from './devTreeView.js';
-import { icon } from './icons.js';
+import { icon } from '../icons.js';
+import { createFloatingMenu } from './floatingMenu.js';
 
 const S = strings.shell;
 const P = S.project;
 const LEVEL_LABEL = strings.security.levels;
-const ZOOM_STEP = 1.3;
-const RISK_ICON = { red: 'danger', yellow: 'shieldWarn' };
+const RISK_ICON = {
+  red: icon('alert'),
+  yellow: icon('eye'),
+};
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -38,7 +41,7 @@ function addTip(button, title, info) {
   button.appendChild(tip);
 }
 
-export function createShellView({ shellViewModel: vm, cameraViewModel: camera, modeModel, repairViewModel, repairHistory, actions }) {
+export function createShellView({ shellViewModel: vm, modeModel, repairViewModel, repairHistory, serversViewModel, actions }) {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
   const devTree = createDevTree({
@@ -54,41 +57,14 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     {
       key: 'file',
       items: () => [
+        { label: S.actions.newProject, run: () => vm.newProject() },
         { label: S.actions.openProject, run: () => vm.openProject() },
         { separator: true, label: S.actions.openRecent },
         ...(vm.store.state.recent.length
           ? vm.store.state.recent.map((r) => ({ label: r.name, hint: r.root, run: () => vm.openRecent(r.root) }))
           : [{ label: S.actions.noRecent, disabled: true }]),
-      ],
-    },
-    {
-      key: 'view',
-      items: () => [
-        { label: S.actions.showMap, run: () => vm.setStage('map') },
-        { label: P.title, run: () => vm.setStage('project') },
-        { label: S.actions.showGraph, run: () => vm.setStage('graph') },
         { separator: true },
-        { label: S.actions.centerView, run: () => camera.reset() },
-        { label: S.actions.zoomIn, run: () => camera.zoomBy(ZOOM_STEP) },
-        { label: S.actions.zoomOut, run: () => camera.zoomBy(1 / ZOOM_STEP) },
-        { label: S.actions.backToMap, run: () => { vm.setStage('map'); vm.showFolder(''); } },
-        { separator: true },
-        { label: `${S.actions.toggleMode} (${modeModel.tech ? strings.mode.vibe : strings.mode.tech})`, run: () => modeModel.toggle() },
-      ],
-    },
-    {
-      key: 'agent',
-      items: () => [
-        { label: S.actions.openChat, run: () => vm.store.state.chatOpen || vm.toggleChat() },
-        { label: S.actions.repairWorst, run: () => actions.repairWorst() },
-        { label: S.rail.agent, run: () => vm.setSide('agent') },
-      ],
-    },
-    {
-      key: 'window',
-      items: () => [
-        { label: S.actions.toggleSidebar, run: () => vm.toggleSidebar() },
-        { label: S.actions.toggleChat, run: () => vm.toggleChat() },
+        { label: S.actions.closeProject, disabled: !vm.store.state.open, run: () => vm.closeProject() },
       ],
     },
   ];
@@ -155,7 +131,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   $('sidebar-actions').appendChild(explorerToggle);
 
   // --- Rail (icons with a hover card: name + what it is for) ---
-  for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
+  for (const button of document.querySelectorAll('#side-dock [data-side]')) {
     const side = button.dataset.side;
     addTip(button, S.rail[side], S.railInfo[side]);
     button.addEventListener('click', () => vm.setSide(side));
@@ -169,10 +145,6 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
       vm.setStage(stage);
     });
   }
-  // Floating button on the map: folds / unfolds the side panel of the selected rail icon
-  const panelToggle = $('sidebar-toggle');
-  panelToggle.addEventListener('click', () => vm.toggleSidebar());
-
   // The chat opens from its own floating button (bottom-right), so the bar has no chat icon
   const chatButton = $('rail-chat');
   if (chatButton) {
@@ -274,7 +246,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
         card.tabIndex = 0;
         const head = el('div', 'risk-head');
         const badge = el('span', `risk-icon ${file.level}`);
-        badge.replaceChildren(icon(file.level === 'red' ? RISK_ICON.red : RISK_ICON.yellow, { size: 13 }));
+        badge.innerHTML = file.level === 'red' ? RISK_ICON.red : RISK_ICON.yellow; // static SVG, no project data
         head.append(badge, el('span', 'risk-level', LEVEL_LABEL[file.level]), repairButton(file));
         const reason = modeModel.tech
           ? strings.security.techReasons[file.reasonKey] ?? file.reason
@@ -285,6 +257,233 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
       }),
     ];
   }
+
+  // --- Servers listening on this computer: exposed ones in yellow, local ones calm ---
+  // Each row: one minimal icon (stop, or resume when paused) and a ⋯ button. The ⋯ menu is a single
+  // floating layer (floatingMenu.js) anchored to that button, so the side panel never cuts it off.
+  const SV = S.servers;
+  const SERVER_ICON = { // static SVG, no server data
+    stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    play: '<svg viewBox="0 0 24 24"><path d="M7.5 5.5v13l11-6.5z"/></svg>',
+    more: '<svg viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18.5" cy="12" r="1.5"/></svg>',
+    close: '<svg viewBox="0 0 24 24"><path d="M7.5 7.5l9 9M16.5 7.5l-9 9"/></svg>',
+  };
+  const serverMenu = createFloatingMenu({ id: 'server-menu', onDismiss: () => serversViewModel.closeMenu() });
+
+  function iconButton(icon, label, onClick, { disabled = false, menuKey = null, expanded = false } = {}) {
+    const b = el('button', `icon-btn${menuKey !== null ? ' more' : ''}`);
+    b.type = 'button';
+    b.innerHTML = SERVER_ICON[icon];
+    b.title = label;
+    b.setAttribute('aria-label', label);
+    b.disabled = disabled;
+    if (menuKey !== null) {
+      b.dataset.menuKey = String(menuKey);
+      b.setAttribute('aria-haspopup', 'menu');
+      b.setAttribute('aria-controls', 'server-menu');
+      b.setAttribute('aria-expanded', String(expanded));
+      b.classList.toggle('active', expanded);
+    }
+    b.addEventListener('click', (e) => { e.stopPropagation(); onClick(); });
+    return b;
+  }
+
+  // What the ⋯ menu offers for a running (or paused) server, and for a row in "Detenidos".
+  // "Ver salida" only appears while its panel is closed; the panel closes with its own ×.
+  const outputEntry = (key, outputKey, available) =>
+    (available && outputKey !== key ? [{ label: SV.showOutput, icon: 'output', run: () => serversViewModel.showOutput(key) }] : []);
+
+  function runningEntries(server, browsers, outputKey) {
+    const s = serversViewModel;
+    const output = outputEntry(server.port, outputKey, server.managed);
+    if (server.paused) {
+      return [
+        { label: SV.resume, icon: 'play', run: () => s.resume(server.port), primary: true },
+        ...output,
+        { separator: true },
+        { label: SV.stop, icon: 'stop', run: () => s.stop(server.port) },
+      ];
+    }
+    return [
+      { heading: SV.openWith },
+      { label: SV.openDefault, icon: 'open', run: () => s.open(server.port, 'default') },
+      ...browsers.map((b) => ({ label: b.name, icon: 'browser', run: () => s.open(server.port, b.id) })),
+      { label: SV.openOther, icon: 'app', run: () => s.open(server.port, 'other') },
+      { separator: true },
+      ...output,
+      { label: SV.pause, icon: 'pause', run: () => s.pause(server.port) },
+      { label: SV.stop, icon: 'stop', run: () => s.stop(server.port) },
+    ];
+  }
+
+  function stoppedEntries(row, outputKey) {
+    const s = serversViewModel;
+    const output = outputEntry(row.id, outputKey, row.hasOutput || row.state === 'starting');
+    if (row.state === 'starting') {
+      const cancel = { label: SV.cancelStart, icon: 'stop', run: () => s.cancelStart(row.id) };
+      return output.length ? [...output, { separator: true }, cancel] : [cancel];
+    }
+    return [
+      ...(row.canRestart ? [{ label: SV.restart, icon: 'play', run: () => s.restart(row.id), primary: true }] : []),
+      ...output,
+      { separator: true },
+      { label: SV.forget, icon: 'remove', run: () => s.forget(row.id) },
+    ];
+  }
+
+  // The output panel under a row (last lines, follows the end). A discreet × (visible on hover or focus)
+  // or Esc inside it closes it.
+  function outputPanel(key, label, { output }) {
+    if (output?.key !== key) return [];
+    const wrap = el('div', 'server-output-wrap');
+    const pre = el('pre', 'server-output', output.text || SV.noOutput);
+    pre.setAttribute('aria-label', label);
+    pre.tabIndex = 0;
+    pre.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      serversViewModel.closeOutput();
+    });
+    const close = el('button', 'server-output-close');
+    close.type = 'button';
+    close.innerHTML = SERVER_ICON.close;
+    close.title = SV.closeOutput;
+    close.setAttribute('aria-label', SV.closeOutput);
+    close.addEventListener('click', (e) => { e.stopPropagation(); serversViewModel.closeOutput(); });
+    wrap.append(pre, close);
+    requestAnimationFrame(() => { pre.scrollTop = pre.scrollHeight; });
+    return [wrap];
+  }
+
+  function menuEntries(key, { servers, stopped, browsers, demo }) {
+    if (demo) return null;
+    const outputKey = serversViewModel.store.state.output?.key;
+    if (typeof key === 'number') {
+      const server = servers.find((s) => s.port === key);
+      return server ? runningEntries(server, browsers, outputKey) : null;
+    }
+    const row = stopped.find((r) => r.id === key);
+    return row ? stoppedEntries(row, outputKey) : null;
+  }
+
+  // Shows, moves or hides the floating menu after every render of the side panel
+  function syncServerMenu() {
+    const state = serversViewModel.store.state;
+    const shell = vm.store.state;
+    if (state.openMenu === null || shell.side !== 'servers' || !shell.sidebarOpen) return serverMenu.hide();
+    const anchor = [...sidebarBody.querySelectorAll('[data-menu-key]')].find((b) => b.dataset.menuKey === String(state.openMenu));
+    const entries = menuEntries(state.openMenu, state);
+    if (!anchor || !entries) {
+      serverMenu.hide();
+      serversViewModel.closeMenu(); // its row is gone
+      return;
+    }
+    serverMenu.show(state.openMenu, anchor, entries);
+  }
+
+  function serverCard(server, state) {
+    const { demo, openMenu, busy } = state;
+    const card = el('div', `risk-card server-card${server.exposed ? ' yellow' : ''}${server.paused ? ' paused' : ''}`);
+    const head = el('div', 'risk-head');
+    if (server.exposed) {
+      const badge = el('span', 'risk-icon yellow');
+      badge.innerHTML = RISK_ICON.yellow; // static SVG, no server data
+      head.append(badge);
+    }
+    const level = el('span', 'risk-level', server.exposed ? SV.network : SV.local);
+    if (server.exposed) level.title = modeModel.tech ? SV.exposedReasonTech(server.address) : SV.exposedReason; // on hover only
+    head.append(level);
+    if (server.paused) head.append(el('span', 'server-chip', SV.pausedChip));
+    if (server.managed) {
+      const chip = el('span', 'server-chip managed', SV.managedChip);
+      chip.title = SV.managedTitle;
+      head.append(chip);
+    }
+    if (demo) head.append(el('span', 'server-demo', SV.demo));
+    else {
+      const waiting = busy.includes(server.port);
+      const box = el('div', 'server-actions');
+      box.append(
+        server.paused
+          ? iconButton('play', SV.resumeTitle(server.port), () => serversViewModel.resume(server.port), { disabled: waiting })
+          : iconButton('stop', SV.stopTitle(server.port), () => serversViewModel.stop(server.port), { disabled: waiting }),
+        iconButton('more', SV.more(server.port), () => serversViewModel.toggleOpenMenu(server.port), { disabled: waiting, menuKey: server.port, expanded: openMenu === server.port }),
+      );
+      head.append(box);
+    }
+    const name = el('strong', 'risk-path', `:${server.port}`);
+    name.append(el('span', 'server-process', ` · ${server.process ?? SV.unknownProcess}`));
+    card.append(head, name);
+    if (modeModel.tech && server.address) card.append(el('span', 'server-address', server.address));
+    if (server.paused) card.append(el('span', 'risk-reason', SV.pausedReason));
+    card.append(...outputPanel(server.port, SV.outputLabel(server.port), state));
+    return card;
+  }
+
+  const clock = (at) => new Date(at).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+
+  // A row in "Detenidos": stopped by the person, starting again inside Platanus, or closed on its own
+  function stoppedCard(row, state) {
+    const { openMenu, busy } = state;
+    const starting = row.state === 'starting';
+    const card = el('div', `risk-card server-card stopped ${row.state}`);
+    const head = el('div', 'risk-head');
+    const chip = { stopped: SV.stoppedChip, starting: SV.startingChip, exited: SV.exitedChip }[row.state];
+    const detail = starting ? SV.startingDetail(row.port) : row.state === 'exited' ? SV.exitedDetail(row.exitCode, clock(row.at)) : SV.stoppedAt(clock(row.at));
+    head.append(el('span', `server-chip ${row.state}`, chip), el('span', 'risk-level', detail));
+    const waiting = busy.includes(row.id);
+    const box = el('div', 'server-actions');
+    if (starting) box.append(iconButton('stop', SV.cancelStartTitle(row.port), () => serversViewModel.cancelStart(row.id), { disabled: waiting }));
+    else if (row.canRestart) box.append(iconButton('play', SV.restartTitle(row.port), () => serversViewModel.restart(row.id), { disabled: waiting }));
+    box.append(iconButton('more', SV.more(row.port), () => serversViewModel.toggleOpenMenu(row.id), { disabled: waiting, menuKey: row.id, expanded: openMenu === row.id }));
+    head.append(box);
+    const name = el('strong', 'risk-path', `:${row.port}`);
+    name.append(el('span', 'server-process', ` · ${row.process ?? SV.unknownProcess}`));
+    card.append(head, name);
+    if (row.state === 'exited') card.append(el('span', 'risk-reason', SV.exitedReason));
+    else if (!row.canRestart && !starting) card.append(el('span', 'risk-reason', SV.cannotRestart));
+    card.append(...outputPanel(row.id, SV.outputLabel(row.port), state));
+    return card;
+  }
+
+  function renderServers() {
+    const state = serversViewModel.store.state;
+    const { status, servers, stopped, error, demo, empty, exposed, notice } = state;
+    const parts = [el('p', 'side-intro', demo ? SV.demoNote : SV.intro)];
+    if (notice) {
+      const box = el('p', `server-notice ${notice.tone}`, notice.text);
+      const close = el('button', 'server-notice-close', '×');
+      close.type = 'button';
+      close.setAttribute('aria-label', SV.dismiss);
+      close.addEventListener('click', () => serversViewModel.dismissNotice());
+      box.append(close);
+      parts.push(box);
+    }
+    const stoppedPart = stopped.length ? [el('p', 'side-label', SV.stoppedTitle), ...stopped.map((r) => stoppedCard(r, state))] : [];
+    if (status === 'idle' || status === 'loading') return [...parts, el('p', 'side-empty', SV.loading)];
+    if (status === 'error') return [...parts, el('p', 'side-empty', error || SV.error), ...stoppedPart];
+    if (empty) return [...parts, el('p', 'side-empty', SV.empty), ...stoppedPart];
+    return [...parts, el('p', 'side-summary', SV.summary(servers.length, exposed)), ...servers.map((s) => serverCard(s, state)), ...stoppedPart];
+  }
+
+  // The menu closes with a click outside, Esc or a window resize; it follows its button when the panel
+  // scrolls, and closes if the button scrolls out of sight
+  document.addEventListener('click', (e) => { if (!serverMenu.contains(e.target)) serversViewModel.closeMenu(); });
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && serversViewModel.closeMenu());
+  window.addEventListener('resize', () => serversViewModel.closeMenu());
+  let menuFrame = 0;
+  sidebarBody.addEventListener('scroll', () => {
+    if (serversViewModel.store.state.openMenu === null || menuFrame) return;
+    menuFrame = requestAnimationFrame(() => {
+      menuFrame = 0;
+      const anchor = serverMenu.anchor;
+      if (!anchor) return;
+      const a = anchor.getBoundingClientRect();
+      const box = sidebarBody.getBoundingClientRect();
+      if (a.bottom < box.top || a.top > box.bottom) serversViewModel.closeMenu();
+      else serverMenu.position();
+    });
+  }, { passive: true });
 
   // --- Repair history: a task list of what Remi and the agent did ---
   const H = strings.repair.history;
@@ -366,7 +565,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   }
 
   // --- Stage tabs (map / project / graph) with icon, badge and hover card ---
-  const tabs = [...document.querySelectorAll('#stage-tabs [data-stage]')];
+  const tabs = [...document.querySelectorAll('.icon-bar [data-stage]')]; // map and git on top, the rest in the side dock
   for (const tab of tabs) tab.addEventListener('click', () => vm.setStage(tab.dataset.stage));
 
   function renderTabs(state) {
@@ -448,6 +647,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
       const b = el('button', 'recent-row');
       b.type = 'button';
       b.title = r.root;
+      b.innerHTML = icon('folder');
       b.append(el('strong', '', r.name), el('span', '', r.root.replace(/^\/Users\/[^/]+/, '~')));
       b.addEventListener('click', () => vm.openRecent(r.root));
       return b;
@@ -455,18 +655,14 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   }
 
   // --- Status bar ---
-  const status = $('statusbar');
+  const status = $('status-items'); // the breadcrumb (panelsView) sits before these items
 
   function render(state) {
     body.classList.toggle('sidebar-closed', !state.sidebarOpen);
-    const toggleText = state.sidebarOpen ? S.panelToggle.hide : S.panelToggle.show;
-    panelToggle.setAttribute('aria-label', toggleText);
-    panelToggle.setAttribute('aria-expanded', String(state.sidebarOpen));
-    panelToggle.classList.toggle('active', state.sidebarOpen);
-    panelToggle.querySelector('.tip').replaceChildren(el('strong', '', toggleText), el('small', '', S.panelToggle.info));
+    body.classList.toggle('no-project', !state.open); // start screen: only the empty card and the chat
     body.classList.toggle('chat-closed', !state.chatOpen);
     body.classList.toggle('mode-tech', modeModel.tech);
-    for (const button of document.querySelectorAll('#stage-tabs [data-side]')) {
+    for (const button of document.querySelectorAll('#side-dock [data-side]')) {
       button.classList.toggle('active', state.sidebarOpen && button.dataset.side === state.side);
     }
     chatButton?.classList.toggle('active', state.chatOpen);
@@ -488,19 +684,22 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     $('agent-connect').hidden = !agentView;
     if (!agentView) {
       const scroll = sidebarBody.scrollTop;
-      const views = { risks: renderRisks, repairs: renderRepairs, explorer: renderExplorer };
+      const views = { risks: renderRisks, repairs: renderRepairs, servers: renderServers, explorer: renderExplorer };
       const nodes = (views[state.side] ?? renderExplorer)(state);
       // The Dev tree keeps its own root: re-inserting it would drop the focus of its search box
       const same = nodes.length === sidebarBody.childNodes.length && nodes.every((n, i) => n === sidebarBody.childNodes[i]);
       if (!same) sidebarBody.replaceChildren(...nodes);
       sidebarBody.scrollTop = scroll;
     }
+    syncServerMenu();
 
     // Repairs waiting for the person (to verify) show a badge on the rail
     const pending = repairHistory.store.state.entries.filter((e) => e.status === 'fixed' || e.status === 'planned').length;
     const badge = $('rail-repairs-badge');
-    badge.hidden = !pending;
-    badge.textContent = String(pending);
+    if (badge) { // only while a repairs button exists
+      badge.hidden = !pending;
+      badge.textContent = String(pending);
+    }
 
     const { red, yellow, green } = state.counts;
     $('project-chip').hidden = !state.open;
@@ -508,7 +707,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     $('project-chip').classList.toggle('danger', red > 0);
     const job = repairViewModel.store.state.job;
     status.replaceChildren(
-      el('span', 'status-strong', state.open ? state.projectName || strings.map.defaultProjectName : S.status.noProject),
+      ...(state.open ? [] : [el('span', 'status-strong', S.status.noProject)]), // when open, the breadcrumb names it
       ...(job ? [el('span', 'status-remi', `${strings.repair.name}: ${(job.source === 'agent' ? strings.repair.stepsAgent(job.agentLabel) : strings.repair.steps)[job.step]}`)] : []),
       el('span', 'status-mode', `${strings.mode.title}: ${strings.mode[modeModel.store.state.mode]}`),
       el('span', 'status-agent', S.status.agent),
@@ -529,4 +728,5 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
   modeModel.store.subscribe(() => render(vm.store.state));
   repairViewModel.store.subscribe(() => render(vm.store.state));
   repairHistory.store.subscribe(() => render(vm.store.state));
+  serversViewModel.store.subscribe(() => (vm.store.state.side === 'servers' ? render(vm.store.state) : syncServerMenu()));
 }
