@@ -299,6 +299,7 @@ export const strings = {
       repairWorst: 'Reparar el riesgo más grave',
       toggleMode: 'Cambiar entre Vibe y Dev',
     },
+    panelToggle: { show: 'Mostrar el panel', hide: 'Ocultar el panel', info: 'Abre o cierra el panel del ícono marcado. El mapa ocupa el resto.' },
     rail: { explorer: 'Explorador', risks: 'Riesgos', repairs: 'Reparaciones', agent: 'Conecta tu agente', map: 'Mapa 3D', project: 'Mapa del proyecto', graph: 'Grafo de amenazas', git: 'Ramas de git', chat: 'Agente' },
     // Shown when hovering a rail button or a tab
     railInfo: {
