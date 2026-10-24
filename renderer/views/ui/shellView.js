@@ -423,6 +423,7 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
       const b = el('button', 'recent-row');
       b.type = 'button';
       b.title = r.root;
+      b.innerHTML = icon('folder');
       b.append(el('strong', '', r.name), el('span', '', r.root.replace(/^\/Users\/[^/]+/, '~')));
       b.addEventListener('click', () => vm.openRecent(r.root));
       return b;
