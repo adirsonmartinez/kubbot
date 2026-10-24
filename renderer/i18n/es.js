@@ -49,7 +49,6 @@ export const strings = {
     move: 'Arrastra para moverlo (doble clic: vuelve a su lugar)',
     minimize: 'Minimizar',
     restore: 'Mostrar',
-    risks: 'Riesgos abiertos',
     hud: 'Seguridad del proyecto',
   },
 
@@ -68,6 +67,7 @@ export const strings = {
   },
 
   hud: {
+    seeRisks: 'Ver la lista de riesgos',
     security: 'Seguridad',
     files: 'Archivos',
     risk: 'En riesgo',
@@ -165,17 +165,6 @@ export const strings = {
     if (key) return strings.folders[key];
     const tag = strings.tags[tags[0]];
     return { name: tag ? `${tag} · ${folder}` : folder, summary: tag ? `Archivos de ${tag.toLowerCase()}.` : 'Archivos del proyecto.' };
-  },
-
-  cracksCard: {
-    title: (n) => (n === 1 ? '1 riesgo abierto' : `${n} riesgos abiertos`),
-    allGood: 'Sin riesgos abiertos',
-    progress: (done, total) => `${done}/${total}`,
-    severity: { red: 'Grave', yellow: 'A revisar' },
-    repair: 'Reparar',
-    seeAll: (n) => `Ver todo (${n} más)`,
-    collapse: 'Ocultar',
-    expand: 'Mostrar riesgos',
   },
 
   devTree: {
@@ -389,6 +378,9 @@ export const strings = {
     placeholder: 'Pregúntale al agente… (Enter envía, Shift+Enter salta línea)',
     thinking: 'Pensando…',
     reasoning: 'Cómo lo pensó',
+    pin: 'Fijar el chat: el mapa le deja su espacio',
+    unpin: 'Soltar el chat: vuelve a flotar sobre el mapa',
+    resize: 'Arrastra para cambiar el ancho del chat',
     run: {
       tools: {
         get_project: 'Ver el proyecto',

@@ -10,7 +10,6 @@
   <link rel="stylesheet" href="styles/shell.css" />
   <link rel="stylesheet" href="styles/sidebar.css" />
   <link rel="stylesheet" href="styles/devtree.css" />
-  <link rel="stylesheet" href="styles/cracks.css" />
   <link rel="stylesheet" href="styles/agents.css" />
   <script type="importmap">
     { "imports": { "three": "../node_modules/three/build/three.module.js", "three/addons/": "../node_modules/three/examples/jsm/" } }
@@ -60,7 +59,6 @@
     <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/><path d="M9.5 4.5v15"/></svg>
     <span class="tip"></span>
   </button>
-  <div id="cracks-card" class="cracks-card" hidden></div>
   <section id="graph-panel" class="graph-panel" hidden>
     <header class="graph-head">
       <div>
@@ -145,6 +143,9 @@
         <strong data-i18n="chat.agentName"></strong>
         <span data-i18n="chat.online"></span>
       </div>
+      <button class="chat-toggle chat-pin" id="chat-pin" type="button" aria-pressed="false">
+        <svg viewBox="0 0 24 24"><path d="M15 4.5 19.5 9l-3 1.5-3.5 3.5.5 4-1.5 1.5-3.5-3.5L5 19.5M8.5 11.5 12.5 15.5M9 6l9 9"/></svg>
+      </button>
       <button class="chat-toggle" id="chat-toggle" data-i18n-aria="chat.minimize" aria-expanded="true">
         <svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg>
       </button>

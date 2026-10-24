@@ -4,7 +4,7 @@ import { strings } from '../../i18n/es.js';
 const RING_RADIUS = 26;
 const RING_LENGTH = 2 * Math.PI * RING_RADIUS;
 
-export function createHudView({ appViewModel, mapViewModel, gitViewModel }) {
+export function createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks = () => {} }) {
   const hud = document.getElementById('hud');
   const t = strings.hud;
 
@@ -22,6 +22,14 @@ export function createHudView({ appViewModel, mapViewModel, gitViewModel }) {
     <div class="hud-stat"><strong data-field="commits"></strong><span>${t.commits}</span></div>`;
 
   const field = (name) => hud.querySelector(`[data-field="${name}"]`);
+  // The risk counters open the one list of risks (side panel)
+  for (const stat of hud.querySelectorAll('.hud-stat.risk, .hud-stat.review')) {
+    stat.setAttribute('role', 'button');
+    stat.tabIndex = 0;
+    stat.title = t.seeRisks;
+    stat.addEventListener('click', onShowRisks);
+    stat.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onShowRisks()));
+  }
   const ring = hud.querySelector('.value');
 
   function render() {

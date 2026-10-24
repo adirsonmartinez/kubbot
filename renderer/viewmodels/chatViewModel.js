@@ -221,8 +221,6 @@ export class ChatViewModel {
     const a = this.#actions;
     return [
       a.repairWorst && { label: strings.repair.chipWorst, run: a.repairWorst },
-      a.showRisks && { label: strings.shell.rail.risks, run: a.showRisks },
-      a.showGraph && { label: strings.shell.actions.showGraph, run: a.showGraph },
       ...CHAT.chips.suggestions.slice(2),
     ].filter(Boolean);
   }

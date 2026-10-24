@@ -385,8 +385,9 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
       tab.classList.toggle('active', active);
       tab.setAttribute('aria-selected', String(active));
       const em = tab.querySelector('.tab-badge');
-      em.textContent = state.open && badge ? String(badge) : '';
-      em.hidden = !(state.open && badge);
+      // Totals live in the HUD only: no repeated badges on the view tabs
+      em.textContent = '';
+      em.hidden = true;
       tab.querySelector('.tip').replaceChildren(el('strong', '', title), el('small', '', state.open ? text : S.status.noProject));
     }
   }
@@ -510,7 +511,6 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
     const job = repairViewModel.store.state.job;
     status.replaceChildren(
       el('span', 'status-strong', state.open ? state.projectName || strings.map.defaultProjectName : S.status.noProject),
-      ...(state.open ? [el('span', 'status-counts', S.status.counts(red, yellow, green))] : []),
       ...(job ? [el('span', 'status-remi', `${strings.repair.name}: ${(job.source === 'agent' ? strings.repair.stepsAgent(job.agentLabel) : strings.repair.steps)[job.step]}`)] : []),
       el('span', 'status-mode', `${strings.mode.title}: ${strings.mode[modeModel.store.state.mode]}`),
       el('span', 'status-agent', S.status.agent),
