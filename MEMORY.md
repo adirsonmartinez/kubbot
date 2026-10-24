@@ -42,12 +42,12 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
 - **Video del producto**: `video/` (Remotion) y `scripts/demo/` (grabación por CDP + proyecto de ejemplo «Feria Online»).
 - **Editor de archivos** (`docs/features/file-editor/README.md`): clic en un archivo del mapa → ventana flotante con pestañas, CodeMirror con colores de sintaxis, guardar con ⌘S (secretos: se abren marcados, guardarlos pide confirmación; respaldo y control de `mtime`).
 - **UI nueva en toda la app** (el idioma del chat: vidrio, Inter/Roboto Mono, neutra, sin morado):
-  - un CSS por pieza, todos sobre los tokens `--lg-*` de `chat-glass.css`: `start.css` (inicio), `controls.css`, `dock.css`, `labels.css`, `hud.css`, `panel.css`, `editor.css`, `titlebar.css`;
+  - un CSS por pieza, todos sobre los tokens `--lg-*` de `chat-glass.css`: `start.css` (inicio), `welcome.css` (globo del robot de bienvenida; salió de `main.css`), `controls.css`, `dock.css`, `labels.css`, `hud.css`, `panel.css`, `editor.css`, `titlebar.css`;
   - `panel.css`, `editor.css` y `titlebar.css` redefinen dentro los tokens del shell (`--ink`, `--panel`, `--accent`…) con los del chat;
   - fijos: chat abajo a la derecha, panel lateral, tarjeta de seguridad (compacta, arriba a la izquierda; reemplazó al semáforo) y selector Mapa/Git. Solo el editor se arrastra. Se quitó `floater.js`.
 
 ## Cómo comprobar
-- `npm test` (418 pruebas al 2026-10-24, con develop fusionado) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
+- `npm test` (448 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
 - **App real:** `npx electron . --remote-debugging-port=9223 --open=<proyecto>` y scripts CDP (`scripts/demo/cdp.mjs`).
 - **Banderas:**
   - `PLATANUS_SIM=1`: agente «Simulador», escenarios en `scripts/sim/scenarios.js`;
@@ -86,4 +86,5 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - El usuario usa **la misma ventana** de la app: los scripts CDP pueden chocar con sus clics. Mejor `window.__platanus` en modo demo que simular el ratón.
 - No editar el repo team-12 mientras el usuario lo tiene abierto en la app: cada guardado aparecía como «Se guardaron cambios» en su chat (ahora solo en Dev).
 - El robot y la tarjeta `place`: la pregunta queda anclada arriba hasta que la persona mueve el scroll (`anchorId` en `chatView.js`).
+- Sin Chrome en esta Mac: para ver un CSS sin tocar la app abierta del usuario, una página de prueba + `npx electron capture.cjs` (`BrowserWindow` oculto y `capturePage`).
 - La UI nueva llega pronto. Los selectores de la grabación viven en `scripts/demo/timeline.mjs`: si cambian, se ajustan solo ahí.

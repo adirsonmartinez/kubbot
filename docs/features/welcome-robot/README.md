@@ -46,7 +46,7 @@ El robot se queda y reacciona al proyecto real. En orden de prioridad:
 ### El globo
 
 - Un solo globo a la derecha del robot, con la colita en su cabeza. Si no cabe, se desliza en vertical para quedar siempre entero en pantalla, sin tapar al robot. Cada mensaje nuevo entra con un salto: unos puntitos de "pensando", el texto se escribe solo (un clic lo muestra completo) y los botones entran uno por uno.
-- El borde tiene un brillo que gira con el color del tono: morado (preguntas y consejos), verde (logros), ámbar o rojo **solo para riesgos**, como pide la guía visual.
+- Tiene el mismo vidrio neutro del chat: barras de pasos blancas, botones como los chips del chat y la opción principal como la pastilla blanca. El verde marca los logros; solo un riesgo pinta el borde con un brillo que gira, en ámbar o rojo.
 - El robot salta con cada mensaje, mueve la cabeza diciendo "no" ante un riesgo y su antena parpadea mientras "habla".
 - **Minimizar** lo deja como una pastilla "Guía" que late cuando llega un consejo nuevo. **×** cierra la guía.
 - Con "reducir movimiento" activado en el sistema, todo aparece sin animaciones.
@@ -80,7 +80,7 @@ Si el robot le pasa un pedido al agente y no hay ningún agente conectado, se ab
 
 - `renderer/viewmodels/robotDialogViewModel.js`: las dos fases (entrevista y guía), la recomendación, los consejos y deshacer. No toca el DOM.
 - `renderer/views/scene/builders/robotBuilder.js`: la forma del robot (y `setFace` para su expresión). Sus materiales (`robotShell`, `robotTrim`, `robotFace`, `robotGlow`, `glowLines.accent`) están en `renderer/views/scene/materials.js`.
-- `renderer/views/scene/welcomeRobotView.js`: la animación del robot, el globo, la escritura animada y la pastilla. Se aparta mientras corre el recorrido o una construcción (el robot de `robotView.js` usa el mapa), y ese otro robot se aparta mientras el diálogo de bienvenida está abierto: nunca hay dos robots a la vez. Estilos en el bloque "Welcome robot" de `renderer/styles/main.css` (clases `rb-*`).
+- `renderer/views/scene/welcomeRobotView.js`: la animación del robot, el globo, la escritura animada y la pastilla. Se aparta mientras corre el recorrido o una construcción (el robot de `robotView.js` usa el mapa), y ese otro robot se aparta mientras el diálogo de bienvenida está abierto: nunca hay dos robots a la vez. Estilos en `renderer/styles/welcome.css` (clases `rb-*`, sobre los tokens `--lg-*` del chat).
 - `renderer/i18n/es.js` → `map.welcome`: preguntas, recomendaciones (`stacks`), analogías, consejos (`tips`) y los pedidos al agente (`scaffoldPrompt`, `talkPrompt`). **Para cambiar lo que dice el robot o qué recomienda, se edita solo este archivo.**
 - `renderer/main.js`: acciones `openChat`, `askAgent` (con el pedido en espera) y `saveProgress`.
 - `renderer/models/agentModel.js`: `isGitCommand`.
