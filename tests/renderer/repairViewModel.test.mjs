@@ -6,18 +6,27 @@ import { RepairHistoryModel } from '../../renderer/models/repairHistoryModel.js'
 import { SecurityModel } from '../../renderer/models/securityModel.js';
 import { createEventBus, EVENTS } from '../../renderer/core/eventBus.js';
 
-function setup({ live = false, answer = { text: '- Paso uno\n- Paso dos' }, writes = [] } = {}) {
+function setup({ live = false, answer = { text: '- Paso uno\n- Paso dos' }, writes = [], hold = false } = {}) {
   const security = new SecurityModel();
   const history = new RepairHistoryModel();
   history.load(`p-${Math.random()}`);
   const bus = createEventBus();
   let changed = () => {};
   const agentService = { onChanged: (cb) => { changed = cb; }, undo: async () => ({ ok: true }) };
+  const asks = [];
   const connection = {
     live,
     agentLabel: 'Claude',
     store: { state: { agents: [{ id: 'claude', label: 'Claude' }], selected: live ? 'claude' : null } },
-    ask: async () => { writes.forEach((w) => changed(w)); return answer; },
+    // hold: the run stays open until the test calls asks[i].finish()
+    ask: (_p, _s, { signal, onStart } = {}) => new Promise((resolve) => {
+      const entry = { signal, finish: () => resolve(answer), aborted: false };
+      asks.push(entry);
+      signal?.addEventListener('abort', () => { entry.aborted = true; resolve({ text: '', error: 'cancelled' }); });
+      onStart?.(String(asks.length));
+      writes.forEach((w) => changed(w));
+      if (!hold) resolve(answer);
+    }),
   };
   const vm = new RepairViewModel({
     securityModel: security,
@@ -28,7 +37,7 @@ function setup({ live = false, answer = { text: '- Paso uno\n- Paso dos' }, writ
   });
   const events = [];
   for (const name of ['repairStarted', 'repairFinished', 'repairChanged']) bus.on(EVENTS[name], (p) => events.push([name, p]));
-  return { vm, security, history, events };
+  return { vm, security, history, events, asks, change: (c) => changed(c) };
 }
 
 async function runAll() {
@@ -107,5 +116,65 @@ test('undoing every change puts the file back in red and the task back to "plann
     assert.equal(await vm.undo(entry.id, change), true);
     assert.equal(history.get(entry.id).status, 'planned');
     assert.equal(security.scoreOf('x.js').level, 'red');
+  } finally { mock.timers.reset(); }
+});
+
+test('a change made outside this job (chat, editor) is not credited to the repair', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const { vm, history, change } = setup({ live: true, hold: true });
+    change({ path: 'other.js', reason: 'from the chat', backup: { id: 'z' }, at: 'before' }); // before Remi starts
+    vm.start('a.js');
+    await runAll();
+    const [entry] = history.store.state.entries;
+    assert.equal(entry.status, 'working'); // still waiting for the agent
+    assert.equal(vm.store.state.job.step, 2);
+  } finally { mock.timers.reset(); }
+});
+
+test('closing mid-run stops the agent, and its late write does not land in the next job', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const { vm, history, asks, change } = setup({ live: true, hold: true });
+    vm.start('a.js');
+    vm.start('b.js');
+    await runAll();
+    vm.close(); // a.js: agent still working
+    assert.equal(asks[0].aborted, true);
+    // a.js's write was requested before b.js's run started, and approved only now
+    change({ path: 'a.js', reason: 'late write', backup: { id: 'late' }, requestedAt: new Date(Date.now() - 60_000).toISOString(), at: 'late' });
+    asks[1].finish();
+    await runAll();
+    const b = history.store.state.entries.find((e) => e.path === 'b.js');
+    assert.equal(b.status, 'planned');
+    assert.equal(b.changes.length, 0);
+  } finally { mock.timers.reset(); }
+});
+
+test('switching project cancels the job and the queue before the history changes', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const { vm, history, asks } = setup({ live: true, hold: true });
+    vm.start('a.js');
+    vm.start('b.js');
+    vm.reset();
+    assert.equal(vm.store.state.job, null);
+    assert.deepEqual(vm.store.state.queue, []);
+    assert.equal(asks[0].aborted, true);
+    assert.equal(history.store.state.entries[0].status, 'failed');
+  } finally { mock.timers.reset(); }
+});
+
+test('undo survives a missing history entry and a created file counts as undoable', async () => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const created = { path: 'new.js', reason: 'r', created: true, backup: { id: 'c' }, at: 't' };
+    const { vm, history } = setup({ live: true, writes: [created] });
+    vm.start('new.js');
+    await runAll();
+    const [entry] = history.store.state.entries;
+    assert.equal(await vm.undo(entry.id, created), true);
+    assert.equal(history.get(entry.id).status, 'planned');
+    assert.equal(await vm.undo(999, created), true); // entry gone: no crash
   } finally { mock.timers.reset(); }
 });

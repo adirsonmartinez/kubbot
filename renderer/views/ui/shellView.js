@@ -330,7 +330,7 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
       details.append(el('summary', '', H.explanation), el('p', '', entry.summary));
       body.appendChild(details);
     }
-    if (entry.error) body.appendChild(el('p', 'task-error', entry.error));
+    if (entry.error || entry.interrupted) body.appendChild(el('p', 'task-error', entry.interrupted ? H.interrupted : entry.error));
     const buttons = el('div', 'task-actions');
     const button = (label, run, primary = false) => {
       const b = el('button', `pill${primary ? ' active' : ''}`, label);

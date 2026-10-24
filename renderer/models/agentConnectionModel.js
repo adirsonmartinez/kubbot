@@ -72,16 +72,19 @@ export class AgentConnectionModel {
   // Runs one message with the selected agent. Resolves with { text, error } (never rejects).
   // onTool(name) is called each time the agent uses a Platanus tool; onText(delta) as the answer streams.
   // session: 'chat' (continues the conversation) or 'repair' (Remi's jobs, a separate conversation).
-  ask(prompt, systemPrompt, { onTool, onText, session = 'chat' } = {}) {
+  // signal (AbortSignal): a waiting question never starts; a running one stops its CLI.
+  // onStart(runId): called when the CLI actually starts (after waiting in line).
+  ask(prompt, systemPrompt, { onTool, onText, onStart, signal, session = 'chat' } = {}) {
     // The choice is taken now: a question waiting in line keeps the agent it was asked to
     const { selected: agent, model, effort } = this.store.state;
-    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, session, agent, model, effort });
+    const run = () => this.#run(prompt, systemPrompt, { onTool, onText, onStart, signal, session, agent, model, effort });
     const result = this.#queue.then(run, run);
     this.#queue = result.catch(() => {});
     return result;
   }
 
-  async #run(prompt, systemPrompt, { onTool, onText, session, agent, model, effort }) {
+  async #run(prompt, systemPrompt, { onTool, onText, onStart, signal, session, agent, model, effort }) {
+    if (signal?.aborted) return { text: '', error: 'cancelled' };
     const key = `${agent}:${session}`;
     const turns = this.#turns.get(key) ?? 0;
     this.#turns.set(key, turns + 1);
@@ -103,6 +106,9 @@ export class AgentConnectionModel {
       this.#service.run({ agent, prompt, systemPrompt, model, effort, session, continued: session === 'chat' && turns > 0 }).then((r) => {
         if (!r.ok) { off(); return resolve({ text: '', error: r.error }); }
         runId = r.data;
+        onStart?.(runId);
+        if (signal?.aborted) this.#service.cancel?.(runId);
+        else signal?.addEventListener('abort', () => this.#service.cancel?.(runId), { once: true });
         early.filter((e) => e.runId === runId).forEach(handle);
       }, (err) => { off(); resolve({ text: '', error: err?.message ?? String(err) }); });
     });

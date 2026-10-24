@@ -36,3 +36,13 @@ test('clearFinished keeps only running jobs', () => {
   h.clearFinished();
   assert.deepEqual(h.store.state.entries.map((e) => e.path), ['run.js']);
 });
+
+test('an interrupted job is flagged (the view translates it), not given an English message', () => {
+  const h = new RepairHistoryModel();
+  h.load('eps');
+  const id = h.add({ path: 'x.js', status: 'working' });
+  const again = new RepairHistoryModel();
+  again.load('eps');
+  assert.equal(again.get(id).interrupted, true);
+  assert.equal(again.get(id).error, '');
+});

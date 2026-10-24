@@ -121,6 +121,7 @@ connection.refresh();
 // --- Wiring between layers ---
 projectModel.store.subscribe((state, previous) => {
   if (state.session !== previous.session) {
+    repairViewModel.reset(); // nothing from the previous project keeps running
     repairHistory.load(state.name ?? strings.map.defaultProjectName); // each project keeps its own history
     bus.emit(EVENTS.projectOpened, { name: state.name ?? strings.map.defaultProjectName });
   }

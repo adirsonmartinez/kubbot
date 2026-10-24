@@ -209,6 +209,7 @@ export const strings = {
       plan: 'Pasos',
       explanation: 'Lo que explicó el agente',
       created: 'archivo nuevo',
+      interrupted: 'Se cortó porque la app se cerró mientras trabajaba.',
       verify: 'Marcar verificado',
       retry: 'Reintentar',
       open: 'Ver en el mapa',

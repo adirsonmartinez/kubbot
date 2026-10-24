@@ -157,7 +157,7 @@ const running = new Map();
 
 // One run per agent and session at a time (the window serializes its requests; this is a safety net).
 function run(id, opts, emit) {
-  if (!AGENTS[id]) return emit({ type: "error", message: t.agents.unknown }), emit({ type: "done" });
+  if (!AGENTS[id]) return emit({ type: "error", message: t.agents.unknown }), emit({ type: "done" }), null;
   const session = opts.session === "repair" ? "repair" : "chat";
   const key = `${id}:${session}`;
   running.get(key)?.kill("SIGTERM");
@@ -183,6 +183,7 @@ function run(id, opts, emit) {
     if (running.get(key) === child) running.delete(key); // a newer run may already own the key
     emit({ type: "done" });
   });
+  return child;
 }
 
 module.exports = { detect, login, run };

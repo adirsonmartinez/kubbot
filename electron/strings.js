@@ -43,5 +43,6 @@ module.exports = {
     cannotUndo: 'No encontré la copia para deshacer este cambio.',
     confirmUndo: (path) => `¿Deshacer el cambio del agente en "${path}"?`,
     confirmUndoDetail: 'Se vuelve a poner la versión que tenía antes.',
+    confirmUndoCreated: 'Tu agente creó este archivo: deshacerlo lo borra.',
   },
 };

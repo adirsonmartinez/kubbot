@@ -2,7 +2,7 @@
 // Run with `npm test` (node:test, no dependencies).
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createMcpHandler, startMcpServer, isBlockedPath, TOOLS } = require('./mcpServer');
+const { createMcpHandler, startMcpServer, isBlockedPath, isBlockedRealPath, TOOLS } = require('./mcpServer');
 
 const calls = [];
 const handlers = {
@@ -36,7 +36,8 @@ test('every tool call is reported for the audit log', async () => {
 
 test('secrets are never read, even if the agent asks', async () => {
   for (const p of ['.env', 'config/.env.local', 'certs/server.pem', 'keys/id_rsa', 'a/b.key',
-    '.env/', './.env/.', 'x/../.env/', '.git/config', 'a/.ssh/id_ed25519', '.npmrc', 'sub/.aws/credentials']) {
+    '.env/', './.env/.', 'x/../.env/', '.git/config', 'a/.ssh/id_ed25519', '.npmrc', 'sub/.aws/credentials',
+    'config/credentials.json', 'secrets.yml', '.htpasswd', 'gcp/service-account-prod.json']) {
     assert.equal(isBlockedPath(p), true, p);
     const r = await respond({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'platanus_read_file', arguments: { path: p } } });
     assert.equal(r.result.isError, true, p);
@@ -83,4 +84,20 @@ test('templates are readable; writes to secrets are refused too', async () => {
   assert.equal(isBlockedPath('src/app.js'), false);
   const r = await respond({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'platanus_write_file', arguments: { path: '.env', content: 'x', reason: 'r' } } });
   assert.equal(r.result.isError, true);
+});
+
+test('symlinks: a harmless-looking path that lands in .git/ or a secret is refused, even for new files', async () => {
+  const fs = require('node:fs');
+  const os = require('node:os');
+  const path = require('node:path');
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'platanus-')));
+  fs.mkdirSync(path.join(root, '.git', 'hooks'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.env'), 'SECRET=1');
+  fs.symlinkSync(path.join(root, '.git'), path.join(root, 'cfg'));
+  fs.symlinkSync(path.join(root, '.env'), path.join(root, 'notes.txt'));
+  fs.mkdirSync(path.join(root, 'src'));
+  assert.equal(await isBlockedRealPath(root, path.join(root, 'cfg/hooks/pre-commit')), true); // new file
+  assert.equal(await isBlockedRealPath(root, path.join(root, 'notes.txt')), true);
+  assert.equal(await isBlockedRealPath(root, path.join(root, 'src/new/app.js')), false);
+  fs.rmSync(root, { recursive: true, force: true });
 });

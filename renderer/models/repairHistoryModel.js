@@ -21,7 +21,7 @@ export class RepairHistoryModel {
     let entries = [];
     try { entries = JSON.parse(localStorage.getItem(KEY(project)) ?? '[]'); } catch { entries = []; }
     // A run cut by closing the app cannot be resumed
-    entries = entries.map((e) => (e.status === 'working' || e.status === 'queued' ? { ...e, status: 'failed', error: 'interrupted' } : e));
+    entries = entries.map((e) => (e.status === 'working' || e.status === 'queued' ? { ...e, status: 'failed', interrupted: true } : e));
     this.#nextId = Math.max(0, ...entries.map((e) => e.id)) + 1;
     this.store.set({ entries });
   }

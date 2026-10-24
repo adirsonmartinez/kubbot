@@ -33,6 +33,7 @@ contextBridge.exposeInMainWorld('platanus', {
     detect: () => ipcRenderer.invoke('agents:detect'),
     login: (id) => ipcRenderer.invoke('agents:login', id),
     run: (req) => ipcRenderer.invoke('agents:run', req),
+    cancel: (runId) => ipcRenderer.invoke('agents:cancel', runId),
     onEvent: on('agents:event'), // ({ runId, type: 'text'|'tool'|'error'|'done', ... }) => ...
   },
   mcp: {

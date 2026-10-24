@@ -83,3 +83,26 @@ test('a queued question keeps the agent, model and effort chosen when it was ask
   await second;
   assert.deepEqual(svc.runs.map((r) => [r.req.agent, r.req.effort]), [['claude', 'high'], ['claude', 'high']]);
 });
+
+test('a cancelled question never starts if it was waiting, and stops the CLI if it was running', async () => {
+  const svc = fakeService();
+  const cancelled = [];
+  svc.cancel = async (runId) => { cancelled.push(runId); svc.emit({ runId, type: 'done' }); };
+  const m = new AgentConnectionModel(svc);
+  await m.refresh();
+  m.select('claude');
+  const running = new AbortController();
+  const waiting = new AbortController();
+  let started = null;
+  const first = m.ask('uno', 'sys', { signal: running.signal, onStart: (id) => { started = id; } });
+  const second = m.ask('dos', 'sys', { signal: waiting.signal });
+  await tick();
+  assert.equal(started, '1');
+  waiting.abort();
+  running.abort();
+  await first;
+  const r2 = await second;
+  assert.deepEqual(cancelled, ['1']);
+  assert.equal(svc.runs.length, 1, 'the waiting question never ran');
+  assert.equal(r2.error, 'cancelled');
+});

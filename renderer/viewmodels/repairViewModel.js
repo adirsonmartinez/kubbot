@@ -37,7 +37,10 @@ export class RepairViewModel {
   #agentService;
   #bus;
   #runId = 0;
-  #changes = null; // collects the agent's writes during the current job
+  #changes = null; // the agent's writes, collected only while THIS job's run is executing
+  #abort = null; // stops the current job's agent run
+  #collected = null; // the writes of the run that just finished
+  #startedAt = 0; // when the current job's agent run started
 
   // job: { historyId, path, reason, reasonKey, folder, from, to, center, height, step, stepMs, plan,
   //        source: 'agent' | 'guide', agentLabel, outcome: 'fixed' | 'planned' | 'failed' | null, hammering }
@@ -99,6 +102,7 @@ export class RepairViewModel {
     const r = await this.#agentService.undo(change);
     if (!r.ok) return false;
     const entry = this.#history.get(historyId);
+    if (!entry) return true; // the file was restored; the task is no longer in the history
     const changes = entry.changes.map((c) => (c.at === change.at && c.path === change.path ? { ...c, undone: true } : c));
     const allUndone = changes.every((c) => c.undone);
     this.#history.update(historyId, { changes, ...(allUndone ? { status: 'planned' } : {}) });
@@ -107,16 +111,31 @@ export class RepairViewModel {
   }
 
   close() {
-    const { job } = this.store.state;
-    if (job && this.busy) this.#history.update(job.historyId, { status: 'failed', error: R.cancelled, endedAt: new Date().toISOString() });
-    this.#runId++;
-    this.#changes = null;
+    this.#stop();
     this.store.set({ job: null });
     this.#next();
   }
 
+  // Another project opens: nothing from this one may keep running or write into the new history
+  reset() {
+    this.store.set({ queue: [] });
+    this.#stop();
+    this.store.set({ job: null });
+  }
+
+  #stop() {
+    const { job } = this.store.state;
+    if (job && this.busy) this.#history.update(job.historyId, { status: 'failed', error: R.cancelled, endedAt: new Date().toISOString() });
+    this.#runId++;
+    this.#abort?.abort();
+    this.#abort = null;
+    this.#changes = null;
+  }
+
   #onAgentChange(change) {
     if (!this.#changes) return; // a change made from the chat or an editor, not by a repair
+    // Asked before this job's agent started (e.g. a dialog approved late): it belongs to someone else
+    if (change.requestedAt && Date.parse(change.requestedAt) < this.#startedAt) return;
     this.#changes.push(change);
     const { job } = this.store.state;
     if (job) this.store.set({ job: { ...job, hammering: true } });
@@ -151,8 +170,9 @@ export class RepairViewModel {
     this.#bus.emit(EVENTS.repairStarted, { path, agent: agentLabel });
 
     // While Remi walks and looks, the agent already starts working
-    this.#changes = [];
-    const work = live ? this.#repairWithAgent(path, reason) : Promise.resolve(null);
+    this.#changes = null;
+    this.#abort = new AbortController();
+    const work = live ? this.#repairWithAgent(path, reason, this.#abort.signal, alive) : Promise.resolve(null);
     await wait(walkMs);
     set({ step: 1, stepMs: LOOK_MS });
     await wait(LOOK_MS);
@@ -160,8 +180,8 @@ export class RepairViewModel {
     set({ step: 2, stepMs: 0 });
     const [answer] = await Promise.all([work, wait(MIN_WORK_MS)]);
     if (!alive()) return;
-    const changes = this.#changes ?? [];
-    this.#changes = null;
+    const changes = this.#collected ?? [];
+    this.#collected = null;
 
     // Outcome: the agent changed files (to verify), left a plan, or failed; no agent: the guide's plan
     const guidePlan = R.plans[score.reasonKey] ?? R.plans.other;
@@ -196,14 +216,25 @@ export class RepairViewModel {
 
   // The agent reads the file, repairs it if that is safe (each write approved by the person) and
   // explains in plain words; its answer streams into the chat.
-  #repairWithAgent(path, reason) {
-    const timeout = wait(AGENT_TIMEOUT_MS).then(() => ({ text: '', error: R.timeout }));
+  #repairWithAgent(path, reason, signal, alive) {
+    const timeout = wait(AGENT_TIMEOUT_MS).then(() => {
+      this.#abort?.abort(); // stop the CLI: a late write must not happen after the job ended
+      return { text: '', error: R.timeout };
+    });
     const ask = this.#connection.ask(R.agentFixPrompt(path, reason), strings.agent.livePrompt, {
       session: 'repair',
-      onText: (delta) => this.#bus.emit(EVENTS.repairText, { path, delta }),
-      onTool: (name) => this.#bus.emit(EVENTS.repairTool, { path, name }),
+      signal,
+      onStart: () => { if (alive()) { this.#changes = []; this.#startedAt = Date.now(); } }, // collect from the moment the CLI runs
+      onText: (delta) => alive() && this.#bus.emit(EVENTS.repairText, { path, delta }),
+      onTool: (name) => alive() && this.#bus.emit(EVENTS.repairTool, { path, name }),
+    }).then((answer) => {
+      if (alive()) { this.#collected = this.#changes; this.#changes = null; }
+      return answer;
     });
-    return Promise.race([ask, timeout]);
+    return Promise.race([ask, timeout]).then((answer) => {
+      if (alive() && !this.#collected) { this.#collected = this.#changes; this.#changes = null; }
+      return answer;
+    });
   }
 
   #next() {

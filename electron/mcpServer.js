@@ -4,6 +4,7 @@
 
 const http = require('node:http');
 const path = require('node:path');
+const fs = require('node:fs');
 
 const PROTOCOL_VERSION = '2025-06-18';
 const MAX_BODY = 256 * 1024;
@@ -11,13 +12,26 @@ const MAX_BODY = 256 * 1024;
 // Files and folders an agent must never read or write: secrets, private keys, credentials and git
 // internals. Checked on every segment of the NORMALIZED path (so ".env/", "x/../.env" or "./.env/."
 // are caught), and main.js checks the real path too (symlinks).
-const BLOCKED_SEGMENT = /^(\.env(\..*)?|\.git|\.ssh|\.aws|\.gnupg|\.npmrc|\.netrc|\.pypirc|\.docker|id_(rsa|ed25519|ecdsa|dsa)[^/]*|[^/]+\.(pem|key|p12|pfx|keystore|jks))$/i;
+const BLOCKED_SEGMENT = /^(\.env(\..*)?|\.git|\.ssh|\.aws|\.gnupg|\.npmrc|\.netrc|\.pypirc|\.docker|\.htpasswd|credentials(\.json)?|secrets?\.(json|ya?ml|toml)|service[-_]?account[^/]*\.json|id_(rsa|ed25519|ecdsa|dsa)[^/]*|[^/]+\.(pem|key|p12|pfx|keystore|jks))$/i;
 const ALLOWED_ENV_TEMPLATE = /^\.env\.(example|sample|template)$/i;
 const MAX_READ_BYTES = 200 * 1024;
 
 function isBlockedPath(rel) {
   const normalized = path.posix.normalize(String(rel).replace(/\\/g, '/'));
   return normalized.split('/').some((seg) => BLOCKED_SEGMENT.test(seg) && !ALLOWED_ENV_TEMPLATE.test(seg));
+}
+
+// Where an absolute path really lands inside `root` (symlinks resolved, also for a file that does not
+// exist yet: its nearest existing parent is resolved), checked against the same blocklist.
+async function isBlockedRealPath(root, abs) {
+  let probe = abs;
+  const rest = [];
+  while (!fs.existsSync(probe) && path.dirname(probe) !== probe) {
+    rest.unshift(path.basename(probe));
+    probe = path.dirname(probe);
+  }
+  const real = path.join(await fs.promises.realpath(probe).catch(() => probe), ...rest);
+  return isBlockedPath(path.relative(root, real).split(path.sep).join('/'));
 }
 
 const TOOLS = [
@@ -199,4 +213,4 @@ function startMcpServer({ port = 7811, handlers, onCall }) {
   });
 }
 
-module.exports = { TOOLS, createMcpHandler, startMcpServer, isBlockedPath, isAllowedRequest, MAX_READ_BYTES };
+module.exports = { TOOLS, createMcpHandler, startMcpServer, isBlockedPath, isBlockedRealPath, isAllowedRequest, MAX_READ_BYTES };
