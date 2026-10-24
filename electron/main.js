@@ -3,12 +3,16 @@
 
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('node:path');
+const fs = require('node:fs/promises');
 const { Workspace } = require('./workspace');
 const t = require('./strings');
+const agents = require('./agents');
+const { startMcpServer, MAX_READ_BYTES } = require('./mcpServer');
 
 const workspace = new Workspace();
 const audit = []; // log of everything done on disk
 let win = null;
+let mcp = { url: null, running: false }; // local MCP server for the user's agent
 
 function createWindow() {
   win = new BrowserWindow({
@@ -101,6 +105,87 @@ handle('fs:delete', 'delete', async (rel) => {
   await workspace.remove(rel);
 });
 
+
+// --- Local MCP server: the user's agent (Claude Code, Cursor, Codex, Gemini or the chat CLIs) ---
+// Tools that need what the window knows (traffic lights, the map) are answered by the renderer.
+const pending = new Map();
+let requestSeq = 0;
+
+function askRenderer(tool, args) {
+  if (!win || win.isDestroyed()) return Promise.reject(new Error(t.mcp.windowClosed));
+  const id = ++requestSeq;
+  send('mcp:request', { id, tool, args });
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(t.mcp.timeout)); }, 5000);
+    pending.set(id, { resolve, reject, timer });
+  });
+}
+
+ipcMain.handle('mcp:reply', (_e, { id, ok, data, error }) => {
+  const entry = pending.get(id);
+  if (!entry) return;
+  clearTimeout(entry.timer);
+  pending.delete(id);
+  if (ok) entry.resolve(data);
+  else entry.reject(new Error(error));
+});
+
+// Paths only, up to 4 levels: enough for the agent to orient itself without dumping the whole disk
+function flatten(nodes, depth = 0, out = []) {
+  for (const n of nodes) {
+    out.push(n.type === 'dir' ? `${n.path}/` : n.path);
+    if (n.children && depth < 3) flatten(n.children, depth + 1, out);
+  }
+  return out;
+}
+
+const mcpHandlers = {
+  platanus_get_project: async () => {
+    if (!workspace.root) throw new Error(t.mcp.noProject);
+    return { name: path.basename(workspace.root), paths: flatten(await workspace.tree('.', 4)).slice(0, 400) };
+  },
+  platanus_list_risks: () => askRenderer('list_risks', {}),
+  platanus_read_file: async ({ path: rel }) => {
+    if (!workspace.root) throw new Error(t.mcp.noProject);
+    const { size } = await fs.stat(await workspace.resolve(rel));
+    if (size > MAX_READ_BYTES) throw new Error(t.mcp.tooLarge(Math.round(MAX_READ_BYTES / 1024)));
+    return workspace.readFile(rel);
+  },
+  platanus_set_file_score: ({ path: rel, level, reason }) => {
+    send('agent:score', { path: rel, level, reason: String(reason).slice(0, 240) });
+    return `${rel}: ${level}`;
+  },
+  platanus_show_folder: ({ path: rel }) => askRenderer('show_folder', { path: rel }),
+};
+
+async function startMcp() {
+  const server = await startMcpServer({
+    port: Number(process.env.PLATANUS_MCP_PORT) || 7811,
+    handlers: mcpHandlers,
+    onCall: ({ tool, args, ok, error }) => log(`mcp:${tool}`, args?.path ?? '', ok, error),
+  });
+  mcp = { url: `http://127.0.0.1:${server.address().port}/mcp`, running: true };
+  send('mcp:status', mcp);
+}
+
+ipcMain.handle('mcp:info', () => ({ ok: true, data: mcp }));
+
+// --- Agents with the user's own subscription ---
+ipcMain.handle('agents:detect', () => ({ ok: true, data: agents.detect() }));
+ipcMain.handle('agents:login', (_e, id) => ({ ok: agents.login(String(id)) }));
+ipcMain.handle('agents:run', (_e, req) => {
+  if (!mcp.running) return { ok: false, error: t.mcp.windowClosed };
+  const runId = `${Date.now()}-${++requestSeq}`;
+  const model = /^[a-zA-Z0-9.\-_]{0,40}$/.test(String(req?.model ?? '')) ? String(req.model ?? '') : '';
+  const effort = ['low', 'medium', 'high', 'xhigh', 'max'].includes(req?.effort) ? req.effort : 'low';
+  agents.run(
+    String(req?.agent),
+    { prompt: String(req?.prompt ?? ''), systemPrompt: String(req?.systemPrompt ?? ''), mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort },
+    (event) => send('agents:event', { runId, ...event }),
+  );
+  return { ok: true, data: runId };
+});
+
 async function confirm(message, detail) {
   const { response } = await dialog.showMessageBox(win, {
     type: 'warning',
@@ -115,6 +200,7 @@ async function confirm(message, detail) {
 
 app.whenReady().then(() => {
   createWindow();
+  startMcp();
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });
 

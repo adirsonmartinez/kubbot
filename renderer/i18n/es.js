@@ -80,10 +80,11 @@ export const strings = {
       showMap: 'Ver el mapa',
       showGraph: 'Ver el grafo de amenazas',
     },
-    rail: { explorer: 'Explorador', risks: 'Riesgos', map: 'Mapa del proyecto', graph: 'Grafo de amenazas' },
+    rail: { explorer: 'Explorador', risks: 'Riesgos', agent: 'Conecta tu agente', map: 'Mapa del proyecto', graph: 'Grafo de amenazas' },
     sidebar: {
       explorer: 'Explorador',
       risks: 'Riesgos',
+      agent: 'Conecta tu agente',
       noProject: 'Abre un proyecto para ver sus carpetas.',
       noRisks: 'Ningún archivo en rojo o amarillo. ¡Bien!',
       risksSummary: (red, yellow) => `${red} en riesgo · ${yellow} por revisar`,
@@ -125,6 +126,13 @@ export const strings = {
     minimize: 'Minimizar',
     expand: 'Abrir',
     ariaLabel: 'Chat con el agente',
+    toolUsed: (name) => ({
+      get_project: 'Mirando tu proyecto…',
+      list_risks: 'Revisando los archivos en riesgo…',
+      read_file: 'Leyendo un archivo…',
+      set_file_score: 'Actualizando el semáforo en el mapa…',
+      show_folder: 'Mostrándote una carpeta en el mapa…',
+    })[String(name).replace(/^platanus_/, '')] ?? 'Usando una herramienta…',
 
     greeting: '¡Hola! 👋 Soy el agente de seguridad. Abre un proyecto para empezar.',
     projectReady: 'Listo, ya veo tu proyecto en el mapa. ¿Qué hacemos?',
@@ -154,7 +162,46 @@ export const strings = {
   },
 
   // Scripted agent (demo). Keywords are matched against the start of each word.
+  connect: {
+    title: 'Conecta tu agente',
+    rail: 'Conecta tu agente',
+    intro: 'Usa tu propia suscripción de IA. Platanus no ve tus contraseñas ni claves: cada programa inicia sesión por su cuenta.',
+    subscriptions: 'Tus suscripciones',
+    none: 'No encontré Claude Code, Grok ni Codex instalados en esta computadora.',
+    desktopOnly: 'Disponible en la app de escritorio.',
+    scripted: 'Agente de demostración (sin IA)',
+    use: 'Usar',
+    inUse: 'En uso',
+    login: 'Entrar',
+    loggedIn: 'sesión iniciada',
+    loggedOut: 'sin sesión',
+    unknownLogin: 'sesión por comprobar',
+    model: 'Modelo',
+    planDefault: 'El de tu plan',
+    effort: 'Cuánto piensa',
+    efforts: { low: 'Rápido', medium: 'Equilibrado', high: 'Profundo', xhigh: 'Muy profundo', max: 'Máximo' },
+    fromEditor: 'Conéctalo desde tu editor',
+    fromEditorIntro: 'Copia esto en tu herramienta para que trabaje con el mapa de Platanus mientras la app está abierta.',
+    mcpOff: 'El servidor local todavía no está listo.',
+    mcpOn: (url) => `Servidor local: ${url}`,
+    copy: 'Copiar',
+    copied: 'Copiado',
+    snippets: {
+      claude: 'Claude Code (terminal)',
+      cursor: 'Cursor (.cursor/mcp.json)',
+      codex: 'Codex (~/.codex/config.toml)',
+      gemini: 'Gemini CLI (~/.gemini/settings.json)',
+    },
+  },
+
   agent: {
+    // Instructions for the user's own agent when it answers in the chat (it reads them, users do not)
+    livePrompt:
+      'Eres el agente de seguridad de Platanus. Quien te escribe no es desarrollador: responde en español sencillo, en pocas frases, sin jerga. ' +
+      'Usa las herramientas de Platanus: platanus_get_project para ver el proyecto, platanus_list_risks para los archivos en riesgo, ' +
+      'platanus_read_file para leer un archivo, platanus_set_file_score para marcar el semáforo de un archivo (verde, amarillo o rojo, con una razón corta) ' +
+      'y platanus_show_folder para mostrar una carpeta en el mapa. Nunca pidas ni muestres secretos. Termina con un paso concreto que la persona pueda hacer.',
+    liveFailed: (why) => `<strong>No pude hablar con tu agente.</strong> ${why || 'Revisa en "Conecta tu agente" que la sesión esté iniciada.'}`,
     replies: [
       { keys: ['hola', 'buenas', 'hey'], text: '¡Hola! Soy el agente de seguridad del HQ. Puedo escanear el edificio, revisar accesos o explicarte una amenaza.' },
       { keys: ['escan', 'scan', 'revisa'], text: 'Escaneando la torre principal…\n\n✔ 18 ventanas monitoreadas\n✔ Antena: señal estable\n⚠ 1 puerto abierto en el anexo (servidor 2)\n\n¿Quieres que lo cierre?' },

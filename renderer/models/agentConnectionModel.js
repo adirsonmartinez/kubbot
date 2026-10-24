@@ -1,0 +1,109 @@
+// Which agent answers the chat: the scripted demo, or the user's own subscription (Claude, Grok, Codex)
+// with a model and an effort level. Also the address of the local MCP server for external agents.
+import { Observable } from '../core/observable.js';
+
+export const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
+
+// Models per agent ('' = the default of the user's plan). Kept small on purpose.
+export const CATALOG = {
+  claude: { models: ['', 'opus', 'sonnet', 'haiku'], efforts: EFFORTS, defaultEffort: 'low' },
+  grok: { models: ['', 'grok-4.7'], efforts: ['low', 'medium', 'high'], defaultEffort: 'low' },
+  codex: { models: [''], efforts: ['low', 'medium', 'high'], defaultEffort: 'low' },
+};
+
+const CHOICE_KEY = 'platanus.agent.choice.v1';
+
+export class AgentConnectionModel {
+  #service;
+  #turns = new Map(); // agent -> messages sent (to continue the conversation)
+
+  // agents: [{ id, label, installed, loggedIn: true | false | null }]
+  store = new Observable({ agents: [], selected: null, model: '', effort: 'low', mcp: { url: null, running: false }, isDesktop: false });
+
+  constructor(service) {
+    this.#service = service;
+    this.store.set({ isDesktop: service.isDesktop, ...this.#loadChoice() });
+    service.onMcpStatus((mcp) => this.store.set({ mcp }));
+  }
+
+  async refresh() {
+    const [agents, mcp] = await Promise.all([this.#service.detect(), this.#service.mcpInfo()]);
+    const list = (agents.data ?? []).filter((a) => a.installed);
+    const { selected } = this.store.state;
+    // Keep the saved choice only if that agent is still installed
+    this.store.set({ agents: list, mcp: mcp.data ?? this.store.state.mcp, selected: list.some((a) => a.id === selected) ? selected : null });
+  }
+
+  select(id) {
+    const catalog = CATALOG[id];
+    if (id && !catalog) return;
+    const keep = id === this.store.state.selected;
+    this.store.set({
+      selected: id,
+      model: keep ? this.store.state.model : '',
+      effort: keep ? this.store.state.effort : catalog?.defaultEffort ?? 'low',
+    });
+    this.#saveChoice();
+  }
+
+  setModel(model) {
+    const c = CATALOG[this.store.state.selected];
+    if (c?.models.includes(model)) { this.store.set({ model }); this.#saveChoice(); }
+  }
+
+  setEffort(effort) {
+    const c = CATALOG[this.store.state.selected];
+    if (c?.efforts.includes(effort)) { this.store.set({ effort }); this.#saveChoice(); }
+  }
+
+  login(id) {
+    return this.#service.login(id);
+  }
+
+  get live() {
+    return Boolean(this.store.state.selected);
+  }
+
+  // Runs one message with the selected agent. Resolves with the full answer text.
+  // onTool(name) is called each time the agent uses a Platanus tool.
+  async ask(prompt, systemPrompt, { onTool } = {}) {
+    const { selected: agent, model, effort } = this.store.state;
+    const turns = this.#turns.get(agent) ?? 0;
+    this.#turns.set(agent, turns + 1);
+    let text = '';
+    let error = null;
+    let runId = null;
+    const early = [];
+    return new Promise((resolve) => {
+      const handle = (e) => {
+        if (e.type === 'text') text += e.delta;
+        else if (e.type === 'tool') onTool?.(e.name);
+        else if (e.type === 'error') error = e.message;
+        else if (e.type === 'done') { off(); resolve({ text: text.trim(), error }); }
+      };
+      const off = this.#service.onEvent((e) => {
+        if (!runId) return void early.push(e);
+        if (e.runId === runId) handle(e);
+      });
+      this.#service.run({ agent, prompt, systemPrompt, model, effort, continued: turns > 0 }).then((r) => {
+        if (!r.ok) { off(); return resolve({ text: '', error: r.error }); }
+        runId = r.data;
+        early.filter((e) => e.runId === runId).forEach(handle);
+      });
+    });
+  }
+
+  #loadChoice() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(CHOICE_KEY) ?? 'null');
+      return saved && CATALOG[saved.selected] ? saved : {};
+    } catch {
+      return {};
+    }
+  }
+
+  #saveChoice() {
+    const { selected, model, effort } = this.store.state;
+    try { localStorage.setItem(CHOICE_KEY, JSON.stringify({ selected, model, effort })); } catch { /* private mode */ }
+  }
+}

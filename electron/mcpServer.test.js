@@ -1,0 +1,77 @@
+// Tests for the local MCP server: protocol, tool validation, secret filter and the network guard.
+// Run with `npm test` (node:test, no dependencies).
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { createMcpHandler, startMcpServer, isBlockedPath, TOOLS } = require('./mcpServer');
+
+const calls = [];
+const handlers = {
+  platanus_get_project: async () => ({ name: 'demo', tree: ['src/', 'src/app.ts'] }),
+  platanus_list_risks: async () => [{ path: '.env', level: 'red' }],
+  platanus_read_file: async ({ path }) => `contents of ${path}`,
+  platanus_set_file_score: async ({ path, level }) => `${path} -> ${level}`,
+  platanus_show_folder: async ({ path }) => `showing ${path || 'map'}`,
+};
+const respond = createMcpHandler({ handlers, onCall: (c) => calls.push(c) });
+
+test('initialize and tools/list', async () => {
+  const init = await respond({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
+  assert.equal(init.result.protocolVersion, '2025-06-18');
+  const list = await respond({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
+  assert.deepEqual(list.result.tools.map((t) => t.name), TOOLS.map((t) => t.name));
+});
+
+test('notifications get no reply; unknown methods are JSON-RPC errors', async () => {
+  assert.equal(await respond({ jsonrpc: '2.0', method: 'notifications/initialized' }), null);
+  const r = await respond({ jsonrpc: '2.0', id: 3, method: 'nope' });
+  assert.equal(r.error.code, -32601);
+});
+
+test('every tool call is reported for the audit log', async () => {
+  calls.length = 0;
+  await respond({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'platanus_show_folder', arguments: { path: 'src' } } });
+  assert.deepEqual(calls.map((c) => [c.tool, c.ok]), [['platanus_show_folder', true]]);
+});
+
+test('secrets are never read, even if the agent asks', async () => {
+  for (const p of ['.env', 'config/.env.local', 'certs/server.pem', 'keys/id_rsa', 'a/b.key']) {
+    assert.equal(isBlockedPath(p), true, p);
+    const r = await respond({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'platanus_read_file', arguments: { path: p } } });
+    assert.equal(r.result.isError, true, p);
+  }
+  for (const p of ['.env.example', 'src/env.ts', 'README.md']) assert.equal(isBlockedPath(p), false, p);
+});
+
+test('invalid traffic light level and missing arguments are refused', async () => {
+  const bad = await respond({ jsonrpc: '2.0', id: 6, method: 'tools/call', params: { name: 'platanus_set_file_score', arguments: { path: 'a', level: 'purple', reason: 'x' } } });
+  assert.equal(bad.result.isError, true);
+  const missing = await respond({ jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'platanus_read_file', arguments: {} } });
+  assert.equal(missing.result.isError, true);
+});
+
+test('HTTP: answers local clients, refuses browsers (Origin) and foreign hosts', async () => {
+  const server = await startMcpServer({ port: 0, handlers });
+  const { port } = server.address();
+  const post = (headers) =>
+    fetch(`http://127.0.0.1:${port}/mcp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }),
+    });
+  try {
+    assert.equal((await post({})).status, 200);
+    assert.equal((await post({ Origin: 'https://evil.example' })).status, 403);
+    // fetch() silently ignores a custom Host header, so use http.request for the DNS-rebinding case
+    const status = await new Promise((resolve, reject) => {
+      const req = require('node:http').request(
+        { host: '127.0.0.1', port, path: '/mcp', method: 'POST', headers: { Host: `evil.example:${port}`, 'Content-Type': 'application/json' } },
+        (res) => resolve(res.statusCode),
+      );
+      req.on('error', reject);
+      req.end(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'ping' }));
+    });
+    assert.equal(status, 403);
+  } finally {
+    server.close();
+  }
+});

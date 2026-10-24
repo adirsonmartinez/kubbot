@@ -4,11 +4,14 @@
 import { createEventBus, EVENTS } from './core/eventBus.js';
 import { strings } from './i18n/es.js';
 import { createWorkspaceService } from './services/workspaceService.js';
+import { createAgentService } from './services/agentService.js';
+import { connectMcpBridge } from './services/mcpBridge.js';
 
 import { ProjectModel } from './models/projectModel.js';
 import { SecurityModel } from './models/securityModel.js';
 import { SupabaseModel } from './models/supabaseModel.js';
 import { AgentModel } from './models/agentModel.js';
+import { AgentConnectionModel } from './models/agentConnectionModel.js';
 
 import { CameraViewModel } from './viewmodels/cameraViewModel.js';
 import { TowerViewModel } from './viewmodels/towerViewModel.js';
@@ -29,6 +32,7 @@ import { createPanelsView } from './views/ui/panelsView.js';
 import { createChatView } from './views/ui/chatView.js';
 import { createShellView } from './views/ui/shellView.js';
 import { createGraphView } from './views/ui/graphView.js';
+import { createAgentConnectView } from './views/ui/agentConnectView.js';
 import { applyStrings } from './views/ui/domStrings.js';
 
 // --- Models ---
@@ -37,7 +41,9 @@ const workspace = createWorkspaceService();
 const projectModel = new ProjectModel(workspace);
 const securityModel = new SecurityModel();
 const supabaseModel = new SupabaseModel();
-const agentModel = new AgentModel({ workspace, projectModel, supabaseModel });
+const agentService = createAgentService();
+const connection = new AgentConnectionModel(agentService);
+const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection });
 
 // --- ViewModels ---
 const cameraViewModel = new CameraViewModel();
@@ -65,9 +71,12 @@ createInputController({
 });
 createControlsView({ cameraViewModel });
 createPanelsView({ mapViewModel, towerViewModel, supabaseViewModel });
-createChatView({ chatViewModel });
+createChatView({ chatViewModel, connection });
 createShellView({ shellViewModel, cameraViewModel });
 createGraphView({ graphViewModel, shellViewModel, mapViewModel });
+createAgentConnectView({ container: document.getElementById('agent-connect'), connection });
+connectMcpBridge({ agentService, securityModel, shellViewModel });
+connection.refresh();
 
 // --- Wiring between layers ---
 projectModel.store.subscribe((state, previous) => {

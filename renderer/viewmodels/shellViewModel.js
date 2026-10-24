@@ -4,7 +4,7 @@ import { Observable } from '../core/observable.js';
 import { allFiles, baseName } from '../models/fileTree.js';
 import { LEVEL_RANK } from '../models/securityModel.js';
 
-export const SIDE_VIEWS = ['explorer', 'risks'];
+export const SIDE_VIEWS = ['explorer', 'risks', 'agent'];
 
 export class ShellViewModel {
   #projectModel;

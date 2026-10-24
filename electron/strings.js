@@ -16,4 +16,22 @@ module.exports = {
   outsideWorkspace: (path) => `Ruta fuera del workspace: ${path}`,
   linkOutsideWorkspace: (path) => `Enlace fuera del workspace: ${path}`,
   cannotDeleteRoot: 'No se puede borrar la carpeta raíz del workspace',
+
+  // Agents with the user's own subscription (electron/agents.js)
+  agents: {
+    claude: 'Claude (tu suscripción)',
+    grok: 'Grok (tu suscripción)',
+    codex: 'ChatGPT · Codex (tu suscripción)',
+    unknown: 'Agente desconocido.',
+    failed: 'El agente terminó con un error.',
+    cannotStart: (bin, why) => `No pude abrir ${bin}: ${why}`,
+    loginHint: ' Inicia sesión desde "Conecta tu agente".',
+    exitCode: (code) => `El agente terminó con código ${code}.`,
+  },
+  mcp: {
+    noProject: 'No hay ningún proyecto abierto en Platanus.',
+    windowClosed: 'La ventana de Platanus no está disponible.',
+    timeout: 'Platanus no respondió a tiempo.',
+    tooLarge: (kb) => `El archivo pesa más de ${kb} KB; no se comparte con el agente.`,
+  },
 };

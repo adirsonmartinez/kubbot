@@ -190,7 +190,11 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera })
     }
 
     sidebarTitle.textContent = S.sidebar[state.side];
-    sidebarBody.replaceChildren(...(state.side === 'risks' ? renderRisks(state) : renderExplorer(state)));
+    // The agent view renders itself (agentConnectView); the shell only shows or hides it
+    const agentView = state.side === 'agent';
+    sidebarBody.hidden = agentView;
+    $('agent-connect').hidden = !agentView;
+    if (!agentView) sidebarBody.replaceChildren(...(state.side === 'risks' ? renderRisks(state) : renderExplorer(state)));
 
     const { red, yellow, green } = state.counts;
     $('project-chip').hidden = !state.open;

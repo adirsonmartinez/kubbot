@@ -62,7 +62,11 @@ export class ChatViewModel {
     if (!text || this.store.state.typing) return;
     this.store.set({ chips: null });
     this.#push({ role: 'user', text });
-    this.#enqueue(await this.#agent.reply(text));
+    // A real agent can take a while: show "typing…" and a short note for each tool it uses
+    this.store.set({ typing: true });
+    const reply = await this.#agent.reply(text, { onTool: (name) => this.#push({ role: 'sys', text: CHAT.toolUsed(name) }) });
+    this.store.set({ typing: false });
+    this.#enqueue(reply);
   }
 
   // Map messages open the chat if it was minimized

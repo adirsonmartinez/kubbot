@@ -25,6 +25,21 @@ contextBridge.exposeInMainWorld('platanus', {
   remove: (rel) => ipcRenderer.invoke('fs:delete', rel),
 
   auditLog: () => ipcRenderer.invoke('audit:list'),
+
+  // The user's own agent (subscription CLIs) and the local MCP server it talks to
+  agents: {
+    detect: () => ipcRenderer.invoke('agents:detect'),
+    login: (id) => ipcRenderer.invoke('agents:login', id),
+    run: (req) => ipcRenderer.invoke('agents:run', req),
+    onEvent: on('agents:event'), // ({ runId, type: 'text'|'tool'|'error'|'done', ... }) => ...
+  },
+  mcp: {
+    info: () => ipcRenderer.invoke('mcp:info'),
+    onStatus: on('mcp:status'),
+    onRequest: on('mcp:request'), // ({ id, tool, args }) => reply({ id, ok, data | error })
+    reply: (payload) => ipcRenderer.invoke('mcp:reply', payload),
+    onScore: on('agent:score'), // ({ path, level, reason }) => ...
+  },
   onChanged: on('fs:changed'), // (paths) => ...
   onAudit: on('audit'),        // (entry) => ...
 });

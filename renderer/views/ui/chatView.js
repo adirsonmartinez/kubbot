@@ -4,7 +4,7 @@ import { strings } from '../../i18n/es.js';
 const ICON_MINIMIZE = '<path d="M6 12h12"/>';
 const ICON_EXPAND = '<path d="M6 12h12M12 6v12"/>';
 
-export function createChatView({ chatViewModel: vm }) {
+export function createChatView({ chatViewModel: vm, connection = null }) {
   const $ = (id) => document.getElementById(id);
   const root = $('chat'), body = $('chat-body'), form = $('chat-form'), input = $('chat-text');
   const sendButton = $('chat-send'), toggle = $('chat-toggle');
@@ -64,4 +64,11 @@ export function createChatView({ chatViewModel: vm }) {
   toggle.addEventListener('click', () => vm.toggleMinimized());
 
   vm.store.subscribe(render, { immediate: true });
+
+  // Header: which agent is answering (the demo or the user's own subscription)
+  const status = root.querySelector('.chat-title span');
+  connection?.store.subscribe((state) => {
+    const agent = state.agents.find((a) => a.id === state.selected);
+    status.textContent = agent ? `${agent.label} · ${strings.connect.efforts[state.effort]}` : strings.chat.online;
+  }, { immediate: true });
 }
