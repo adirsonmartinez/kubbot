@@ -1,5 +1,5 @@
 // Draws one folder level from MapViewModel: the plaza with the folder's files in the middle and its
-// subfolders as blocks around it, linked by roads with purple pulses. Entering a folder plays a short
+// subfolders as blocks around it, linked by plain roads. Entering a folder plays a short
 // transition (its block grows and fades, the rest sinks), then the new level rises.
 // Labels follow the mode: friendly names in Vibe, folder names and counts in Dev.
 import * as THREE from 'three';
@@ -17,9 +17,7 @@ const FOLDER_BLOCK_SIZE = 3;
 
 const RISE_SPEED = 2.2;
 const CUBE_RISE_STAGGER = 0.015;
-const PULSE_SPEED = 0.35; // road lengths per second
 const TRANSITION_SECONDS = 0.35;
-const pulseGeometry = new THREE.BoxGeometry(0.9, 0.08, 0.16);
 
 const tagHtml = (tags = []) =>
   tags.length ? `<span class="tags">${tags.map((t) => `<em style="--c:${TAG_COLOR[t]}">${escapeHtml(strings.tags[t] ?? t)}</em>`).join('')}</span>` : '';
@@ -47,7 +45,6 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
   const risers = [];            // { group, k }
   const fileCubes = [];         // { mesh, height, baseY, index }
   let cubeT = 0;
-  const pulses = [];            // { mesh, to, phase }
   let transition = null;        // { target, t, done }
   function clear() {
     if (group) sceneView.layers.map.remove(group);
@@ -56,7 +53,6 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     entries = new Map();
     risers.length = 0;
     fileCubes.length = 0;
-    pulses.length = 0;
     group = null;
   }
 
@@ -91,11 +87,6 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
     // Subfolders around it
     state.buildings.forEach((b) => {
       groundLink(group, M.road, 0, 0, b.x, b.z, 0.35, 0.05).castShadow = false;
-      const pulse = new THREE.Mesh(pulseGeometry, M.accentLit);
-      pulse.rotation.y = -Math.atan2(b.z, b.x);
-      group.add(pulse);
-      pulses.push({ mesh: pulse, to: { x: b.x, z: b.z }, phase: (b.order * 0.37) % 1 });
-
       const building = BUILDING_STYLE === 'blocks'
         ? buildBlock({ size: FOLDER_BLOCK_SIZE, height: b.height, level: b.level })
         : buildFolderBuilding(b);
@@ -140,7 +131,6 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
   });
 
   sceneView.onFrame((t, dt) => {
-
     if (transition) {
       transition.t += dt / TRANSITION_SECONDS;
       const k = Math.min(transition.t, 1);
@@ -175,12 +165,6 @@ export function createMapView({ sceneView, labels, mapViewModel, modeModel }) {
       });
       if (!rising) cubeT = Infinity;
     }
-
-    pulses.forEach((p) => {
-      const k = (t * PULSE_SPEED + p.phase) % 1;
-      p.mesh.position.set(p.to.x * k, 0.06, p.to.z * k);
-      p.mesh.visible = k > 0.18 && k < 0.85; // hidden under the platforms at both ends
-    });
   });
 
   return {
