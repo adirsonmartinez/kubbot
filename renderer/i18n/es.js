@@ -85,6 +85,8 @@ export const strings = {
     allClear: 'Todo en orden',
     emptyFolder: 'vacía',
     defaultProjectName: 'proyecto',
+    // The robot on the plaza of a new, empty project
+    welcome: { title: '¡Hola! Soy tu robot', question: '¿Qué quieres construir hoy?' },
   },
 
   supabase: {

@@ -35,6 +35,7 @@ import { createSupabaseView } from './views/scene/supabaseView.js';
 import { createInputController } from './views/scene/inputController.js';
 import { createGitView } from './views/scene/gitView.js';
 import { createRemiView } from './views/scene/remiView.js';
+import { createRobotView } from './views/scene/robotView.js';
 import { createHudView } from './views/ui/hudView.js';
 import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
@@ -129,6 +130,7 @@ const mapView = createMapView({ sceneView, labels, mapViewModel, modeModel });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
 const gitView = createGitView({ sceneView, labels, gitViewModel });
 createRemiView({ sceneView, labels, repairViewModel });
+createRobotView({ sceneView, labels, mapViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
 appViewModel.store.subscribe(({ view }) => {
   sceneView.setActiveLayer(view);

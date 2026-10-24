@@ -37,8 +37,8 @@ renderer/
     camera, map (security radar: folders and files with problems), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open)
-  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, inputController,
-                  builders/ (block, folderIcon, fileIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader)
+  views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, robotView, inputController,
+                  builders/ (block, folderIcon, fileIcon, plaza, folder, git, schema, supabase, remi, remiModelLoader, robot)
   views/ui/       HTML: shell, chat (+ runCard: live agent runs, markdown: safe Markdown with answer cards and
                   file links, chatCards: folder / file cards), icons (DOM helper over views/icons.js), thinkingOrb
                   (libraries.dev orbs over the package engine), agentPicker
@@ -103,7 +103,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 
 ## Map navigation
 
-The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
+The map is a security radar, not a file explorer (browsing the project is the explorer's job). It shows the project's plaza in the middle with only the root files that have a problem (isometric file icons in their color), the integrations around it, and only the top-level folders with a yellow or red file anywhere inside (isometric folders). With no problems it shows just the plaza and the integrations. A project just created and still empty (`MapViewModel.welcome`) has a robot on its plaza asking what to build (`robotView.js`); it leaves with the first file. Clicking a folder opens it: its problem files, at any depth, appear on a tray beside it; the breadcrumb or Esc close it. A fixed file disappears, and its folder with its last one. `MapViewModel.path` is the open folder (`''` = none); `opened` holds its files and their world positions (`sideGrid` in `layout.js`). `BUILDING_STYLE` in `mapView.js` switches the folders back to plain blocks.
 
 ## Views
 

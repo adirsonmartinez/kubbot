@@ -154,6 +154,10 @@ body::after {
 .map-label.file strong { font-size: 11px; }
 .map-label strong.yellow::before { background: var(--warn); }
 .map-label strong.red::before { background: var(--danger); }
+/* The welcome robot's question */
+.map-label.robot-bubble { z-index: 3; padding: 8px 12px; border-color: rgba(139, 131, 255, 0.45); }
+.map-label.robot-bubble strong { font: 600 13px var(--sans); }
+.map-label.robot-bubble span { font-size: 12px; color: var(--text); }
 
 /* Floors of an open building */
 .map-label.floor { flex-direction: row; align-items: center; gap: 8px; padding: 4px 9px; }
