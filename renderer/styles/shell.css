@@ -1080,10 +1080,12 @@ body.chat-closed #stage #hud, body.chat-min #stage #hud { right: 76px; }
 .icon-bar > button.drop-before { box-shadow: inset 2px 0 0 var(--accent); }
 .icon-bar > button.drop-after { box-shadow: inset -2px 0 0 var(--accent); }
 .icon-bar > button.drop-before.active, .icon-bar > button.drop-after.active { background: var(--panel-2); }
-/* Bigger icons; the bar re-centers on the visible map as the panel and the chat open or fold */
-.icon-bar > button { width: 42px; height: 38px; border-radius: 10px; }
+/* Round bar with round icons; the bar re-centers on the visible map as the panel and the chat open or fold */
+.icon-bar > button { width: 40px; height: 40px; border-radius: 999px; }
 .icon-bar > button svg { width: 20px; height: 20px; }
-#stage .stage-tabs.icon-bar { padding: 5px; gap: 3px; border-radius: 14px; top: 12px; }
+#stage .stage-tabs.icon-bar { padding: 5px; gap: 3px; border-radius: 999px; top: 12px; }
+/* Divider between the side panels and the views */
+.icon-bar-divider { width: 1px; height: 22px; margin: 0 6px; background: var(--line-strong); flex: none; }
 #stage .stage-tabs.icon-bar { left: calc(50% + var(--shift-l) + var(--shift-r)); transform: translateX(-50%); transition: left .28s cubic-bezier(.2, .8, .2, 1); }
 #stage .sidebar-toggle { top: 14px; width: 40px; height: 40px; }
 #sidebar.card { top: 62px; }
