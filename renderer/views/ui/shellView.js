@@ -144,10 +144,6 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
       vm.setStage(stage);
     });
   }
-  // Floating button on the map: folds / unfolds the side panel of the selected rail icon
-  const panelToggle = $('sidebar-toggle');
-  panelToggle.addEventListener('click', () => vm.toggleSidebar());
-
   // The chat opens from its own floating button (bottom-right), so the bar has no chat icon
   const chatButton = $('rail-chat');
   if (chatButton) {
@@ -435,11 +431,6 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
 
   function render(state) {
     body.classList.toggle('sidebar-closed', !state.sidebarOpen);
-    const toggleText = state.sidebarOpen ? S.panelToggle.hide : S.panelToggle.show;
-    panelToggle.setAttribute('aria-label', toggleText);
-    panelToggle.setAttribute('aria-expanded', String(state.sidebarOpen));
-    panelToggle.classList.toggle('active', state.sidebarOpen);
-    panelToggle.querySelector('.tip').replaceChildren(el('strong', '', toggleText), el('small', '', S.panelToggle.info));
     body.classList.toggle('no-project', !state.open); // start screen: only the empty card and the chat
     body.classList.toggle('chat-closed', !state.chatOpen);
     body.classList.toggle('mode-tech', modeModel.tech);
@@ -476,8 +467,10 @@ export function createShellView({ shellViewModel: vm, modeModel, repairViewModel
     // Repairs waiting for the person (to verify) show a badge on the rail
     const pending = repairHistory.store.state.entries.filter((e) => e.status === 'fixed' || e.status === 'planned').length;
     const badge = $('rail-repairs-badge');
-    badge.hidden = !pending;
-    badge.textContent = String(pending);
+    if (badge) { // only while a repairs button exists
+      badge.hidden = !pending;
+      badge.textContent = String(pending);
+    }
 
     const { red, yellow, green } = state.counts;
     $('project-chip').hidden = !state.open;

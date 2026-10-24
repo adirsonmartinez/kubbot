@@ -26,7 +26,7 @@ export function createIconBarView({ bar }) {
   const divider = document.createElement('span');
   divider.className = 'icon-bar-divider';
   divider.setAttribute('aria-hidden', 'true');
-  items().find((x) => groupOf(x) === 'view')?.before(divider);
+  if (items().some((x) => groupOf(x) === 'side')) items().find((x) => groupOf(x) === 'view')?.before(divider);
   const sameGroup = (a, b) => groupOf(a) === groupOf(b);
 
   let dragged = null;
