@@ -171,6 +171,10 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
       vm.setStage(stage);
     });
   }
+  // Floating button on the map: folds / unfolds the side panel of the selected rail icon
+  const panelToggle = $('sidebar-toggle');
+  panelToggle.addEventListener('click', () => vm.toggleSidebar());
+
   const chatButton = $('rail-chat');
   addTip(chatButton, S.rail.chat, S.railInfo.chat);
   chatButton.addEventListener('click', () => vm.toggleChat());
@@ -453,6 +457,11 @@ export function createShellView({ shellViewModel: vm, cameraViewModel: camera, m
 
   function render(state) {
     body.classList.toggle('sidebar-closed', !state.sidebarOpen);
+    const toggleText = state.sidebarOpen ? S.panelToggle.hide : S.panelToggle.show;
+    panelToggle.setAttribute('aria-label', toggleText);
+    panelToggle.setAttribute('aria-expanded', String(state.sidebarOpen));
+    panelToggle.classList.toggle('active', state.sidebarOpen);
+    panelToggle.querySelector('.tip').replaceChildren(el('strong', '', toggleText), el('small', '', S.panelToggle.info));
     body.classList.toggle('chat-closed', !state.chatOpen);
     body.classList.toggle('mode-tech', modeModel.tech);
     for (const button of document.querySelectorAll('#rail [data-side]')) {

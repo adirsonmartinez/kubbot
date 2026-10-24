@@ -19,7 +19,7 @@ export class ShellViewModel {
   store = new Observable({
     side: 'explorer',
     stage: 'map', // 'map' | 'git' | 'graph' | 'project'
-    sidebarOpen: true,
+    sidebarOpen: false, // the map comes first: the side panel floats over it and starts folded
     chatOpen: true,
     projectName: '',
     open: false,
