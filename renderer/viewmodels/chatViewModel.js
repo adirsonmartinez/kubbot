@@ -17,7 +17,8 @@ export class ChatViewModel {
   // message: { id, role: 'bot' | 'user' | 'sys' | 'tool', text?, html?, tone? }
   // chip: a label (sent as a message) or { label, run } (runs an app action, e.g. Remi repairs a file)
   // welcome: the empty conversation shows a welcome screen with suggestions (as in Obra) instead of bubbles
-  store = new Observable({ messages: [], typing: false, chips: null, minimized: false, welcome: true, projectName: '' });
+  // gitPrefill: string set momentarily when a git chip is clicked; the view reads it and fills the textarea
+  store = new Observable({ messages: [], typing: false, chips: null, minimized: false, welcome: true, projectName: '', gitPrefill: '' });
 
   #connection;
 
@@ -94,7 +95,13 @@ export class ChatViewModel {
       const lane = strings.git.laneNames[commit.lane] ?? commit.lane;
       const laneText = commit.laneLive ? lane : `${lane} (${strings.git.deleted})`;
       const text = strings.git.commitSelected({ ...commit, lane: laneText }) + (commit.risk ? strings.git.riskWarning(commit.risk.files) : '');
-      this.sayFromMap({ text, tone: commit.risk ? 'alert' : '' });
+      const GIT_STR = strings.agent.git;
+      // Actionable chips: clicking them pre-fills the chat input with a ready-to-send git command
+      const chips = GIT_STR ? [
+        { label: GIT_STR.chipRevert(commit.short), run: () => this.#prefillGitCommand(`rollback al commit ${commit.sha}`) },
+        { label: GIT_STR.chipReset(commit.short),  run: () => this.#prefillGitCommand(`reset al commit ${commit.sha}`) },
+      ] : undefined;
+      this.sayFromMap({ text, tone: commit.risk ? 'alert' : '', chips });
     });
 
     this.store.set({ chips: [CHAT.chips.openFolder] });
@@ -235,6 +242,13 @@ export class ChatViewModel {
 
   toggleMinimized() {
     this.store.set({ minimized: !this.store.state.minimized });
+  }
+
+  // Pre-fills the chat textarea with a git command so the user can review and confirm before sending.
+  // The store field is cleared after one tick so it only triggers once per click.
+  #prefillGitCommand(command) {
+    this.store.set({ minimized: false, welcome: false, gitPrefill: command });
+    setTimeout(() => this.store.set({ gitPrefill: '' }), 0);
   }
 
   #push(message) {

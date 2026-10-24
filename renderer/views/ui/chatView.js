@@ -169,6 +169,18 @@ export function createChatView({ chatViewModel: vm, connection = null }) {
   input.addEventListener('input', updateSuggest);
   vm.store.subscribe(updateSuggest, { immediate: true });
 
+  // When a git chip is clicked the ViewModel puts the command text in gitPrefill.
+  // We write it to the textarea so the user can review and edit before hitting Enter.
+  vm.store.subscribe((state, prev) => {
+    if (state.gitPrefill && state.gitPrefill !== prev?.gitPrefill) {
+      input.value = state.gitPrefill;
+      grow();
+      input.focus();
+      input.setSelectionRange(state.gitPrefill.length, state.gitPrefill.length);
+      updateSuggest();
+    }
+  });
+
   vm.store.subscribe(render, { immediate: true });
 
   // Header: which agent is answering (the demo or the user's own subscription)

@@ -1,5 +1,6 @@
-// Read-only access to the workspace's git history. Uses execFile (no shell) with fixed arguments,
-// so nothing coming from the page ends up in a command line.
+// Git access: read-only history AND write operations (commit, rollback, branch, checkout, reset).
+// All calls use execFile with fixed arguments — no shell, no interpolation. Nothing from the
+// renderer's input ever lands in a command-line string directly.
 
 const { execFile } = require('node:child_process');
 
@@ -84,4 +85,58 @@ async function readGitHistory(cwd) {
   };
 }
 
-module.exports = { readGitHistory };
+// ---- Write operations ----
+// Every operation validates the workspace root exists and returns { ok, data } | { ok: false, error }.
+
+async function gitWrite(cwd, args) {
+  if (!cwd) return { ok: false, error: 'no-workspace' };
+  try {
+    const out = await git(cwd, args);
+    return { ok: true, data: out.trim() };
+  } catch (err) {
+    return { ok: false, error: err.stderr?.trim() || err.message || String(err) };
+  }
+}
+
+// Stage all changes and create a commit with the given message.
+async function gitCommit(cwd, message) {
+  if (!message || !message.trim()) return { ok: false, error: 'empty-message' };
+  // Stage everything (including new files, respecting .gitignore).
+  const stage = await gitWrite(cwd, ['add', '--all']);
+  if (!stage.ok) return stage;
+  return gitWrite(cwd, ['commit', '--message', message.trim()]);
+}
+
+// Create a revert commit for the given SHA (non-interactive, no auto-commit edits).
+async function gitRevert(cwd, sha) {
+  if (!sha) return { ok: false, error: 'no-sha' };
+  // --no-edit: don't open an editor. --no-gpg-sign: skip signing in CI/demo environments.
+  return gitWrite(cwd, ['revert', '--no-edit', '--no-gpg-sign', sha]);
+}
+
+// Hard reset HEAD to the given SHA. WARNING: discards all uncommitted changes.
+async function gitReset(cwd, sha) {
+  if (!sha) return { ok: false, error: 'no-sha' };
+  return gitWrite(cwd, ['reset', '--hard', sha]);
+}
+
+// Create a new local branch from the current HEAD.
+async function gitCreateBranch(cwd, name) {
+  if (!name || !name.trim()) return { ok: false, error: 'empty-name' };
+  // Validate: only alphanumeric, dash, underscore and slash (git flow prefixes)
+  if (!/^[\w./-]+$/.test(name.trim())) return { ok: false, error: 'invalid-name' };
+  return gitWrite(cwd, ['checkout', '-b', name.trim()]);
+}
+
+// Checkout an existing branch or SHA.
+async function gitCheckout(cwd, target) {
+  if (!target || !target.trim()) return { ok: false, error: 'empty-target' };
+  return gitWrite(cwd, ['checkout', target.trim()]);
+}
+
+// Returns the one-line log for a SHA (for confirmation messages).
+async function gitShowShort(cwd, sha) {
+  return gitWrite(cwd, ['log', '--oneline', '-1', sha]);
+}
+
+module.exports = { readGitHistory, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort };

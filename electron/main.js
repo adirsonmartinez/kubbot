@@ -5,7 +5,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs/promises');
 const { Workspace } = require('./workspace');
-const { readGitHistory } = require('./git');
+const { readGitHistory, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort } = require('./git');
 const t = require('./strings');
 const agents = require('./agents');
 const { startMcpServer, MAX_READ_BYTES, isBlockedRealPath } = require('./mcpServer');
@@ -124,8 +124,57 @@ ipcMain.handle('workspace:current', () => ({
 
 ipcMain.handle('audit:list', () => ({ ok: true, data: audit }));
 
-// --- Git (read only) ---
+// --- Git: read ---
 ipcMain.handle('git:history', async () => ({ ok: true, data: await readGitHistory(workspace.root) }));
+
+// --- Git: write (each operation is logged; destructive ones require a confirmation dialog) ---
+ipcMain.handle('git:commit', async (_e, message) => {
+  if (!workspace.root) return { ok: false, error: 'no-workspace' };
+  const result = await gitCommit(workspace.root, message);
+  log('git:commit', message?.slice(0, 60), result.ok, result.error);
+  if (result.ok) send('git:changed', { op: 'commit', data: result.data });
+  return result;
+});
+
+ipcMain.handle('git:revert', async (_e, sha) => {
+  if (!workspace.root) return { ok: false, error: 'no-workspace' };
+  const preview = await gitShowShort(workspace.root, sha);
+  const desc = preview.ok ? preview.data : sha;
+  const confirmed = await confirm(t.gitConfirmRevert(desc), t.gitConfirmRevertDetail);
+  if (!confirmed) return { ok: false, error: 'cancelled' };
+  const result = await gitRevert(workspace.root, sha);
+  log('git:revert', sha, result.ok, result.error);
+  if (result.ok) send('git:changed', { op: 'revert', sha, data: result.data });
+  return result;
+});
+
+ipcMain.handle('git:reset', async (_e, sha) => {
+  if (!workspace.root) return { ok: false, error: 'no-workspace' };
+  const preview = await gitShowShort(workspace.root, sha);
+  const desc = preview.ok ? preview.data : sha;
+  const confirmed = await confirm(t.gitConfirmReset(desc), t.gitConfirmResetDetail);
+  if (!confirmed) return { ok: false, error: 'cancelled' };
+  const result = await gitReset(workspace.root, sha);
+  log('git:reset', sha, result.ok, result.error);
+  if (result.ok) send('git:changed', { op: 'reset', sha, data: result.data });
+  return result;
+});
+
+ipcMain.handle('git:createBranch', async (_e, name) => {
+  if (!workspace.root) return { ok: false, error: 'no-workspace' };
+  const result = await gitCreateBranch(workspace.root, name);
+  log('git:createBranch', name, result.ok, result.error);
+  if (result.ok) send('git:changed', { op: 'createBranch', name, data: result.data });
+  return result;
+});
+
+ipcMain.handle('git:checkout', async (_e, target) => {
+  if (!workspace.root) return { ok: false, error: 'no-workspace' };
+  const result = await gitCheckout(workspace.root, target);
+  log('git:checkout', target, result.ok, result.error);
+  if (result.ok) send('git:changed', { op: 'checkout', target, data: result.data });
+  return result;
+});
 
 // --- Files (every path is relative to the workspace) ---
 handle('fs:tree', 'tree', (rel) => workspace.tree(rel));

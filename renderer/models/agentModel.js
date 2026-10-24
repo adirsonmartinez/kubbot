@@ -8,6 +8,7 @@ import { baseName } from './fileTree.js';
 
 const AGENT = strings.agent;
 const FILES = AGENT.files;
+const GIT = AGENT.git;
 const MAX_LISTED_FILES = 40;
 
 // Matches the start of each word, so "si" does not match inside "visita"
@@ -18,17 +19,19 @@ export class AgentModel {
   #workspace;
   #project;
   #supabase;
+  #git;
 
   #connection;
 
   #mode;
 
-  constructor({ workspace, projectModel, supabaseModel, connection = null, modeModel = null }) {
+  constructor({ workspace, projectModel, supabaseModel, connection = null, modeModel = null, gitService = null }) {
     this.#mode = modeModel;
     this.#workspace = workspace;
     this.#project = projectModel;
     this.#supabase = supabaseModel;
     this.#connection = connection;
+    this.#git = gitService;
   }
 
   // With a connected agent (the user's own subscription) the real model answers and works through
@@ -36,7 +39,7 @@ export class AgentModel {
   // agent: ask another agent than the selected one (compare answers)
   async reply(text, { onTool, onText, onThinking, onEvent, agent } = {}) {
     if (this.#connection?.live) return this.#live(text, { onTool, onText, onThinking, onEvent, ...(agent ? { agent } : {}) });
-    return (await this.#fileCommand(text)) ?? this.#scripted(text);
+    return (await this.#gitCommand(text)) ?? (await this.#fileCommand(text)) ?? this.#scripted(text);
   }
 
   async #live(text, callbacks) {
@@ -44,6 +47,91 @@ export class AgentModel {
     const { text: answer, error } = await this.#connection.ask(text, prompt, callbacks);
     if (answer) return { text: answer };
     return { html: AGENT.liveFailed(escapeHtml(error ?? '')), tone: 'alert' };
+  }
+
+  // ---- Git commands (detected before file commands) ----
+  // Patterns match common natural-language Spanish phrasing.
+  // The `context` chip injected from a selected commit looks like: «abc1234 · mensaje»
+  async #gitCommand(text) {
+    if (!GIT) return null; // strings not loaded yet
+    const t = text.trim();
+
+    // -- commit --
+    // "haz commit con 'Fix auth bug'"
+    // "realiza un commit: Fix auth bug"
+    // «commit Fix auth bug»
+    const commitMatch = t.match(GIT.patterns.commit);
+    if (commitMatch) {
+      const message = (commitMatch[1] || commitMatch[2] || commitMatch[3] || '').trim().replace(/^['"`]|['"`]$/g, '');
+      if (!message) return { text: GIT.needsMessage };
+      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
+      const result = await this.#git.commit(message);
+      if (!result.ok) {
+        if (result.error === 'cancelled') return { text: GIT.cancelled };
+        return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
+      }
+      return { text: GIT.committed(message) };
+    }
+
+    // -- revert (safe rollback: creates a new commit that undoes the SHA) --
+    // "rollback al commit abc1234"
+    // "revert abc1234"
+    // «revert abc1234 · Fix auth bug»  (from the chip injected by commitSelected)
+    const revertMatch = t.match(GIT.patterns.revert);
+    if (revertMatch) {
+      const sha = (revertMatch[1] || revertMatch[2] || '').trim().split(/\s/)[0];
+      if (!sha) return { text: GIT.needsSha };
+      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
+      const result = await this.#git.revert(sha);
+      if (!result.ok) {
+        if (result.error === 'cancelled') return { text: GIT.cancelled };
+        return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
+      }
+      return { text: GIT.reverted(sha) };
+    }
+
+    // -- reset --hard (destructive, always confirmed by Electron dialog) --
+    // "reset al commit abc1234"
+    const resetMatch = t.match(GIT.patterns.reset);
+    if (resetMatch) {
+      const sha = (resetMatch[1] || '').trim().split(/\s/)[0];
+      if (!sha) return { text: GIT.needsSha };
+      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
+      const result = await this.#git.reset(sha);
+      if (!result.ok) {
+        if (result.error === 'cancelled') return { text: GIT.cancelled };
+        return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
+      }
+      return { text: GIT.reset(sha) };
+    }
+
+    // -- create branch --
+    // "crea la rama feature/auth"
+    // "nueva rama hotfix/fix-login"
+    const branchMatch = t.match(GIT.patterns.createBranch);
+    if (branchMatch) {
+      const name = (branchMatch[1] || branchMatch[2] || '').trim();
+      if (!name) return { text: GIT.needsBranchName };
+      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
+      const result = await this.#git.createBranch(name);
+      if (!result.ok) return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
+      return { text: GIT.branchCreated(name) };
+    }
+
+    // -- checkout --
+    // "cambia a la rama develop"
+    // "checkout main"
+    const checkoutMatch = t.match(GIT.patterns.checkout);
+    if (checkoutMatch) {
+      const target = (checkoutMatch[1] || checkoutMatch[2] || '').trim();
+      if (!target) return { text: GIT.needsBranchName };
+      if (!this.#git?.isDesktop) return { text: GIT.desktopOnly };
+      const result = await this.#git.checkout(target);
+      if (!result.ok) return { html: GIT.failed(escapeHtml(result.error)), tone: 'alert' };
+      return { text: GIT.checkedOut(target) };
+    }
+
+    return null;
   }
 
   #scripted(text) {

@@ -6,6 +6,7 @@ import { strings } from './i18n/es.js';
 import { createWorkspaceService } from './services/workspaceService.js';
 import { createAgentService } from './services/agentService.js';
 import { connectMcpBridge } from './services/mcpBridge.js';
+import { createGitService } from './services/gitService.js';
 
 import { ProjectModel } from './models/projectModel.js';
 import { SecurityModel } from './models/securityModel.js';
@@ -59,7 +60,13 @@ const agentService = createAgentService();
 const connection = new AgentConnectionModel(agentService);
 const modeModel = new ModeModel();
 const repairHistory = new RepairHistoryModel();
-const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel });
+const gitService = createGitService();
+const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel, gitService });
+
+// Reload git history automatically after every write operation (commit, revert, reset, checkout...)
+if (gitService.onChanged) {
+  gitService.onChanged(() => gitModel.scheduleReload());
+}
 
 // --- ViewModels ---
 const cameraViewModel = new CameraViewModel();

@@ -18,6 +18,12 @@ module.exports = {
   linkOutsideWorkspace: (path) => `Enlace fuera del workspace: ${path}`,
   cannotDeleteRoot: 'No se puede borrar la carpeta raíz del workspace',
 
+  // Git write operations: confirmation dialogs shown before destructive actions
+  gitConfirmRevert: (desc) => `¿Crear un revert del commit "${desc}"?`,
+  gitConfirmRevertDetail: 'Se crea un nuevo commit que deshace los cambios de ese commit. El historial no se modifica.',
+  gitConfirmReset: (desc) => `¿Volver al commit "${desc}" con git reset --hard?`,
+  gitConfirmResetDetail: 'CUIDADO: se descartan TODOS los cambios no guardados en disco. Esta acción no se puede deshacer.',
+
   // Agents with the user's own subscription (electron/agents.js)
   agents: {
     claude: 'Claude (tu suscripción)',
