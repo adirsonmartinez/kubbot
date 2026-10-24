@@ -102,7 +102,7 @@ body::after {
 #empty-state[hidden] { display: none; }
 .empty-card { pointer-events: auto; width: min(340px, 100%); padding: 28px 24px; text-align: center; font: 14px/1.5 var(--sans); }
 /* Isometric folder standing on a map slab, with a few ghost tiles */
-.iso-empty { width: 160px; height: 120px; display: block; margin: -6px auto 8px; overflow: visible; }
+.iso-empty { width: 160px; height: 120px; display: block; margin: -6px auto 22px; overflow: visible; }
 .iso-empty * { stroke-linejoin: round; stroke-linecap: round; stroke-width: 1; }
 .iso-slab { fill: rgba(255, 255, 255, 0.03); stroke: var(--line-strong); }
 .iso-slab-side { fill: rgba(255, 255, 255, 0.05); stroke: var(--line-strong); }
