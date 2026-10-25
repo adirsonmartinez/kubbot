@@ -25,7 +25,7 @@ test("a single finished word asks for more, one still being typed does not", () 
 
 test("completions match the start of the name or of one of its words, without accents", () => {
   assert.deepEqual(completions("pon un sens", PARTS).map((c) => c.id), ["hc-sr04", "dht22"]);
-  assert.deepEqual(completions("camara", PARTS).map((c) => c.id), ["camera"]);
+  assert.deepEqual(completions("camar", PARTS).map((c) => c.id), ["camera"]);
   assert.deepEqual(completions("agrega temper", PARTS).map((c) => c.id), ["dht22"]);
   assert.deepEqual(completions("pon el @se", PARTS).map((c) => c.id), ["hc-sr04", "dht22", "servo"]);
 });
@@ -40,4 +40,16 @@ test("no completions for short words, finished words or an empty box", () => {
 test("applyCompletion replaces the word being typed", () => {
   assert.equal(applyCompletion("pon un sens", { id: "hc-sr04", name: "Sensor de distancia" }), "pon un Sensor de distancia ");
   assert.equal(applyCompletion("@se", { id: "servo", name: "Servomotor" }), "Servomotor ");
+});
+
+test("a word that already is a part name is not offered again, so Enter never rewrites its case", () => {
+  assert.deepEqual(completions("pon una camara", PARTS), []);
+  assert.deepEqual(completions("Quiero una luz cuando apriete un sensor", PARTS), []);
+  assert.deepEqual(completions("sin resistencia", [{ id: "r", name: "Resistencia 220 Ω" }]), []);
+});
+
+test("completions only list names: the typed text is left as is until one is picked", () => {
+  const text = "pon un sens";
+  completions(text, PARTS);
+  assert.equal(text, "pon un sens");
 });
