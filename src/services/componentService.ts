@@ -5,6 +5,7 @@ import type { MapComponent } from "@/models/component";
 const CATALOG: MapComponent[] = [
   { id: "button", name: "Button", kind: "button" },
   { id: "led", name: "LED", kind: "led" },
+  { id: "potentiometer", name: "Potentiometer", kind: "potentiometer" },
 ];
 
 const SLOTS = 8;
