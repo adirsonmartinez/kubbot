@@ -4,7 +4,7 @@
 /* ---------- Layout ---------- */
 .shell {
   display: grid;
-  grid-template-rows: 44px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   /* minmax(0, …): the canvas has a fixed pixel width and must not stretch the column */
   grid-template-columns: minmax(0, 1fr);
   height: 100vh;
@@ -17,7 +17,7 @@
 .workspace {
   position: relative;
   min-height: 0;
-  padding: 0 8px 8px;
+  padding: 8px;
 }
 /* Pinned, the chat takes its own column and the map leaves it room */
 .workspace.chat-pinned {
@@ -49,34 +49,15 @@
   background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
 }
 
-/* ---------- Title bar ---------- */
-.titlebar {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 0 12px;
-}
-.brand-mark {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  background: #fff;
-  color: #121212;
-  font: 800 12px var(--lg-font);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-}
-.brand-name {
-  font: 600 13.5px var(--lg-font);
-  letter-spacing: -0.01em;
-}
-
 /* ---------- Glass surfaces ---------- */
 .glass-panel,
 .glass-pill {
   position: relative;
   background: var(--lg-panel);
+  /* Plain blur first: only Chromium accepts url() in backdrop-filter; Safari and Firefox
+     drop that declaration and keep this one */
+  -webkit-backdrop-filter: blur(22px) saturate(175%) brightness(1.04);
+  backdrop-filter: blur(22px) saturate(175%) brightness(1.04);
   -webkit-backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);
   backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);
   box-shadow: var(--lg-rim-strong), var(--lg-shadow);
@@ -163,7 +144,7 @@
   outline-offset: 1px;
 }
 
-/* ---------- Docks: the view tabs on top, the side panels on the left ---------- */
+/* ---------- Side dock (left edge of the map) ---------- */
 .icon-bar {
   position: absolute;
   z-index: 2;
@@ -176,11 +157,6 @@
 .icon-bar > button {
   width: 40px;
   height: 40px;
-}
-.stage-tabs {
-  top: 16px;
-  left: 50%;
-  transform: translateX(-50%);
 }
 .side-dock {
   z-index: 5; /* its hover cards go over the side panel */
@@ -226,11 +202,6 @@
   left: calc(100% + 14px);
   top: 50%;
   transform: translateY(-50%);
-}
-.stage-tabs .tip {
-  top: calc(100% + 12px);
-  left: 50%;
-  transform: translateX(-50%);
 }
 
 /* ---------- Side panel ---------- */
@@ -284,7 +255,7 @@
 .chat {
   position: absolute;
   z-index: 4;
-  top: 8px;
+  top: 16px;
   right: 16px;
   bottom: 16px;
   width: min(372px, calc(100% - 32px));
@@ -296,7 +267,7 @@
   animation: rise 0.25s var(--lg-ease);
 }
 .chat.pinned {
-  top: 0;
+  top: 8px;
   right: 8px;
   bottom: 8px;
 }

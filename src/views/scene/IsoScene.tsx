@@ -19,7 +19,8 @@ export function IsoScene({ rig, children }: { rig: CameraRig; children?: ReactNo
       orthographic
       // A negative near plane: at a low tilt the bottom of the screen sees ground "behind" the camera
       camera={{ near: -400, far: 400 }}
-      shadows
+      // "percentage" = PCFShadowMap; R3F's default (PCFSoftShadowMap) was removed from three.js
+      shadows="percentage"
       dpr={[1, 2]}
       gl={{ antialias: true }}
     >
