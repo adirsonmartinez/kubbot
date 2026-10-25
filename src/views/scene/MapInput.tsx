@@ -9,6 +9,7 @@ import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
 import type * as THREE from "three";
 import type { CameraRig } from "@/models/camera";
+import { benchInput } from "@/views/scene/lab/benchInput";
 import { groundPointAt as pick } from "./groundPick";
 
 const ROTATE_SPEED = 0.008;
@@ -40,6 +41,8 @@ export function MapInput({ rig }: { rig: CameraRig }) {
     let rotatingFrom: { x: number; y: number } | null = null;
 
     function onPointerDown(e: PointerEvent) {
+      // A press on a lab part or pin belongs to the bench (it drags the part), not to the map
+      if (e.button === 0 && !e.shiftKey && benchInput.claims?.(e.clientX, e.clientY)) return;
       rig.cancelFlight();
       syncCamera();
       if (e.button !== 0 || e.shiftKey) rotatingFrom = { x: e.clientX, y: e.clientY };

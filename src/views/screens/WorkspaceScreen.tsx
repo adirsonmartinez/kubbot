@@ -1,87 +1,128 @@
 "use client";
 
-// The workspace: the isometric map fills the stage; the side dock and panel, map controls
-// and chat float over it. Components drag from the side panel onto the map.
+// The workspace: Qubbot's Arduino lab. The isometric bench fills the stage; the catalog and the circuit
+// review open from the side dock, the lab's toolbar floats at the bottom and the chat (Qubi) can see
+// and change the bench through its tools.
 
 import dynamic from "next/dynamic";
+import { useCallback, useRef } from "react";
 import { useChatViewModel } from "@/viewmodels/useChatViewModel";
-import { useComponentsViewModel } from "@/viewmodels/useComponentsViewModel";
+import { useLabViewModel } from "@/viewmodels/useLabViewModel";
 import { useMapViewModel } from "@/viewmodels/useMapViewModel";
-import { usePlacementViewModel } from "@/viewmodels/usePlacementViewModel";
 import { useShellViewModel } from "@/viewmodels/useShellViewModel";
 import { ChatLauncher, ChatPanel } from "@/views/components/ChatPanel";
-import { ComponentGrid } from "@/views/components/ComponentGrid";
+import { Icon } from "@/views/components/Icon";
 import { IconBar, type IconBarItem } from "@/views/components/IconBar";
 import { MapControls } from "@/views/components/MapControls";
 import { SidePanel } from "@/views/components/SidePanel";
-import { MapDrop } from "@/views/scene/MapDrop";
-import { Placements } from "@/views/scene/Placements";
+import { CatalogPanel } from "@/views/components/lab/CatalogPanel";
+import { CheckPanel } from "@/views/components/lab/CheckPanel";
+import { DropZone } from "@/views/components/lab/DropZone";
+import { LabToolbar } from "@/views/components/lab/LabToolbar";
+import { labCopy } from "@/views/copy/lab";
+import type { DropAt } from "@/views/scene/lab/LabBench";
 
 // WebGL only exists in the browser
-const IsoScene = dynamic(() => import("@/views/scene/IsoScene").then((m) => m.IsoScene), {
-  ssr: false,
-});
+const IsoScene = dynamic(() => import("@/views/scene/IsoScene").then((m) => m.IsoScene), { ssr: false });
+const LabBench = dynamic(() => import("@/views/scene/lab/LabBench").then((m) => m.LabBench), { ssr: false });
 
-type Side = "components" | "info" | "settings";
+type Side = "catalog" | "check" | "settings";
 
 const SIDES: IconBarItem<Side>[] = [
-  { id: "components", icon: "components", label: "Componentes", hint: "Lo que puedes añadir al mapa" },
-  { id: "info", icon: "info", label: "Detalles", hint: "Lo que está seleccionado" },
+  { id: "catalog", icon: "cube", label: labCopy.catalog.title, hint: labCopy.catalog.intro },
+  { id: "check", icon: "check", label: labCopy.check.title, hint: labCopy.check.ok },
   { id: "settings", icon: "settings", label: "Ajustes", hint: "Preferencias de la vista" },
 ];
 
-const SUGGESTIONS = ["¿Qué puedo hacer aquí?", "Muéstrame un ejemplo"];
+// The chips show a short text and send the full request
+const CHIPS: Record<string, string> = {
+  [labCopy.chips.ideas]: labCopy.prompts.ideas,
+  [labCopy.chips.wireIt]: labCopy.prompts.wireIt,
+  [labCopy.chips.review]: labCopy.prompts.review,
+  [labCopy.chips.enclosure]: labCopy.prompts.enclosure,
+};
+const SUGGESTIONS = Object.keys(CHIPS);
+
+// Stage geometry from ui.css, in pixels: what the floating pieces cover. The toolbar and the camera keep
+// clear of it (the toolbar so nothing overlaps, the camera so the parts are centered in what is left).
+const CHAT_WIDTH = 372; // the floating chat
+const GAP = 16;
+const DOCK_RIGHT = 84; // the side dock's right edge
+const PANEL_RIGHT = 82 + 300; // the open side panel's right edge
+const MAP_CONTROLS_RIGHT = 252; // the zoom / turn / center buttons at the bottom left
+const TOOLBAR_HEIGHT = 96; // the toolbar and its hint above the bottom edge
 
 export function WorkspaceScreen() {
-  const shell = useShellViewModel<Side>();
+  const shell = useShellViewModel<Side>("catalog"); // the catalog starts open: it is where everything begins
   const map = useMapViewModel();
-  const catalog = useComponentsViewModel();
-  const placement = usePlacementViewModel();
-  const chat = useChatViewModel({ suggestions: SUGGESTIONS });
+  const lab = useLabViewModel();
+  const { sim, enclosure, toggleSim, toggleEnclosure, exportSketch, add } = lab;
+
+  // What the agent asked to show: run the simulation, open the box, download the code
+  const onEffect = useCallback(
+    (kind: "simulate" | "enclosure" | "sketch") => {
+      if (kind === "simulate" && !sim.running) toggleSim();
+      if (kind === "enclosure" && !enclosure.visible) toggleEnclosure();
+      if (kind === "sketch") exportSketch();
+    },
+    [sim.running, enclosure.visible, toggleSim, toggleEnclosure, exportSketch],
+  );
+  const chat = useChatViewModel({
+    suggestions: SUGGESTIONS,
+    lab: { design: lab.design, applyAgentTool: lab.applyAgentTool, onEffect },
+  });
+  const chatVm = { ...chat, send: (text?: string) => chat.send(text === undefined ? undefined : CHIPS[text] ?? text) };
+
+  // Catalog drops: the bench turns the screen point into a spot on the ground
+  const dropAt = useRef<DropAt | null>(null);
+  const onReady = useCallback((fn: DropAt | null) => {
+    dropAt.current = fn;
+  }, []);
+  const onDropPart = useCallback((type: string, x: number, y: number) => add(type, dropAt.current?.(x, y) ?? undefined), [add]);
+
   const openSide = SIDES.find((s) => s.id === shell.side);
   const chatPinned = chat.pinned && !chat.minimized;
+  const chatFloating = !chat.minimized && !chat.pinned;
+  const insets = {
+    left: openSide ? PANEL_RIGHT + GAP : DOCK_RIGHT,
+    right: chatFloating ? CHAT_WIDTH + GAP * 2 : GAP,
+    top: GAP,
+    bottom: TOOLBAR_HEIGHT,
+  };
 
   return (
     <div className="shell">
       <div className={`workspace ${chatPinned ? "chat-pinned" : ""}`}>
         <main className="stage">
-          <IsoScene rig={map.rig}>
-            <Placements
-              placements={placement.placements}
-              preview={placement.preview}
-              pointer={placement.pointer}
-            />
-            <MapDrop onHover={placement.hover} onDrop={placement.drop} />
-          </IsoScene>
+          <DropZone onDropPart={onDropPart}>
+            <IsoScene rig={map.rig}>
+              <LabBench vm={lab} rig={map.rig} insets={insets} onReady={onReady} />
+            </IsoScene>
+          </DropZone>
           <div className="vignette" aria-hidden />
 
-          <IconBar
-            items={SIDES}
-            active={shell.side}
-            onSelect={shell.toggleSide}
-            orientation="vertical"
-            className="side-dock"
-          />
+          <IconBar items={SIDES} active={shell.side} onSelect={shell.toggleSide} orientation="vertical" className="side-dock" />
           {openSide && (
             <SidePanel title={openSide.label} onClose={shell.closeSidebar}>
-              {openSide.id === "components" ? (
-                <ComponentGrid
-                  components={catalog.components}
-                  startDrag={placement.startDrag}
-                  endDrag={placement.endDrag}
-                />
-              ) : (
-                <p className="muted">{openSide.hint}.</p>
-              )}
+              {openSide.id === "catalog" && <CatalogPanel vm={lab} />}
+              {openSide.id === "check" && <CheckPanel vm={lab} onAsk={(prompt) => chat.send(prompt)} />}
+              {openSide.id === "settings" && <p className="muted">{openSide.hint}.</p>}
             </SidePanel>
           )}
           <MapControls vm={map} />
+          {lab.design.parts.length === 0 && (
+            <button type="button" className="lab-example glass-panel" onClick={lab.loadExample} title={labCopy.bench.exampleHint}>
+              <Icon name="sparkles" size={16} />
+              {labCopy.bench.example}
+            </button>
+          )}
+          <LabToolbar vm={lab} insetLeft={MAP_CONTROLS_RIGHT} insetRight={insets.right} />
         </main>
 
         {chat.minimized ? (
           <ChatLauncher onOpen={chat.toggleMinimized} />
         ) : (
-          <ChatPanel vm={chat} agentName="Agente" status="En línea" />
+          <ChatPanel vm={chatVm} agentName="Qubi" status="Laboratorio Arduino" />
         )}
       </div>
     </div>
