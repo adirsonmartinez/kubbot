@@ -72,9 +72,10 @@ export class MapViewModel {
     switch (pick.type) {
       case 'folder': return this.toggleFolder(pick.path);
       case 'file': return this.selectFile(pick.path);
-      case 'supabase': return this.toggleSchema();
+      // The live Supabase node opens its panel (the schema opens from there), like any integration
+      case 'supabase': return this.#pickIntegration('supabase');
       case 'table': return this.#supabase.selectTable(pick.name);
-      case 'integration': return this.#bus.emit(EVENTS.integrationPicked, { key: pick.key, status: this.#project.store.state.integrationStatus?.[pick.key] ?? 'connected' });
+      case 'integration': return this.#pickIntegration(pick.key);
       default: return undefined;
     }
   }
@@ -123,6 +124,10 @@ export class MapViewModel {
     if (!node || node.type === 'dir') return;
     const { level, reason, reasonKey, by } = this.#describeFile(node);
     this.#bus.emit(EVENTS.fileSelected, { path, level, reason, reasonKey, by });
+  }
+
+  #pickIntegration(key) {
+    this.#bus.emit(EVENTS.integrationPicked, { key, status: this.#project.store.state.integrationStatus?.[key] ?? 'connected' });
   }
 
   toggleSchema() {

@@ -399,3 +399,10 @@ test('clicking an integration on the map tells which one, with its state', () =>
   vm.handlePick({ type: 'integration', key: 'vercel' });
   assert.deepEqual(events.filter(([name]) => name === 'integrationPicked'), [['integrationPicked', { key: 'vercel', status: 'pending' }]]);
 });
+
+test('clicking the live Supabase node opens its panel (an integration pick), not the schema', () => {
+  const { vm, projectModel, events } = setup();
+  projectModel.store.set({ integrations: ['supabase'], usesSupabase: true, integrationStatus: { supabase: 'connected' } });
+  vm.handlePick({ type: 'supabase' });
+  assert.deepEqual(events.filter(([name]) => name === 'integrationPicked').at(-1), ['integrationPicked', { key: 'supabase', status: 'connected' }]);
+});

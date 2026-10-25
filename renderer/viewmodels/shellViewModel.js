@@ -8,7 +8,8 @@ import { fileTags, folderGuide } from '../models/folderTags.js';
 
 export const STAGES = ['map', 'git'];
 
-export const SIDE_VIEWS = ['explorer', 'risks', 'repairs', 'servers', 'agent'];
+// 'supabase' has no dock button: it opens with a click on the Supabase node of the map
+export const SIDE_VIEWS = ['explorer', 'risks', 'repairs', 'servers', 'agent', 'supabase'];
 
 export class ShellViewModel {
   #projectModel;
@@ -40,6 +41,11 @@ export class ShellViewModel {
     projectModel.store.subscribe(() => this.#recompute());
     securityModel.store.subscribe(() => this.#recompute());
     this.#recompute();
+  }
+
+  // Opens a side view without toggling it closed (a click on the map, not on the dock)
+  showSide(side) {
+    if (SIDE_VIEWS.includes(side)) this.store.set({ side, sidebarOpen: true });
   }
 
   setSide(side) {

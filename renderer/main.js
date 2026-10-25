@@ -18,6 +18,7 @@ import { SetupModel } from './models/setupModel.js';
 import { TrustModel } from './models/trustModel.js';
 import { createIntegrationService } from './services/integrationService.js';
 import { ConnectViewModel } from './viewmodels/connectViewModel.js';
+import { DatabaseViewModel } from './viewmodels/databaseViewModel.js';
 import { createConnectModalView } from './views/ui/connectModalView.js';
 import { SecurityModel } from './models/securityModel.js';
 import { SupabaseModel } from './models/supabaseModel.js';
@@ -198,6 +199,8 @@ const actions = {
     chatViewModel.send(strings.map.welcome.saveProgressPhrase);
   },
   trustFolder: () => trustModel.ask(),
+  // The Supabase panel's "Ver tablas en el mapa": the 3D schema next to the node
+  openSchema: () => { if (!supabaseViewModel.store.state.schemaOpen) mapViewModel.toggleSchema(); },
   untrustFolder: () => trustModel.revoke(),
   // Someone who already programs: the app talks in Dev mode
   devMode: () => modeModel.set('tech'),
@@ -208,20 +211,31 @@ const actions = {
   },
 };
 // "Conectar mi cuenta": Supabase connects from its modal (Platanus signs in and writes the keys, not the agent)
+const integrationService = createIntegrationService();
 const connectViewModel = new ConnectViewModel({
-  service: createIntegrationService(),
+  service: integrationService,
   onConnected: (key, result) => {
     const S = strings.accounts.supabase;
     setupModel.markConnected(projectModel.store.state.root, key);
+    setupModel.link(projectModel.store.state.root, key, { projectId: result.projectId, name: result.name }); // the panel reads its numbers
+    if (shellViewModel.store.state.side === 'supabase') databaseViewModel.load();
     securityModel.setScore(result.envFile, 'green', S.envReason); // Platanus wrote it and .gitignore keeps it out
     projectModel.reload();
     actions.openChat();
     chatViewModel.sayFromMap({ text: S.chat(result.name) });
   },
 });
-// A click on an integration of the map still waiting for the person's account: Supabase opens "Conectar mi
-// cuenta"; the others explain what is missing (their connection comes later)
+// The Supabase side panel: the connection and the database's numbers
+const databaseViewModel = new DatabaseViewModel({
+  service: integrationService, projectModel, setupModel, supabaseModel, onConnect: () => connectViewModel.open('supabase'),
+});
+// A click on an integration of the map: a connected Supabase opens its panel; one still waiting for the
+// person's account opens "Conectar mi cuenta" (Supabase) or explains what is missing (the others, for now)
 bus.on(EVENTS.integrationPicked, ({ key, status }) => {
+  if (key === 'supabase' && status !== 'pending') {
+    shellViewModel.showSide('supabase');
+    return databaseViewModel.load();
+  }
   if (status !== 'pending') return;
   if (key === 'supabase') return connectViewModel.open('supabase');
   actions.openChat();
@@ -311,7 +325,7 @@ approvalModel.init();
 const composerViewModel = new ComposerViewModel({ connection, projectModel, modeModel });
 createChatView({ chatViewModel, composerViewModel, connection, modeModel });
 createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks: () => actions.showRisks() });
-createShellView({ shellViewModel, modeModel, approval: approvalModel, repairViewModel, repairHistory, serversViewModel, actions });
+createShellView({ shellViewModel, modeModel, approval: approvalModel, repairViewModel, repairHistory, serversViewModel, databaseViewModel, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, approval: approvalModel, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });

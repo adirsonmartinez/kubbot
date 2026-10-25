@@ -30,3 +30,21 @@ test('no folder, nothing to remember', () => {
   setup.prepare(null, ['vercel']);
   assert.deepEqual(setup.pendingOf(null), []);
 });
+
+test('remembers which service project each folder is linked to, and keeps the pending list apart', () => {
+  const setup = new SetupModel();
+  setup.prepare('/e/app', ['vercel', 'supabase']);
+  setup.link('/e/app', 'supabase', { projectId: 'yxkoiradnswnfizcirsc', name: 'app' });
+  assert.deepEqual(new SetupModel().linkOf('/e/app', 'supabase'), { projectId: 'yxkoiradnswnfizcirsc', name: 'app' });
+  assert.deepEqual(setup.pendingOf('/e/app'), ['vercel', 'supabase'], 'linking does not change what is pending');
+  assert.equal(setup.linkOf('/e/app', 'vercel'), null);
+  assert.equal(setup.linkOf('/other', 'supabase'), null);
+});
+
+test('a list saved by the first version (a plain array) still reads', () => {
+  localStorage.setItem('platanus.setup.v1:/f/app', JSON.stringify(['supabase']));
+  const setup = new SetupModel();
+  assert.deepEqual(setup.pendingOf('/f/app'), ['supabase']);
+  setup.link('/f/app', 'supabase', { projectId: 'abcdefghijabcdefghij', name: 'x' });
+  assert.deepEqual(setup.pendingOf('/f/app'), ['supabase']);
+});

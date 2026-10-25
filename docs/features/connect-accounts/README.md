@@ -13,6 +13,18 @@ Cuando la bienvenida arma un proyecto con Supabase, la integración aparece en e
 5. **Esperar:** un proyecto nuevo tarda uno o dos minutos en estar listo; el modal dice qué pasa («Creando…», «Supabase está preparando tu base de datos…», «Guardando las claves…»).
 6. **Listo:** Platanus escribe `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` en `.env.local` (si ya existía, cambia solo esas dos líneas) y, si el `.gitignore` no lo cubre, le suma `.env*.local`. El chat lo cuenta, `.env.local` queda en verde y Supabase pasa a conectado.
 
+## El panel de Supabase
+
+Un clic en el nodo de Supabase del mapa (conectado) abre el panel lateral **Supabase**:
+- el proyecto con su estado (conectado, preparándose o en pausa), región, versión de Postgres y plan;
+- **tablas**, **filas** (estimación de Postgres) y **tamaño** de la base, con una barra contra lo que incluye el plan (Free: 500 MB; Pro y Team: 8 GB; se pone ámbar sobre el 90 %);
+- las tablas más grandes, con sus filas y su tamaño;
+- «Ver tablas en el mapa» (el esquema 3D de antes), «Abrir en Supabase» y «Actualizar».
+
+Los números salen de dos consultas **fijas y de solo lectura** que ejecuta el proceso principal (`STATS_SQL` en `supabaseLink.js`), más `get_project` y `get_organization`; la ventana solo nombra el proyecto enlazado (un ref de 20 letras, comprobado en main). Qué proyecto está enlazado a cada carpeta lo recuerda `setupModel.linkOf` (se guarda al conectar). Si no hay enlace guardado (un proyecto conectado antes, o configurado a mano), el proceso principal lee la línea `…SUPABASE_URL` de `.env.local` o `.env` y devuelve **solo** el identificador del proyecto (IPC `supabase:linked`; la clave nunca sale de main). Sin nada de eso, el panel ofrece «Conectar mi cuenta»; con la sesión cerrada, volver a conectarla. El proyecto demo muestra datos de ejemplo, marcados como tales.
+
+Archivos: `renderer/viewmodels/databaseViewModel.js` (+ test), `renderShell` → `renderSupabase` en `views/ui/shellView.js`, `renderer/styles/database.css`, IPC `supabase:stats` y `supabase:dashboard`.
+
 ## Por qué lo hace Platanus y no el agente
 
 - Los agentes solo actúan con las herramientas MCP de Platanus y nunca tocan secretos; darles el MCP de Supabase obligaría a aflojar sus permisos.
@@ -55,6 +67,6 @@ De punta a punta con una cuenta real (2026-10-24): inicio de sesión, organizaci
 ## Pendiente
 
 - Que la regla de seguridad entienda el `.gitignore`: hoy `.env.local` queda en verde solo durante la sesión en que se conectó.
-- Mostrar las tablas reales del proyecto en el mapa.
+- Mostrar las tablas reales del proyecto en el esquema 3D (el panel ya muestra las reales).
 - Vercel: `vercel login`, `vercel link`, `vercel env add` y `vercel deploy` ejecutados por el proceso principal.
 - Desconectar la cuenta desde la app (`supabase:signOut` ya existe en el proceso principal).

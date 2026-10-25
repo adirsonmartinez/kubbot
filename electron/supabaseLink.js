@@ -86,6 +86,59 @@ function readToolUrl(result) {
   return body.match(/https:\/\/[a-z0-9-]+\.supabase\.(co|in)\b/i)?.[0] ?? null;
 }
 
+// execute_sql -> its rows. Supabase answers { result: "…<untrusted-data-ID>\n[rows]\n</untrusted-data-ID>…" };
+// only what is between the boundaries is data
+function readSqlRows(result) {
+  const body = (result?.content ?? []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+  let textOut = body;
+  try { textOut = JSON.parse(body)?.result ?? body; } catch { /* not wrapped in JSON */ }
+  // The notice before the data names the boundary too: the data starts at the last opening before the closing
+  const str = String(textOut);
+  const close = str.match(/<\/(untrusted-data-[\w-]+)>/);
+  if (!close) throw new Error('Supabase did not answer with rows');
+  const open = `<${close[1]}>`;
+  const start = str.lastIndexOf(open, close.index);
+  if (start < 0) throw new Error('Supabase did not answer with rows');
+  const rows = JSON.parse(str.slice(start + open.length, close.index).trim());
+  if (!Array.isArray(rows)) throw new Error('Supabase did not answer with rows');
+  return rows;
+}
+
+// Fixed, read-only queries for the database panel (main runs them; nothing from the window goes in)
+const STATS_SQL = {
+  totals: `select
+    (select count(*) from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE') as tables,
+    (select coalesce(sum(n_live_tup), 0) from pg_stat_user_tables where schemaname = 'public') as rows,
+    pg_database_size(current_database()) as bytes`,
+  tables: `select relname as name, n_live_tup as rows, pg_total_relation_size(relid) as bytes
+    from pg_stat_user_tables where schemaname = 'public' order by bytes desc limit 8`,
+};
+
+const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+function readStats(totals, tables) {
+  const t = totals?.[0] ?? {};
+  return {
+    tables: num(t.tables), rows: num(t.rows), bytes: num(t.bytes),
+    top: (tables ?? []).map((r) => ({ name: String(r.name), rows: num(r.rows), bytes: num(r.bytes) })),
+  };
+}
+
+// The database size each plan includes (free: 500 MB; pro: 8 GB); unknown plans show no bar
+const PLAN_LIMIT = { free: 500 * 1024 ** 2, pro: 8 * 1024 ** 3, team: 8 * 1024 ** 3 };
+const planLimitBytes = (plan) => PLAN_LIMIT[plan] ?? null;
+
+// The project a folder already uses: the ref in its Supabase URL variable (NEXT_PUBLIC_, VITE_ or plain
+// SUPABASE_URL) of an env file. Only that line is looked at; keys are never read out.
+function refFromEnv(textIn) {
+  for (const line of String(textIn ?? '').split('\n')) {
+    const m = line.match(/^\s*(?:NEXT_PUBLIC_|VITE_)?SUPABASE_URL\s*=\s*["']?https:\/\/([a-z]{20})\.supabase\.(?:co|in)\b/);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+const isProjectRef = (ref) => typeof ref === 'string' && /^[a-z]{20}$/.test(ref);
+
 const isReady = (project) => project?.status === 'ACTIVE_HEALTHY';
 
-module.exports = { readToolJson, readToolUrl, listOf, itemOf, readCost, pickPublicKey, mergeEnv, protectEnv, projectNameFor, isReady, ENV_URL, ENV_KEY, REGION };
+module.exports = { readToolJson, readToolUrl, readSqlRows, refFromEnv, readStats, planLimitBytes, isProjectRef, STATS_SQL, listOf, itemOf, readCost, pickPublicKey, mergeEnv, protectEnv, projectNameFor, isReady, ENV_URL, ENV_KEY, REGION };

@@ -244,6 +244,35 @@ export const strings = {
   },
 
   // Integration nodes in the band at the top of the map (brand names)
+  // The Supabase side panel (renderer/viewmodels/databaseViewModel.js, drawn in views/ui/shellView.js)
+  database: {
+    connected: 'Conectado',
+    starting: 'Preparándose',
+    paused: 'En pausa',
+    demo: 'Datos de ejemplo',
+    region: { 'sa-east-1': 'São Paulo', 'us-east-1': 'Virginia (EE. UU.)', 'us-east-2': 'Ohio (EE. UU.)', 'us-west-1': 'California (EE. UU.)', 'eu-west-1': 'Irlanda', 'eu-central-1': 'Fráncfort' },
+    postgres: (v) => `Postgres ${v}`,
+    plan: { free: 'Plan Free', pro: 'Plan Pro', team: 'Plan Team', enterprise: 'Plan Enterprise' },
+    tables: 'Tablas',
+    rows: 'Filas',
+    size: 'Tamaño',
+    usage: (used, limit) => `${used} de ${limit} incluidos en tu plan`,
+    rowsNote: 'Las filas son una estimación de Postgres.',
+    biggest: 'Tablas más grandes',
+    noTables: 'Todavía no hay tablas. Pídele al agente que cree la primera.',
+    rowsOf: (n) => `${n} filas`,
+    refresh: 'Actualizar',
+    schema: 'Ver tablas en el mapa',
+    dashboard: 'Abrir en Supabase',
+    loading: 'Consultando tu base de datos…',
+    updated: 'Actualizado recién',
+    unlinked: 'Este proyecto usa Supabase, pero todavía no conectaste tu cuenta. Conéctala para ver tus tablas, filas y espacio usado.',
+    signedOut: 'Tu sesión de Supabase se cerró. Vuelve a conectar tu cuenta para ver los datos.',
+    connect: 'Conectar mi cuenta',
+    failed: 'No se pudieron leer los datos de Supabase.',
+    retry: 'Intentar de nuevo',
+  },
+
   // "Conectar mi cuenta" (renderer/viewmodels/connectViewModel.js, views/ui/connectModalView.js)
   accounts: {
     close: 'Cerrar',
@@ -672,6 +701,7 @@ export const strings = {
       repairs: 'Reparaciones',
       servers: 'Servidores',
       agent: 'Conecta tu agente',
+      supabase: 'Supabase',
       noProject: 'Abre un proyecto para ver sus carpetas.',
       noRisks: 'Ningún archivo en rojo o amarillo. ¡Bien!',
       risksSummary: (red, yellow) => `${red} en riesgo · ${yellow} por revisar`,

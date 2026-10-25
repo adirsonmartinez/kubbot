@@ -44,6 +44,7 @@ renderer/
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
     camera, map (the whole project; problems glow), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
+    database (the Supabase side panel: connection and numbers from fixed read-only queries), connect ("Conectar mi cuenta" modal),
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open),
     handControl (camera on/off, pinch and move pans the map, pinch and turn rotates it),
     tour ("Recorrido": analyze, play the stops, agent narration; tourPlaces = where each stop is),

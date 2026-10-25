@@ -3,14 +3,15 @@
 // the code back to a loopback address (127.0.0.1) that only lives while waiting for it. The client
 // registration and the tokens are kept encrypted (secretStore.js). The calls are fixed and few: list the
 // organizations and projects, ask what a new project costs and confirm it (only after the person agreed),
-// create the project, check it, read its URL and public key. main.js asks the
+// create the project, check it, read its URL and public key, and the database panel's numbers (two fixed,
+// read-only queries). main.js asks the
 // person before creating or connecting anything and writes the keys itself.
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
 const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
 const { UnauthorizedError } = require('@modelcontextprotocol/sdk/client/auth.js');
-const { readToolJson, readToolUrl, listOf, itemOf, readCost, pickPublicKey, REGION } = require('./supabaseLink');
+const { readToolJson, readToolUrl, readSqlRows, readStats, STATS_SQL, listOf, itemOf, readCost, pickPublicKey, REGION } = require('./supabaseLink');
 
 const MCP_URL = 'https://mcp.supabase.com/mcp';
 const CALLBACK = { host: '127.0.0.1', port: 45789, path: '/supabase/callback' };
@@ -129,6 +130,19 @@ function createSupabaseConnector({ store, openExternal, page, version = '0.0.0' 
     project: async (id) => itemOf(readToolJson(await call('get_project', { id })), 'project'),
     url: async (id) => readToolUrl(await call('get_project_url', { project_id: id })),
     publicKey: async (id) => pickPublicKey(readToolJson(await call('get_publishable_keys', { project_id: id }))),
+    // The database panel: the project (status, region, Postgres), its organization's plan and the numbers
+    async stats(id) {
+      const project = itemOf(readToolJson(await call('get_project', { id })), 'project');
+      const organization = project.organization_id
+        ? readToolJson(await call('get_organization', { id: project.organization_id })) : {};
+      const totals = readSqlRows(await call('execute_sql', { project_id: id, query: STATS_SQL.totals }));
+      const tables = readSqlRows(await call('execute_sql', { project_id: id, query: STATS_SQL.tables }));
+      return {
+        project: { id, name: String(project.name ?? id), status: String(project.status ?? ''), region: String(project.region ?? ''), postgres: String(project.database?.version ?? ''), createdAt: String(project.created_at ?? '') },
+        plan: String(organization.plan ?? ''),
+        ...readStats(totals, tables),
+      };
+    },
     async signOut() {
       await client?.close().catch(() => {});
       client = null;

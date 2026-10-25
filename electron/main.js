@@ -15,7 +15,7 @@ const { approvalMode, needsApproval } = require('./approval');
 const { createTrustStore } = require('./trust');
 const { createSecretStore } = require('./secretStore');
 const { createSupabaseConnector } = require('./supabaseConnect');
-const { mergeEnv, protectEnv, projectNameFor, isReady, ENV_URL, ENV_KEY } = require('./supabaseLink');
+const { mergeEnv, protectEnv, projectNameFor, isReady, isProjectRef, refFromEnv, planLimitBytes, ENV_URL, ENV_KEY } = require('./supabaseLink');
 const { canOpen } = require('./fileOpen');
 const { lineDiff } = require('./lineDiff');
 const { createKeyStore } = require('./keyStore');
@@ -768,11 +768,42 @@ ipcMain.handle('supabase:connect', async (_e, choice = {}) => {
     const ignored = protectEnv(await fs.readFile(ignorePath, 'utf8').catch(() => ''));
     if (ignored) await fs.writeFile(ignorePath, ignored);
     log('supabase:connect', `${root} -> ${project.id}`, true);
-    return { ok: true, data: { name: project.name, envFile: '.env.local' } };
+    return { ok: true, data: { name: project.name, projectId: project.id, envFile: '.env.local' } };
   } catch (err) {
     log('supabase:connect', root, false, err.message);
     return { ok: false, error: err.message };
   }
+});
+
+// The database panel's numbers (fixed read-only queries; the window only names the project it connected)
+ipcMain.handle('supabase:stats', async (_e, projectId) => {
+  if (!isProjectRef(projectId)) return { ok: false, error: t.supabase.notChosen };
+  if (!supabaseLink().signedIn()) return { ok: false, error: 'signed-out' };
+  try {
+    const stats = await supabaseLink().stats(projectId);
+    return { ok: true, data: { ...stats, limitBytes: planLimitBytes(stats.plan) } };
+  } catch (err) {
+    log('supabase:stats', projectId, false, err.message);
+    return { ok: false, error: err.message };
+  }
+});
+
+// Which Supabase project the open folder already uses (connected before, or set up by hand): main reads the
+// URL line of its env files and returns only the project ref, never a key
+ipcMain.handle('supabase:linked', async () => {
+  if (!workspace.root) return { ok: false, error: t.mcp.noProject };
+  for (const name of ['.env.local', '.env']) {
+    const ref = refFromEnv(await fs.readFile(path.join(workspace.root, name), 'utf8').catch(() => ''));
+    if (ref) return { ok: true, data: { projectId: ref } };
+  }
+  return { ok: true, data: null };
+});
+
+// "Abrir en Supabase": main builds the dashboard address from a checked project ref
+ipcMain.handle('supabase:dashboard', async (_e, projectId) => {
+  if (!isProjectRef(projectId)) return { ok: false };
+  await shell.openExternal(`https://supabase.com/dashboard/project/${projectId}`);
+  return { ok: true };
 });
 
 ipcMain.handle('supabase:signOut', async () => {

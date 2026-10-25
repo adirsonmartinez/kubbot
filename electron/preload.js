@@ -27,6 +27,9 @@ contextBridge.exposeInMainWorld('platanus', {
   supabaseStart: () => ipcRenderer.invoke('supabase:start'),
   supabaseConnect: (choice) => ipcRenderer.invoke('supabase:connect', choice),
   supabaseSignOut: () => ipcRenderer.invoke('supabase:signOut'),
+  supabaseStats: (projectId) => ipcRenderer.invoke('supabase:stats', projectId),
+  supabaseLinked: () => ipcRenderer.invoke('supabase:linked'), // { projectId } from the env files, or null
+  supabaseDashboard: (projectId) => ipcRenderer.invoke('supabase:dashboard', projectId),
   onSupabaseProgress: on('supabase:progress'), // { stage: 'creating' | 'starting' | 'keys' }
   recentWorkspaces: () => ipcRenderer.invoke('workspace:recent'),
   openRecentWorkspace: (root) => ipcRenderer.invoke('workspace:openRecent', root),

@@ -23,6 +23,7 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - estado de integración nuevo `pending` («por conectar»): punteado, translúcido, sin línea; clic → mensaje en el chat (`EVENTS.integrationPicked`);
   - logos de Simple Icons (CC0, `STACK_LOGOS`, `npm run icons`).
 - **Conectar mi cuenta: Supabase (proyecto B, 2026-10-24)** (`docs/features/connect-accounts/README.md`): lo hace Platanus, no el agente. `electron/supabaseConnect.js` es cliente OAuth del MCP de Supabase (SDK `@modelcontextprotocol/sdk`, PKCE, registro dinámico, retorno en `127.0.0.1:45789`); modal `connectViewModel` + `connectModalView`; claves a `.env.local` desde main. **Funciona de punta a punta con la cuenta real de Adirson (2026-10-24):** inicio de sesión, organizaciones, `get_cost` → `confirm_cost` → `create_project(confirm_cost_id)`, claves en `.env.local`. Vercel: su MCP solo acepta clientes aprobados → irá por su CLI.
+- **Panel de Supabase** (`databaseViewModel.js`, `renderSupabase` en `shellView.js`, `database.css`): clic en el nodo → panel lateral con estado, tablas, filas, tamaño vs plan y tablas más grandes; consultas fijas de solo lectura en main (`STATS_SQL`, IPC `supabase:stats`). El proyecto enlazado se guarda en `setupModel.link` al conectar; si no hay, main lo saca de la URL de `.env.local`/`.env` (`supabase:linked`, solo el ref). Probado con la cuenta real (2026-10-24).
 - **Carpetas de confianza (como VS Code)** (`electron/trust.js`, `models/trustModel.js`): al crear o abrir un proyecto, diálogo nativo «¿Confías…?»; confiada = el agente guarda sin preguntar (`trustedNow` en `platanus_write_file`, `approvedBy: 'trusted'`), secretos bloqueados y respaldo igual. «Sí» se recuerda (`userData/trusted-folders.json`), «No» vuelve a preguntar. Menú ⋯ del chat: confiar / dejar de confiar. **Sin probar en la app real todavía.**
 - **Espera de la obra inicial:** tras «¡Empecemos!» con agente, el globo muestra «Preparando tu proyecto…» con barra (`building` en `robotDialogViewModel`); `actions.askAgent` devuelve si el agente lo recibió.
 - **Sin tarjeta del proyecto en el mapa** (2026-10-24): se quitó la etiqueta con el nombre y «N archivos vigilados»; el nombre ya está en la barra de título y los riesgos en la tarjeta de seguridad.
@@ -57,7 +58,7 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - fijos: chat abajo a la derecha, panel lateral, tarjeta de seguridad (compacta, arriba a la izquierda; reemplazó al semáforo) y selector Mapa/Git. Solo el editor se arrastra. Se quitó `floater.js`.
 
 ## Cómo comprobar
-- `npm test` (493 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
+- `npm test` (515 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
 - **App real:** `npx electron . --remote-debugging-port=9223 --open=<proyecto>` y scripts CDP (`scripts/demo/cdp.mjs`).
 - **Banderas:**
   - `PLATANUS_SIM=1`: agente «Simulador», escenarios en `scripts/sim/scenarios.js`;
@@ -104,4 +105,6 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - Para simular una obra en la demo web: un mensaje con `run: { status: 'running', steps: [{ name: 'write_file', target, status }] }` en `chatViewModel.store`; sin `diff` (un `diff` a medias rompe la tarjeta del chat: le faltan `hunks`).
 - `es.js` ya tiene una clave `connect` (el panel de agentes): una clave repetida en el objeto pisa a la otra sin error. Los textos de «Conectar mi cuenta» están en `accounts`.
 - El MCP de Supabase envuelve sus respuestas: `{ organizations: [...] }`, `{ projects: [...] }`, `{ url }`; los errores llegan como `{"error":{"message"}}`. Para crear un proyecto exige `get_cost` + `confirm_cost`.
+- `execute_sql` del MCP de Supabase devuelve `{ result: "…<untrusted-data-ID>[filas]</untrusted-data-ID>…" }` y el aviso de antes también nombra la etiqueta: tomar la última apertura antes del cierre. `get_organization` trae `plan` (`free`, `pro`…).
+- Antes de crear un archivo con `cat >`, mirar si existe (se pisó `tests/renderer/format.test.mjs`; se recuperó con `git show HEAD:`).
 - La UI nueva llega pronto. Los selectores de la grabación viven en `scripts/demo/timeline.mjs`: si cambian, se ajustan solo ahí.
