@@ -142,12 +142,13 @@ test("autoWire without a board says so", () => {
 });
 
 test("autoWire wires one part, then all, then reports nothing left to do", () => {
-  let s = run(loaded({ ...UNO_LED, parts: [UNO_LED.parts[1]] }), { type: "add", part: "arduino-uno" }, { type: "add", part: "buzzer" });
+  let s = run(loaded({ ...UNO_LED, parts: [UNO_LED.parts[1]] }), { type: "add", part: "arduino-uno" }, { type: "add", part: "button" });
   s = run(s, { type: "autoWire", id: "led-1" });
-  assert.equal(s.design.wires.length, 2);
-  assert.deepEqual(s.notice, notice("ok", "autoWired", { added: 2 }));
+  assert.equal(s.design.wires.length, 3, "the LED's ground and its resistor's two");
+  assert.ok(s.design.parts.some((p) => p.type === "resistor-220"), "the resistor was placed");
+  assert.deepEqual(s.notice, notice("ok", "autoWired", { added: 3 }));
   s = run(s, { type: "autoWire" });
-  assert.equal(s.design.wires.length, 4, "the buzzer too");
+  assert.equal(s.design.wires.length, 5, "the button too");
   s = run(s, { type: "autoWire" });
   assert.deepEqual(s.notice, notice("ok", "autoWired", { added: 0 }));
   assert.equal(s.check.level, "green");
@@ -155,8 +156,9 @@ test("autoWire wires one part, then all, then reports nothing left to do", () =>
 
 test("autoWire on a board wires every part to that board", () => {
   const s = run(loaded(), { type: "autoWire", id: "arduino-uno-1" });
-  assert.equal(s.design.wires.length, 2);
-  assert.ok(s.design.wires.every((w) => w.to.part === "arduino-uno-1"));
+  assert.equal(s.design.wires.length, 3);
+  assert.ok(s.design.wires.filter((w) => w.to.part === "arduino-uno-1").length === 2, "the LED's signal goes through its resistor");
+  assert.equal(s.check.level, "green");
 });
 
 test("autoWire of an unknown part does nothing", () => {
@@ -179,7 +181,7 @@ test("autoWire reports pins it could not place, with their parts", () => {
 test("removeWire and setQuery", () => {
   let s = run(loaded(), { type: "autoWire", id: "led-1" });
   s = run(s, { type: "removeWire", id: s.design.wires[0].id });
-  assert.equal(s.design.wires.length, 1);
+  assert.equal(s.design.wires.length, 2);
   assert.equal(run(s, { type: "removeWire", id: "nope" }), s);
   assert.equal(run(s, { type: "setQuery", query: "servo" }).query, "servo");
 });
@@ -265,4 +267,97 @@ test("the reducer never mutates its input", () => {
   const before = JSON.stringify(s);
   run(s, { type: "add", part: "led" }, { type: "autoWire" }, { type: "rotate", id: "led-1" }, { type: "remove", id: "led-1" });
   assert.equal(JSON.stringify(s), before);
+});
+
+// --- The wiring guide ---
+const SENSOR: Design = {
+  version: 1,
+  parts: [
+    { id: "arduino-uno-1", type: "arduino-uno", x: 0, z: 0, rot: 0 },
+    { id: "hc-sr04-1", type: "hc-sr04", x: 10, z: 0, rot: 0 },
+  ],
+  wires: [],
+};
+
+test("a new bench has no guide; startGuide opens it on the first step to do", () => {
+  assert.equal(initBench().guide, null);
+  const s = run(loaded(SENSOR), { type: "startGuide", part: "hc-sr04-1" });
+  assert.deepEqual(s.guide, { part: "hc-sr04-1", step: 0 });
+  assert.equal(s.selected, "hc-sr04-1");
+});
+
+test("startGuide ignores boards and unknown parts, and warns when there is nothing left to wire", () => {
+  const s = loaded(SENSOR);
+  assert.equal(run(s, { type: "startGuide", part: "arduino-uno-1" }), s);
+  assert.equal(run(s, { type: "startGuide", part: "nope" }), s);
+  const wired = run(s, { type: "autoWire", id: "hc-sr04-1" });
+  const again = run(wired, { type: "startGuide", part: "hc-sr04-1" });
+  assert.equal(again.guide, null);
+  assert.deepEqual(again.notice, notice("warn", "guideNoSteps"));
+  const lonely = loaded({ ...SENSOR, parts: [SENSOR.parts[1]] });
+  assert.equal(run(lonely, { type: "startGuide", part: "hc-sr04-1" }).guide, null); // no board
+});
+
+test("next and prev move between steps; past the last one the guide ends with a notice", () => {
+  let s = run(loaded(SENSOR), { type: "startGuide", part: "hc-sr04-1" });
+  s = run(s, { type: "nextGuide" }, { type: "nextGuide" });
+  assert.equal(s.guide?.step, 2);
+  s = run(s, { type: "prevGuide" });
+  assert.equal(s.guide?.step, 1);
+  s = run(s, { type: "prevGuide" }, { type: "prevGuide" });
+  assert.equal(s.guide?.step, 0);
+  s = run(s, { type: "goGuide", step: 3 });
+  assert.equal(s.guide?.step, 3);
+  s = run(s, { type: "nextGuide" });
+  assert.equal(s.guide, null);
+  assert.deepEqual(s.notice, notice("ok", "guideDone"));
+  assert.equal(run(s, { type: "nextGuide" }), s);
+});
+
+test("guideDo wires the current step; the guide moves on and ends when every pin is wired", () => {
+  let s = run(loaded(SENSOR), { type: "startGuide", part: "hc-sr04-1" });
+  s = run(s, { type: "guideDo" });
+  assert.equal(s.design.wires.length, 1);
+  assert.equal(s.guide?.step, 1); // moved on by itself
+  s = run(s, { type: "guideDo" }, { type: "guideDo" });
+  assert.equal(s.guide?.step, 3);
+  s = run(s, { type: "guideDo" });
+  assert.equal(s.design.wires.length, 4);
+  assert.equal(s.guide, null);
+  assert.deepEqual(s.notice, notice("ok", "guideDone"));
+  assert.equal(s.check.parts["hc-sr04-1"], "green");
+});
+
+test("wiring a step by hand advances the guide too", () => {
+  let s = run(loaded(SENSOR), { type: "startGuide", part: "hc-sr04-1" });
+  s = run(s, { type: "pickPin", part: "hc-sr04-1", pin: "VCC" }, { type: "pickPin", part: "arduino-uno-1", pin: "5V" });
+  assert.equal(s.design.wires.length, 1);
+  assert.equal(s.guide?.step, 1);
+});
+
+test("the guide ends when its part goes, and Esc closes it after the wire in progress", () => {
+  let s = run(loaded(SENSOR), { type: "startGuide", part: "hc-sr04-1" });
+  assert.equal(run(s, { type: "remove", id: "hc-sr04-1" }).guide, null);
+  s = run(s, { type: "pickPin", part: "hc-sr04-1", pin: "VCC" });
+  s = run(s, { type: "escape" });
+  assert.equal(s.wiring, null);
+  assert.ok(s.guide);
+  s = run(s, { type: "escape" });
+  assert.equal(s.guide, null);
+  assert.equal(s.selected, "hc-sr04-1");
+  assert.equal(run(s, { type: "endGuide" }), s);
+});
+
+test("acceptSuggestions wires what suggestWires planned, for one part or all", () => {
+  const two: Design = { ...UNO_LED, parts: [...UNO_LED.parts, { id: "button-1", type: "button", x: 20, z: 0, rot: 0 }] };
+  const one = run(loaded(two), { type: "acceptSuggestions", part: "led-1" });
+  assert.equal(one.design.wires.length, 3);
+  assert.ok(one.design.parts.some((p) => p.type === "resistor-220"));
+  assert.ok(one.design.wires.every((w) => w.from.part !== "button-1" && w.to.part !== "button-1"));
+  assert.deepEqual(one.notice, notice("ok", "autoWired", { added: 3 }));
+  const all = run(loaded(two), { type: "acceptSuggestions" });
+  assert.equal(all.design.wires.length, 5);
+  assert.deepEqual(all.design.wires, run(loaded(two), { type: "autoWire" }).design.wires);
+  assert.deepEqual(run(all, { type: "acceptSuggestions" }).notice, notice("ok", "autoWired", { added: 0 }));
+  assert.deepEqual(run(loaded({ ...two, parts: [two.parts[1]] }), { type: "acceptSuggestions" }).notice, notice("warn", "noBoardForWire"));
 });

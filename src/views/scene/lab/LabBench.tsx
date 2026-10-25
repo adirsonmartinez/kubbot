@@ -24,8 +24,10 @@ import { BenchMat } from "./BenchMat";
 import { BenchContext, PoseStore, pinPosition, useBench, type BenchActions, type BenchContextValue } from "./benchContext";
 import { benchInput } from "./benchInput";
 import { EnclosureObject } from "./EnclosureObject";
+import { GuideOverlay } from "./GuideOverlay";
 import { LID_LIFT, SPREAD } from "./enclosureBuild";
 import { PartObject } from "./PartObject";
+import { PrintPreview } from "./print/PrintPreview";
 import { WiringLine } from "./WiringLine";
 import { Wires } from "./Wires";
 import { WorldLabel } from "./WorldLabel";
@@ -53,7 +55,8 @@ function PinTip({ vm }: { vm: LabViewModel }) {
   const { poses } = useBench();
   const hover = vm.hover;
   const part = hover ? vm.design.parts.find((p) => p.id === hover.part) : undefined;
-  const text = hover && part ? labCopy.bench.pinTip(vm.partLabel(hover.part), hover.pin) : null;
+  // The pin's name, what it does and where it goes (and, while wiring, whether it fits)
+  const text = hover && part ? (vm.pinInfo?.lines.join("\n") ?? labCopy.bench.pinTip(vm.partLabel(hover.part), hover.pin)) : null;
   return (
     <WorldLabel
       text={text}
@@ -172,7 +175,7 @@ export function LabBench({ vm, rig, insets = NO_INSETS, onReady }: Props) {
   const size = useThree((s) => s.size);
   const { left, right, top, bottom } = insets;
   const parts = design.parts.length;
-  const box = vm.enclosure.visible;
+  const box = vm.enclosure.visible || vm.print.active; // the printing box takes the same room
   const exploded = vm.enclosure.exploded;
   useEffect(() => {
     if (!size.width || !size.height) return;
@@ -262,8 +265,11 @@ export function LabBench({ vm, rig, insets = NO_INSETS, onReady }: Props) {
       </group>
 
       <Wires design={design} flows={vm.simState?.wires ?? null} running={running} />
+      <GuideOverlay vm={vm} />
       <WiringLine design={design} wiring={vm.wiring} hover={vm.hover} />
-      <EnclosureObject visible={vm.enclosure.visible} exploded={vm.enclosure.exploded} data={vm.enclosure.data} />
+      <EnclosureObject visible={vm.enclosure.visible && !vm.print.active} exploded={vm.enclosure.exploded} data={vm.enclosure.data} />
+
+      {vm.print.active && <PrintPreview layers={vm.print.layers} count={vm.print.count} printing={!vm.print.done} />}
 
       <PinTip vm={vm} />
       <WorldLabel text={design.parts.length ? null : labCopy.bench.empty} position={() => [0, 0.4, 0]} wrap />

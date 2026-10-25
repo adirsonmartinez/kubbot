@@ -11,8 +11,8 @@
 // The code is the product, so its comments are plain Spanish (like the rest of what people read). Pins come from
 // boardPinsOf: Uno D9 -> 9, A0 -> A0, ESP32 GPIO21 -> 21, Pico GP4 -> 4.
 
-import { componentOf, type Part } from "./catalog.ts";
-import { boardPinsOf, checkDesign, type Design, type PlacedPart } from "./circuit.ts";
+import { componentOf, isUserComponent, userEntryOf, type Part } from "./catalog.ts";
+import { RESISTOR, boardPinsOf, checkDesign, type Design, type PlacedPart } from "./circuit.ts";
 import { NEAR_CM, deadParts } from "./simulation.ts";
 
 export type SkipReason = "unwired" | "otherBoard" | "check";
@@ -44,6 +44,9 @@ const STEM: Record<string, string> = {
   button: "BOTON", potentiometer: "POT", "battery-aa4": "PILAS",
 };
 
+// A name for the code from an imported part's id: "usr-mq-2" -> "MQ_2"
+const userStem = (type: string): string => type.replace(/^usr-/, "").replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "").toUpperCase() || "PIEZA";
+
 const none = (): Sketch => ({ ok: false, reason: "noBoard", code: "", board: null, fqbn: "", libraries: [], includes: [], skipped: [] });
 
 // "D9" -> "9", "A0" -> "A0", "GPIO21" -> "21", "GP4" -> "4"; null for a power pin
@@ -63,7 +66,8 @@ export function sketchFor(design: Design): Sketch {
   if (!boards.length) return none();
 
   // The board the parts are wired to (the first one that has any wire from a part)
-  const others = design.parts.filter((p) => componentOf(p.type)?.kind === "part");
+  // The resistor is passive: nothing to write for it (the LED's pin is the one on the board side of it)
+  const others = design.parts.filter((p) => componentOf(p.type)?.kind === "part" && p.type !== RESISTOR);
   const wiredBoards = new Set(others.flatMap((p) => Object.values(boardPinsOf(design, p.id)).map((l) => l?.board)));
   const board = boards.find((b) => wiredBoards.has(b.id)) ?? boards[0];
   const info = BOARDS[board.type] ?? DEFAULT_BOARD;
@@ -88,12 +92,12 @@ export function sketchFor(design: Design): Sketch {
     else if (spec.pins.some((p) => links[p.id] && links[p.id]!.board !== board.id)) skipped.push({ part: part.id, why: "otherBoard" });
     else if (blocked.has(part.id)) skipped.push({ part: part.id, why: "check" });
     else {
-      const stem = STEM[part.type] ?? "PIEZA";
+      const stem = STEM[part.type] ?? (isUserComponent(part.type) ? userStem(part.type) : "PIEZA");
       const pins = spec.pins.filter((p) => links[p.id]).map((p) => `${p.id} -> ${links[p.id]!.pin}`);
       wiring.push(`//   ${part.id}: ${pins.join(", ")}${warned.has(part.id) ? "   (¡tiene avisos en la Revisión del circuito!)" : ""}`);
       used.push({
         part, spec, n, upper: `${stem}_${n}`, lower: `${stem.toLowerCase()}${n}`,
-        pin: (id) => pinExpr(links[id]!.pin) ?? "0",
+        pin: (id) => pinExpr(links[id]?.pin ?? "") ?? "0", // an optional pin may have no wire
       });
     }
   }
@@ -107,6 +111,7 @@ export function sketchFor(design: Design): Sketch {
   const reports: string[] = [];
   const helpers = new Set<string>(); // each helper function once, however many parts need it
   let i2c = false;
+  const imported: string[] = []; // placeholders for parts the person imported: we do not know what they do
 
   // What the actuators react to
   const distances: string[] = [];
@@ -230,6 +235,17 @@ export function sketchFor(design: Design): Sketch {
         setup.push(`  ${u.lower}.init();`, `  ${u.lower}.backlight();`);
         break;
       default:
+        if (isUserComponent(u.part.type)) {
+          // Imported part: its pins are named, its behavior is not known
+          signal(u);
+          if (u.spec.pins.some((p) => p.accepts.some((k) => BUS_ACCEPTS.has(k)))) i2c = true;
+          // Inside a // comment: no line breaks and no comment closers, whatever the name holds
+          const name = (userEntryOf(u.part.type)?.name || u.part.type).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]+/g, " ").replace(/\*\//g, "* /");
+          imported.push(
+            `  // ${name} ${u.n}: pieza importada. No sé qué hace; escribe aquí cómo leerla o moverla`,
+            `  // usando los pines de arriba (${u.spec.pins.filter((p) => !p.accepts.some((k) => POWER_ACCEPTS.has(k))).map((p) => `${u.upper}_${p.id}`).join(", ") || "sin pines de señal"}).`,
+          );
+        }
         break; // the battery and anything without code
     }
   }
@@ -347,7 +363,8 @@ export function sketchFor(design: Design): Sketch {
     ...(reports.length
       ? ["  // 3. Contar lo que pasa por el monitor serie", "  if (millis() - ultimoInforme >= 500) {", "    ultimoInforme = millis();", ...reports, "  }", ""]
       : []),
-    ...(!inputs.length && !actions.length ? ["  // Aún no hay piezas conectadas: cuando las cables, aquí aparece su código.", ""] : []),
+    ...(imported.length ? ["  // Piezas importadas", ...imported, ""] : []),
+    ...(!inputs.length && !actions.length && !imported.length ? ["  // Aún no hay piezas conectadas: cuando las conectes, aquí aparece su código.", ""] : []),
     ...skipped.map((s) => `  // ${s.part}: ${skipText[s.why]}`),
     ...(skipped.length ? [""] : []),
     "  delay(50);",

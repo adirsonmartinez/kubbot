@@ -128,6 +128,10 @@ export const COMPONENTS: Component[] = [
   { id: "potentiometer", kind: "part", category: "inputs", size: [17, 17, 20], color: 0x2b5bd7, volts: [3.3, 5], mA: 1,
     pins: [power([3.3, 5]), { id: "OUT", accepts: ["analog"], required: true }, GND], source: DATASHEET },
 
+  // --- The resistor: a 2-pin part that joins two nets (see circuit.ts); it sits with the inputs ---
+  { id: "resistor-220", kind: "part", category: "inputs", size: [10, 3, 3], color: 0xd8c39a, volts: [0, 5], mA: 0,
+    pins: [{ id: "A", accepts: ["digital", "pwm"], required: true }, { id: "B", accepts: ["digital", "pwm"], required: true }], source: DATASHEET },
+
   // --- Power ---
   { id: "battery-aa4", kind: "part", category: "power", size: [62, 58, 15], color: 0x1d1d1f, supplies: 6, mA: 0,
     pins: [{ id: "+", accepts: ["vin"], required: true }, { id: "-", accepts: ["gnd"], required: true }], source: DATASHEET },
@@ -135,8 +139,28 @@ export const COMPONENTS: Component[] = [
 
 const BY_ID = new Map(COMPONENTS.map((c) => [c.id, c]));
 
+// --- The person's own components (imported from a photo or a datasheet, see componentSpec.ts) ---
+// COMPONENTS stays the built-in list; these live in a module-level registry that the browser fills at start
+// (registerUserComponents) and that componentOf / catalogSections read next to the built-in ones. A built-in
+// id can never be taken over: an entry whose id is already built in is ignored.
+export type UserEntry = {
+  component: Component;
+  name: string; // plain name, for the sketch's comments
+  roles: Record<string, string>; // pin id -> role (guide.ts PartRole / BoardRole), as the person set it
+  photo?: string; // data URL drawn on top of the model
+  hidden?: boolean; // known to componentOf (the 3D preview needs it) but not listed in the catalog
+};
+let userEntries = new Map<string, UserEntry>();
+
+export function registerUserComponents(list: readonly UserEntry[]): void {
+  userEntries = new Map(list.filter((e) => !BY_ID.has(e.component.id)).map((e) => [e.component.id, e]));
+}
+export const userComponents = (): Component[] => [...userEntries.values()].filter((e) => !e.hidden).map((e) => e.component);
+export const isUserComponent = (id: string | undefined | null): boolean => !!id && userEntries.has(id);
+export const userEntryOf = (id: string | undefined | null): UserEntry | null => (id && userEntries.get(id)) || null;
+
 export function componentOf(id: string | undefined | null): Component | null {
-  return (id && BY_ID.get(id)) || null;
+  return (id && (BY_ID.get(id) ?? userEntries.get(id)?.component)) || null;
 }
 
 export type CatalogSection = { category: Category; items: Component[] };
@@ -145,7 +169,8 @@ export type CatalogSection = { category: Category; items: Component[] };
 export function catalogSections(query = "", nameOf: (c: Component) => string = (c) => c.id): CatalogSection[] {
   const q = query.trim().toLowerCase();
   const match = (c: Component) => !q || c.id.includes(q) || nameOf(c).toLowerCase().includes(q);
-  return CATEGORIES.map((category) => ({ category, items: COMPONENTS.filter((c) => c.category === category && match(c)) })).filter(
+  const all = [...COMPONENTS, ...userComponents()];
+  return CATEGORIES.map((category) => ({ category, items: all.filter((c) => c.category === category && match(c)) })).filter(
     (s) => s.items.length,
   );
 }

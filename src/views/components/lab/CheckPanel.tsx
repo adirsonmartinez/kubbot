@@ -19,10 +19,12 @@ export function CheckPanel({ vm, onAsk }: { vm: CheckSlice; onAsk: (prompt: stri
 
   return (
     <div className="lab-review" data-level={level}>
-      <header className="lab-review-head">
-        <h3 className="lab-review-title">{labCopy.check.title}</h3>
-        {rows.length > 0 && <span className={`lab-review-count ${level}`}>{counts.text}</span>}
-      </header>
+      {/* The panel's own title says "Revisión del circuito"; here only the summary line */}
+      {rows.length > 0 && (
+        <header className="lab-review-head">
+          <span className={`lab-review-count ${level}`}>{counts.text}</span>
+        </header>
+      )}
 
       {empty ? (
         <p className="lab-review-ok">{labCopy.bench.empty}</p>

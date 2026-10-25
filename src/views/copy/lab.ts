@@ -1,6 +1,8 @@
 // The lab's copy, in plain Spanish for people who do not know electronics. Views read it; code,
 // comments and identifiers stay in English.
 
+import { formatNumber as n1 } from '../../lib/format.ts';
+
 export const labCopy = {
   title: 'Laboratorio',
   tab: 'Laboratorio',
@@ -15,8 +17,8 @@ export const labCopy = {
     empty: 'No hay piezas con ese nombre.',
     add: (name: string) => `Poner ${name} en el banco`,
     pins: (n: number) => `${n} ${n === 1 ? 'pin' : 'pines'}`,
-    mA: (n: number) => `${n} mA`,
-    volts: ([min, max]: [number, number]) => (min === max ? `${min} V` : `${min}–${max} V`),
+    mA: (n: number) => `${n1(n)} mA`,
+    volts: ([min, max]: [number, number]) => (min === max ? `${n1(min)} V` : `${n1(min)}–${n1(max)} V`),
     license: (name: string, license: string) => `Medidas: ${name} (${license})`,
     noProject: 'Abre o crea un proyecto para armar tu circuito.',
   },
@@ -47,6 +49,7 @@ export const labCopy = {
     'lcd-1602-i2c': { name: 'Pantalla LCD', desc: 'Dos líneas de texto, fácil de leer.' },
     button: { name: 'Botón', desc: 'Lo que pasa cuando alguien lo aprieta.' },
     potentiometer: { name: 'Perilla', desc: 'Una perilla que gira para subir o bajar un valor.' },
+    'resistor-220': { name: 'Resistencia 220 Ω', desc: 'Frena la corriente para que un LED no se queme.' },
     'battery-aa4': { name: 'Portapilas 4×AA', desc: 'Energía sin cable: 6 V para la placa.' },
   },
 
@@ -91,9 +94,25 @@ export const labCopy = {
       wrongPin: (part: string, pin: string) => `${pin} de ${part} está en un pin que no sirve para eso.`,
       pinShared: (part: string, pin: string, boardPin: string) => `${pin} de ${part} comparte el pin ${boardPin} con otra pieza.`,
       level: (part: string, pin: string) => `${pin} de ${part} manda 5 V a una placa de 3,3 V: usa un divisor de voltaje.`,
-      budget: (part: string, used: number, budget: number) => `La placa da ${budget} mA y le piden ${used} mA: usa una fuente aparte.`,
+      budget: (part: string, used: number, budget: number) => `La placa da ${n1(budget)} mA y le piden ${n1(used)} mA: usa una fuente aparte.`,
       noBoard: () => 'Falta una placa que controle las piezas.',
+      ledNoResistor: () => 'El LED no tiene resistencia: se puede quemar. Usa 220 Ω.',
+      i2cDuplicate: (part: string) => `${part} usa la misma dirección que otra pantalla igual en el cable de datos que comparten (I2C): dos pantallas iguales no pueden convivir ahí.`,
+      externalPower: (part: string, used: number, budget: number) => `${part} y sus compañeros piden hasta ${n1(used)} mA y la placa da ${n1(budget)} mA: usa un portapilas aparte.`,
+      pinCurrent: (part: string, pin: string, boardPin: string) => `${pin} de ${part} saca más de 20 mA del pin ${boardPin}: se puede dañar. Usa un transistor o un relé.`,
+      strapping: (part: string, pin: string, boardPin: string) => `${boardPin} decide cómo arranca la ESP32 (${pin} de ${part}): mejor usa otro pin.`,
+      inputOnly: (part: string, pin: string, boardPin: string) => `${boardPin} solo puede leer, no puede mandar señal a ${pin} de ${part}.`,
     },
+    // How to fix each rejected or red rule, in one sentence
+    fixes: {
+      ledNoResistor: 'Pon una resistencia de 220 Ω entre el pin de la placa y el LED.',
+      i2cDuplicate: 'Cambia la dirección de una de las pantallas, o usa dos tipos distintos.',
+      externalPower: 'Alimenta los servos o motores con un portapilas, no con el 5 V de la placa.',
+      pinCurrent: 'Maneja la carga con un transistor o un relé, no directo desde el pin.',
+      strapping: 'Cambia la pieza a un pin que no sea de arranque.',
+      inputOnly: 'Cambia la pieza a un pin que pueda mandar señal (por ejemplo el 13, 14, 25, 26 o 27).',
+    },
+    rejected: (message: string, fix: string) => `No lo conecté: ${message} ${fix}`,
     fix: 'Arreglar con Qubi',
   },
 
@@ -103,8 +122,8 @@ export const labCopy = {
     stop: 'Detener',
     running: 'Simulando…',
     blocked: 'Arregla los peligros en rojo antes de simular.',
-    distance: (cm: number) => `${cm} cm`,
-    temperature: (c: number, h: number) => `${c} °C · ${h} %`,
+    distance: (cm: number) => `${n1(cm)} cm`,
+    temperature: (c: number, h: number) => `${n1(c)} °C · ${n1(h)} %`,
     angle: (deg: number) => `${deg}°`,
     on: 'Encendido',
     off: 'Apagado',
@@ -117,12 +136,19 @@ export const labCopy = {
     show: 'Ver la caja',
     hide: 'Ocultar la caja',
     explode: 'Ver por dentro',
-    exportStl: 'Descargar STL',
-    exportScad: 'Descargar OpenSCAD',
+    exportStl: 'Descargar para imprimir (STL)',
+    advanced: 'Avanzado',
+    exportScad: 'Descargar el diseño editable (OpenSCAD)',
+    exploreNeedsBox: 'Primero pulsa «Ver la caja»',
     saved: (file: string) => `Guardé ${file} en tu proyecto.`,
     noBoard: 'Pon una placa en el banco para hacer su caja.',
     size: (w: number, d: number, h: number) => `${w} × ${d} × ${h} mm`,
-    print: (minutes: number, grams: number) => `Unas ${Math.round(minutes / 60 * 10) / 10} h de impresión · ${grams} g de PLA`,
+    print: (minutes: number, grams: number) => `Unas ${n1(minutes / 60)} h de impresión · ${n1(grams)} g de PLA`,
+    mesh: {
+      closed: (w: number, d: number, h: number) => `Malla cerrada ✓ lista para imprimir · ${w} × ${d} × ${h} mm`,
+      closedCheck: 'Malla cerrada ✓ lista para imprimir',
+      plain: 'Archivo sin verificar: no pude cerrar la malla',
+    },
   },
 
   // --- Code for the board ---
@@ -168,7 +194,7 @@ export const labCopy = {
   labUi: {
     results: (n: number) => `${n} ${n === 1 ? 'pieza encontrada' : 'piezas encontradas'}`,
     budget: (board: string) => `Energía de ${board}`,
-    budgetValue: (used: number, budget: number) => `${used} de ${budget} mA`,
+    budgetValue: (used: number, budget: number) => `${n1(used)} de ${n1(budget)} mA`,
     boxMenu: 'Opciones de la caja',
     insideOn: 'Quitar la vista por dentro',
     selectedPart: (name: string) => `Pieza elegida: ${name}`,
@@ -190,7 +216,17 @@ export const labCopy = {
       simulate: 'Empecé la simulación',
       enclosure: 'Preparé la caja',
       sketch: 'Creé el código',
+      move: (name: string) => `Moví ${name}`,
+      rotate: (name: string) => `Giré ${name}`,
+      load: (example: string) => `Cargué el ejemplo «${example}»`,
+      clear: 'Dejé el banco vacío',
       pin: (pin: string, name: string) => `${pin} de ${name}`,
+    },
+    // The ready-made circuits Qubi can load, by the name the tool uses
+    examples: {
+      parkingSensor: 'Sensor de estacionamiento',
+      weatherStation: 'Estación del clima',
+      plantWaterer: 'Riego automático',
     },
     // Rule-based assistant, used when there is no AI key
     assistant: {
@@ -215,6 +251,9 @@ export const labCopy = {
         robotCar: 'Carrito que esquiva: avanza y frena cuando ve algo adelante.',
         doorbell: 'Timbre: suena cuando alguien aprieta el botón.',
       },
+      loadingExample: (example: string) => `Listo, cargo el ejemplo «${example}». Ya viene conectado.`,
+      chooseExample: (examples: string[]) => `Tengo estos ejemplos listos: ${examples.join(', ')}. Dime cuál quieres, por ejemplo «carga la estación del clima».`,
+      clearing: 'Listo, dejo el banco vacío.',
       simulating: 'Empiezo la simulación.',
       simulateBlocked: 'Arregla primero los peligros en rojo; así no simulo algo que se puede quemar.',
       enclosure: 'Preparo la caja para imprimir.',

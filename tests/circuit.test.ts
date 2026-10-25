@@ -138,7 +138,7 @@ test('automatic wiring: power by voltage, ground shared, signals on free pins, s
 
 test('the agent reads the bench as short lines', () => {
   const d = autoWire(bench('arduino-uno', 'led'), 'led-1').design;
-  assert.equal(describeDesign(d), 'arduino-uno-1 (arduino-uno): D2→led-1.SIG, GND→led-1.GND\nled-1 (led): SIG→arduino-uno-1.D2, GND→arduino-uno-1.GND');
+  assert.equal(describeDesign(d), 'arduino-uno-1 (arduino-uno): D2→resistor-220-1.A, GND→led-1.GND\nled-1 (led): SIG→resistor-220-1.B, GND→arduino-uno-1.GND\nresistor-220-1 (resistor-220): A→arduino-uno-1.D2, B→led-1.SIG');
   assert.equal(describeDesign(emptyDesign()), '(banco vacío)');
 });
 
