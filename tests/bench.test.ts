@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { benchReducer, initBench, notice, type BenchAction, type BenchState } from "../src/models/lab/bench.ts";
 import { addPart, emptyDesign, type Design } from "../src/models/lab/circuit.ts";
+import { COMPONENTS } from "../src/models/lab/catalog.ts";
+import { EXAMPLE_NAMES, exampleDesign } from "../src/models/lab/examples.ts";
+import { partBox } from "../src/models/lab/layout.ts";
 
 const UNO_LED: Design = {
   version: 1,
@@ -360,4 +363,25 @@ test("acceptSuggestions wires what suggestWires planned, for one part or all", (
   assert.deepEqual(all.design.wires, run(loaded(two), { type: "autoWire" }).design.wires);
   assert.deepEqual(run(all, { type: "acceptSuggestions" }).notice, notice("ok", "autoWired", { added: 0 }));
   assert.deepEqual(run(loaded({ ...two, parts: [two.parts[1]] }), { type: "acceptSuggestions" }).notice, notice("warn", "noBoardForWire"));
+});
+
+test("a catalog part clicked or dropped on the board never lands on top of another part", () => {
+  const overlaps = (design: Design, id: string) => {
+    const a = partBox(design.parts.find((p) => p.id === id)!);
+    return design.parts.filter((p) => p.id !== id).some((p) => {
+      const b = partBox(p);
+      return Math.abs(a.x - b.x) * 2 < a.w + b.w && Math.abs(a.z - b.z) * 2 < a.d + b.d;
+    });
+  };
+  for (const name of EXAMPLE_NAMES) {
+    for (const spec of COMPONENTS) {
+      // A click has no point; a drop can land right on the board's center
+      for (const at of [undefined, { x: 0, z: 0 }]) {
+        const s = run(loaded(exampleDesign(name)!), { type: "add", part: spec.id, at });
+        const placed = s.selected;
+        assert.ok(placed, `${name}/${spec.id}`);
+        assert.equal(overlaps(s.design, placed), false, `${name}/${spec.id} at ${JSON.stringify(at)}`);
+      }
+    }
+  }
 });

@@ -12,6 +12,7 @@ import { COMPONENTS } from "@/models/lab/catalog";
 import { AGENT_TOOLS, type AgentToolSchema } from "@/models/lab/agentTools";
 import { clientKey, createLimiter } from "@/lib/rateLimit";
 import { readBody } from "@/lib/readBody";
+import { voiceFailure } from "@/lib/voiceFailure";
 import { labCopy } from "@/views/copy/lab";
 import { qubiCopy } from "@/views/copy/qubi";
 
@@ -269,8 +270,7 @@ export async function POST(request: Request) {
     // Never log the key or the request; the status is enough to diagnose
     const status = error instanceof ApiError ? error.status : undefined;
     console.error("voice route failed", status ?? "no-status");
-    if (status === 401 || status === 403) return json({ error: "bad-key" }, 503);
-    if (status === 429 || status === 402) return json({ error: "quota" }, 429);
-    return json({ error: status ? "api" : "network" }, 502);
+    const failure = voiceFailure(status, error instanceof ApiError ? error.body : "");
+    return json({ error: failure.error }, failure.status);
   }
 }

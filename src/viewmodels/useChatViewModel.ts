@@ -181,6 +181,8 @@ export function useChatViewModel({
   const choiceText = useSyncExternalStore(subscribeAgentChoice, readAgentChoice, () => null);
   const choice = useMemo(() => parseChoice(choiceText), [choiceText]);
   const [activeCompletion, setActiveCompletion] = useState(0);
+  // Whether the person moved the selection with the arrows: only then does Enter accept instead of send
+  const [picked, setPicked] = useState(false);
   const [dismissedFor, setDismissedFor] = useState<string | null>(null);
   // Replies from a conversation that was cleared are dropped
   const conversation = useRef(0);
@@ -386,6 +388,7 @@ export function useChatViewModel({
   const writeDraft = (text: string) => {
     setDraft(text);
     setActiveCompletion(0);
+    setPicked(false);
   };
   const running = messages.findLast((m) => m.run?.status === "running")?.run ?? null;
 
@@ -424,7 +427,11 @@ export function useChatViewModel({
     hints: analyzePrompt(draft),
     completions: completionList,
     activeCompletion: completionAt,
-    moveCompletion: (by: number) => setActiveCompletion((completionAt + by + completionList.length) % Math.max(1, completionList.length)),
+    completionPicked: picked,
+    moveCompletion: (by: number) => {
+      setPicked(true);
+      setActiveCompletion((completionAt + by + completionList.length) % Math.max(1, completionList.length));
+    },
     acceptCompletion: (index = completionAt) => {
       const item = completionList[index];
       if (item) writeDraft(applyCompletion(draft, item));

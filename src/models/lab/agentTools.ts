@@ -701,6 +701,15 @@ export function toolPart(name: string, input: unknown, result: AgentToolResult):
   }
 }
 
+// What sketchFor really writes for LED, buzzer and relay (see sketch.ts): they follow the sensor or button
+// while pressed/detected; only with no sensor at all do they blink by themselves. The model must not promise more.
+export function sketchBehavior(design: Design): string {
+  const triggers = design.parts.some((p) => ["button", "pir", "hc-sr04"].includes(p.type));
+  return triggers
+    ? "The generated code turns the LED/buzzer/relay ON while the button is pressed (or the sensor detects) and OFF otherwise: it FOLLOWS the input and does NOT blink. Never say the code blinks or flashes; if the person wanted blinking, say plainly that blinking needs code this lab does not generate yet."
+    : "With no sensor or button the generated code blinks the LED by itself (half a second on, half off); buzzer and relay also pulse on a timer.";
+}
+
 // The three tools that do not change the design: they gate, then ask the UI to act
 function makeTool(name: "lab_simulate" | "lab_make_enclosure" | "lab_make_sketch", design: Design, details?: AgentDetails): AgentOutcome {
   const check = checkDesign(design);
@@ -717,7 +726,8 @@ function makeTool(name: "lab_simulate" | "lab_make_enclosure" | "lab_make_sketch
     extra = {};
   }
   const kind = name === "lab_simulate" ? "simulate" : name === "lab_make_enclosure" ? "enclosure" : "sketch";
-  return { design, result: { ok: true, ...extra, check: checkSummary(check), verdict: verdict(check) }, action: { kind } };
+  const behavior = name === "lab_make_sketch" ? { behavior: sketchBehavior(design) } : {};
+  return { design, result: { ok: true, ...extra, ...behavior, check: checkSummary(check), verdict: verdict(check) }, action: { kind } };
 }
 
 // Runs one tool on a design. Never throws; the returned design is the same object when nothing changed.

@@ -1,4 +1,5 @@
 import test from "node:test";
+import { exampleDesign } from "../src/models/lab/examples.ts";
 import assert from "node:assert/strict";
 import { COMPONENTS } from "../src/models/lab/catalog.ts";
 import { emptyDesign, checkDesign, connect, type Design } from "../src/models/lab/circuit.ts";
@@ -560,4 +561,11 @@ test("quickRule: clear the bench, load an example by name, list them, and leave 
   for (const m of ["ponle un sensor de temperatura", "quita el sensor", "quita los cables", "qué clima hace", "revisa mis conexiones", "carga el código", ""]) {
     assert.equal(quickRule(m, quickCopy), null, m);
   }
+});
+
+test("lab_make_sketch says what the code does: it follows the button, it does not blink", () => {
+  const follow = applyAgentTool(exampleDesign("blinkButton")!, "lab_make_sketch", {});
+  assert.match(String(follow.result.behavior), /FOLLOWS the input and does NOT blink/);
+  const alone = applyAgentTool(run([uno()]).design, "lab_make_sketch", {});
+  assert.match(String(alone.result.behavior), /blinks the LED by itself/);
 });
