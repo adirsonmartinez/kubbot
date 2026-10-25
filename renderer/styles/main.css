@@ -231,7 +231,9 @@ canvas.grabbing { cursor: grabbing; }
 .map-label.robot-bubble strong::before { display: none; }
 .map-label.robot-bubble span { font-size: 12px; line-height: 1.35; color: var(--muted); }
 /* working: one line, the thinking orb at its real size next to what it does */
-.map-label.robot-bubble.busy { flex-direction: row; align-items: center; gap: 7px; padding: 6px 12px 6px 8px; border-radius: 999px; white-space: nowrap; }
+.map-label.robot-bubble.busy { flex-direction: row; align-items: center; gap: 7px; max-width: 380px; padding: 6px 12px 6px 8px; border-radius: 999px; white-space: nowrap; }
+/* the line grows with what it says; a very long file name is cut with "…" instead of leaving the pill */
+.map-label.robot-bubble.busy span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .map-label.robot-bubble.busy::after { bottom: -6px; }
 .map-label.robot-bubble .robot-orb { display: grid; place-items: center; flex: none; width: 20px; height: 20px; }
 #stage .map-label canvas.orb { position: static; inset: auto; width: 20px !important; height: 20px !important; } /* not the 3D canvas rule */
