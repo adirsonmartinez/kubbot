@@ -196,7 +196,7 @@
 }
 .icon-bar .tip small {
   color: var(--lg-muted);
-  font: 11px/1.45 var(--lg-font);
+  font: 12px/1.45 var(--lg-font);
 }
 .side-dock .tip {
   left: calc(100% + 14px);
@@ -359,14 +359,14 @@
   font: 600 14px/1.2 var(--lg-font);
   letter-spacing: -0.01em;
 }
-.chat-title span {
+.chat-title > span {
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--lg-muted);
   font-size: 12px;
 }
-.chat-title span::before {
+.chat-title > span::before {
   content: "";
   width: 6px;
   height: 6px;
@@ -458,13 +458,21 @@
   background: var(--lg-chip-hover);
 }
 
-.composer {
+/* The wrapper holds the composer, its border beam and the model menu (see chat.css) */
+.composer-wrap {
   position: relative;
   margin: 0 12px 12px;
+}
+.composer-beam {
+  border-radius: var(--lg-r-card);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+.composer {
+  position: relative;
   padding: 10px 10px 8px 14px;
   border-radius: var(--lg-r-card);
   background: rgba(255, 255, 255, 0.055);
-  box-shadow: var(--lg-rim-strong), 0 8px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--lg-rim-strong);
 }
 .composer:focus-within {
   background: rgba(255, 255, 255, 0.07);

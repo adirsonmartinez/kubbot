@@ -40,7 +40,7 @@ const ownMaterial = (part: ReturnType<typeof buildPart>, test: (m: THREE.MeshSta
 const groupChild = (part: ReturnType<typeof buildPart>) => part.body.children.find((c): c is THREE.Group => c.type === "Group")!;
 
 test("there is a model for every catalog part", () => {
-  assert.equal(COMPONENTS.length, 19);
+  assert.equal(COMPONENTS.length, 20);
   assert.deepEqual([...PART_TYPES].sort(), COMPONENTS.map((c) => c.id).sort());
 });
 
@@ -336,4 +336,89 @@ test("the motor driver's rotors spin with the speed and stop when it is zero or 
   assert.ok(turned({ kind: "motors", speed: 0 }).every((v) => v === 0));
   assert.ok(turned({ kind: "x", dead: true }).every((v) => v === 0));
   part.dispose();
+});
+
+// --- Imported parts (custom.ts) ---
+import { registerUserComponents } from "../src/models/lab/catalog.ts";
+import { userEntryFor, type ComponentSpec } from "../src/models/lab/componentSpec.ts";
+import { coverFit } from "../src/views/scene/lab/parts/custom.ts";
+
+const imported = (patch: Partial<ComponentSpec> = {}): ComponentSpec => ({
+  id: "usr-prueba", name: "Prueba", desc: "", category: "sensors", kind: "part", size: [30, 20, 12], volts: [4.5, 5.5], mA: 10,
+  pins: [{ id: "VCC", role: "power" }, { id: "SIG", role: "signal-in" }, { id: "GND", role: "ground" }],
+  source: { name: "x", license: "MIT", url: "" }, ...patch,
+});
+
+for (const [label, patch] of [
+  ["sensor", {}],
+  ["display", { category: "displays", size: [40, 25, 5] }],
+  ["input", { category: "inputs", size: [15, 15, 18] }],
+  ["power", { category: "power", size: [60, 40, 20] }],
+  ["board", { category: "boards", kind: "board", logic: 3.3, volts: undefined, size: [50, 25, 8], pins: [{ id: "V5", role: "board-5v" }, { id: "G", role: "board-gnd" }, { id: "P1", role: "board-digital" }] }],
+] as [string, Partial<ComponentSpec>][]) {
+  test(`imported ${label}: pins at pinSpots, picks set, sim and dispose do not throw (with and without a photo)`, () => {
+    const spec = imported(patch);
+    registerUserComponents([userEntryFor(spec)]);
+    try {
+      for (const photo of [undefined, "data:image/png;base64,AAAA"]) {
+        const part = buildPart(spec.id, photo);
+        assert.deepEqual(part.group.userData.pick, { type: "part" });
+        const spots = pinSpots({ type: spec.id, x: 0, z: 0, rot: 0 });
+        assert.equal(part.pins.size, spec.pins.length);
+        for (const spot of spots) {
+          const pin = part.pins.get(spot.pin)!;
+          assert.deepEqual(pin.userData.pick, { type: "pin", pin: spot.pin });
+          assert.ok(Math.abs(pin.position.x - spot.x) < 0.01 && Math.abs(pin.position.z - spot.z) < 0.01);
+        }
+        assert.equal(meshes(part.body).some((m) => m.name === "photo"), !!photo, "the photo plane exists only with a photo");
+        part.setSim({ kind: "generic", on: true });
+        part.update(1, 0.016);
+        part.setSim({ kind: "generic", dead: true });
+        part.setSim(null);
+        part.setLevel("red");
+        part.setHover("nope");
+        part.dispose();
+        assert.doesNotThrow(() => part.update(2, 0.016));
+        part.dispose();
+      }
+    } finally {
+      registerUserComponents([]);
+    }
+  });
+}
+
+test("imported part: the photo saved with the part is used when none is passed", () => {
+  registerUserComponents([userEntryFor(imported(), "data:image/png;base64,AAAA")]);
+  try {
+    const part = buildPart("usr-prueba");
+    assert.ok(meshes(part.body).some((m) => m.name === "photo"));
+    part.dispose();
+  } finally {
+    registerUserComponents([]);
+  }
+  assert.throws(() => buildPart("usr-prueba"), /unknown part/, "gone once unregistered");
+});
+
+test("imported part: stays near its ficha size", () => {
+  const spec = imported({ size: [40, 30, 10] });
+  registerUserComponents([userEntryFor(spec)]);
+  try {
+    const part = buildPart(spec.id);
+    const box = new THREE.Box3();
+    part.group.updateMatrixWorld(true);
+    for (const m of meshes(part.body)) if (!m.userData.noBounds) box.union(new THREE.Box3().setFromObject(m));
+    assert.ok(box.min.y > -0.01);
+    assert.ok(box.max.x - box.min.x > 3.2 && box.max.x - box.min.x < 6, "width ~4 units");
+    assert.ok(box.max.z - box.min.z > 2.4 && box.max.z - box.min.z < 4.5, "depth ~3 units");
+    part.dispose();
+  } finally {
+    registerUserComponents([]);
+  }
+});
+
+test("coverFit crops the long side and keeps the plane filled", () => {
+  assert.deepEqual(coverFit(2, 1), { repeat: [0.5, 1], offset: [0.25, 0] });
+  assert.deepEqual(coverFit(0.5, 1), { repeat: [1, 0.5], offset: [0, 0.25] });
+  assert.deepEqual(coverFit(1, 1), { repeat: [1, 1], offset: [0, 0] });
+  assert.deepEqual(coverFit(0, 1), { repeat: [1, 1], offset: [0, 0] });
 });

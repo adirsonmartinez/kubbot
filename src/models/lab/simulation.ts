@@ -13,8 +13,8 @@
 //   - the servo follows the distance, else sweeps; the motor follows the knob, else the distance, else cruises
 //   - a display shows the distance, else the climate, else a greeting with the seconds
 
-import { componentOf } from "./catalog.ts";
-import { checkDesign, netsOf, type Check, type Design, type IssueKey } from "./circuit.ts";
+import { componentOf, isUserComponent } from "./catalog.ts";
+import { RESISTOR, checkDesign, netsOf, reachOf, type Check, type Design, type IssueKey } from "./circuit.ts";
 import { wireKind } from "./layout.ts";
 
 export const NEAR_CM = 20;
@@ -34,6 +34,7 @@ export const SIM_KINDS = Object.freeze({
   display: "display",
   motors: "motors",
   battery: "battery",
+  generic: "generic", // a part the person imported: alive or dead, nothing more
 });
 
 export type SimKind = (typeof SIM_KINDS)[keyof typeof SIM_KINDS] | "unknown";
@@ -56,7 +57,8 @@ export type SimState =
   | Live<{ kind: "relay"; on: boolean }>
   | Live<{ kind: "display"; lines: [string, string] }>
   | Live<{ kind: "motors"; speed: number }>
-  | Live<{ kind: "battery"; on: boolean }>;
+  | Live<{ kind: "battery"; on: boolean }>
+  | Live<{ kind: "generic"; on: boolean }>;
 
 export type SimResult = { parts: Record<string, SimState>; wires: Record<string, number> };
 
@@ -112,7 +114,7 @@ function analyze(design: Design, check: Check): Analysis {
     if (!spec || spec.kind !== "part") continue;
     const reaches = spec.pins
       .filter((pin) => pin.required)
-      .every((pin) => (nets.get(`${part.id}:${pin.id}`) ?? []).some((m) => isBoard(m.part)));
+      .every((pin) => reachOf(design, { part: part.id, pin: pin.id }, nets).some((m) => isBoard(m.part)));
     if (!reaches) dead.add(part.id);
   }
   const result = { dead, shorted };
@@ -169,20 +171,20 @@ export function simulate(design: Design, tMs: number): SimResult {
         return { kind: "motors", speed: Math.max(0, Math.min(1, speed)) };
       }
       case "battery-aa4": return { kind: "battery", on: true };
-      default: return dead("unknown");
+      default: return { kind: "generic", on: true }; // imported parts: we do not know what they do, only that they are powered
     }
   };
   const deadKind: Record<string, SimKind> = {
     led: "led", "servo-sg90": "servo", "hc-sr04": "distance", pir: "motion", dht22: "climate", soil: "soil", ldr: "light",
     buzzer: "buzzer", relay: "relay", "oled-128x64": "display", "lcd-1602-i2c": "display", button: "button",
-    potentiometer: "knob", l298n: "motors", "battery-aa4": "battery",
+    potentiometer: "knob", l298n: "motors", "battery-aa4": "battery", [RESISTOR]: "generic",
   };
 
   for (const p of design.parts) {
     const spec = componentOf(p.type);
     if (!spec) result.parts[p.id] = dead("unknown");
     else if (spec.kind === "board") result.parts[p.id] = { kind: "board", running: !shorted.has(p.id) };
-    else result.parts[p.id] = alive(p.id) ? stateOf(p.type) : dead(deadKind[p.type] ?? "unknown");
+    else result.parts[p.id] = alive(p.id) ? stateOf(p.type) : dead(deadKind[p.type] ?? (isUserComponent(p.type) ? "generic" : "unknown"));
   }
 
   // Wires: power and ground carry a steady 1 while both ends work; signals and the bus pulse

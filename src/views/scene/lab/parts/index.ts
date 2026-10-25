@@ -9,7 +9,7 @@
 //
 // Imports here are relative with the .ts extension so `node --test` can load this module (tests/parts.test.ts).
 import * as THREE from "three";
-import { componentOf, type Component } from "../../../../models/lab/catalog.ts";
+import { componentOf, userEntryOf, type Component } from "../../../../models/lab/catalog.ts";
 import { MM, pinSpots } from "../../../../models/lab/layout.ts";
 import { PALETTE } from "../../palette.ts";
 import { K, box, pinColor, smooth, unit } from "./kit.ts";
@@ -18,7 +18,8 @@ import { arduinoNano, arduinoUno, esp32, pico } from "./boards.ts";
 import { dht22, hcSr04, ldr, pir, soil } from "./sensors.ts";
 import { buzzer, l298n, led, relay, servo } from "./actuators.ts";
 import { lcd1602, oled } from "./displays.ts";
-import { battery, button, potentiometer } from "./inputs.ts";
+import { battery, button, potentiometer, resistor } from "./inputs.ts";
+import { customBuilder } from "./custom.ts";
 
 export type PartLevel = "green" | "yellow" | "red";
 export type PartBounds = { minX: number; maxX: number; minZ: number; maxZ: number };
@@ -37,7 +38,7 @@ export type PartHandle = {
   dispose(): void; // frees what this part created; shared geometries and materials stay
 };
 
-// One builder per catalog id. A builder draws into ctx.body (mm) and returns { sim(state|null) } or nothing.
+// One builder per built-in catalog id (imported parts use custom.ts). A builder draws into ctx.body (mm) and returns { sim(state|null) } or nothing.
 const BUILDERS: Record<string, Builder> = {
   "arduino-uno": arduinoUno,
   "arduino-nano": arduinoNano,
@@ -57,6 +58,7 @@ const BUILDERS: Record<string, Builder> = {
   "lcd-1602-i2c": lcd1602,
   button,
   potentiometer,
+  "resistor-220": resistor,
   "battery-aa4": battery,
 };
 
@@ -104,9 +106,11 @@ function plateGeometry(b: PartBounds, margin: number): THREE.BufferGeometry {
 
 type PinState = { tip: THREE.Mesh; color: number; scale: ReturnType<typeof smooth> };
 
-export function buildPart(type: string): PartHandle {
+// An imported part (from a photo or a datasheet) has no builder of its own: it gets the generic one, with its
+// photo on top (the one given, else the one saved with the part)
+export function buildPart(type: string, photoUrl?: string): PartHandle {
   const spec = componentOf(type);
-  const builder = BUILDERS[type];
+  const builder = BUILDERS[type] ?? (userEntryOf(type) ? customBuilder(photoUrl ?? userEntryOf(type)?.photo) : undefined);
   if (!spec || !builder) throw new Error(`buildPart: unknown part "${type}"`);
 
   const group = new THREE.Group();

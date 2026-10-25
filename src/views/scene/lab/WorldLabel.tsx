@@ -62,11 +62,27 @@ export function WorldLabel({ text, position, wrap = false }: Props) {
   useEffect(() => {
     const div = element.current;
     if (!div || text === null) return;
-    div.textContent = text;
-    div.style.whiteSpace = wrap ? "normal" : "nowrap";
-    div.style.textAlign = wrap ? "center" : "left";
-    div.style.width = wrap ? "max-content" : "";
-    div.style.maxWidth = wrap ? "260px" : "";
+    // A text with line breaks is a small card: the first line is the title, the rest is smaller and softer
+    const lines = text.split("\n");
+    const card = lines.length > 1;
+    div.replaceChildren(
+      ...lines.map((line, i) => {
+        const row = document.createElement("div");
+        row.textContent = line;
+        if (card) {
+          row.style.fontWeight = i === 0 ? "650" : "400";
+          row.style.fontSize = i === 0 ? "12px" : "11.5px";
+          row.style.color = i === 0 ? "#fff" : "rgba(236, 238, 242, 0.82)";
+          row.style.marginTop = i === 0 ? "0" : "3px";
+        }
+        return row;
+      }),
+    );
+    const flow = wrap || card;
+    div.style.whiteSpace = flow ? "normal" : "nowrap";
+    div.style.textAlign = wrap && !card ? "center" : "left";
+    div.style.width = flow ? "max-content" : "";
+    div.style.maxWidth = card ? "250px" : wrap ? "260px" : "";
   }, [text, wrap, shown]);
 
   useFrame(({ camera, size }) => {

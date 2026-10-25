@@ -54,3 +54,6 @@ Carried over from the Electron prototype (Qubbot, `team-12` / `qubbot-3d`) where
 
 ## Add new lessons below
 Format: one or two lines, the rule first, then why or where it was learned. Date them if they may expire.
+- Structured output (`output_config.format` json_schema): an `enum` mixing numbers and null with `type: ["number","null"]` is rejected with a 400 ("Enum value 3.3 does not match declared type"). Use a string enum (`"3.3" | "5" | "unknown"`) and map it in the route. Claude Sonnet 5.5 rejects forced `tool_choice`, so structured output is how the component importer asks for JSON (`src/app/api/component/extract`).
+- Imported (user) components live in a registry in `catalog.ts`, not in `COMPONENTS` (tests count it). Anything that reads a saved design must register them first (`parseDesign` drops unknown part types); `useImportViewModel` does it when the module loads in the browser. See `docs/laboratorio/IMPORTAR.md`.
+

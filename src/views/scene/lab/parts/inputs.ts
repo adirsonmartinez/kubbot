@@ -1,4 +1,4 @@
-// Inputs and power: push button, potentiometer and the 4 x AA battery holder. Millimetres, centred on the
+// Inputs and power: push button, potentiometer, the 220 Ω resistor and the 4 x AA battery holder. Millimetres, centred on the
 // footprint (x across, z deep, y up).
 import * as THREE from "three";
 import {
@@ -61,6 +61,26 @@ export function potentiometer(ctx: PartContext) {
     knob.rotation.y = -(turn.step(dt) - 0.5) * THREE.MathUtils.degToRad(270);
   });
   return { sim: (s: SimInput | null) => { percent = num(s?.percent, 50); } };
+}
+
+// 220 Ω resistor: a beige body with four colour bands (red, red, brown, gold) and two silver legs bent down to
+// the bench. Passive: nothing to animate. The pins sit above the body, like the LED's.
+export function resistor(ctx: PartContext) {
+  const { body, spots } = ctx;
+  ctx.pinOptions.housing = 'none';
+  ctx.pinOptions.base = spots[0]?.y ?? 4.2;
+  const R = 1.3, LEG = 0.3, Y = 1.5;
+  const ceramic = mat('resBody', 0xd8c39a, { r: 0.55, m: 0.05 });
+  cylH(body, ceramic, R, 5.6, 0, Y, 0, 'x', 24);
+  for (const sx of [-1, 1]) cylH(body, ceramic, R * 1.18, 1.1, sx * 3.1, Y, 0, 'x', 24); // the fatter ends
+  // Bands: red, red, brown, then gold apart from the rest (220 Ω, 5 %)
+  const bands: [number, number][] = [[-2.2, 0xc0392b], [-1.1, 0xc0392b], [0, 0x7b4a24], [2.5, 0xd4af37]];
+  for (const [x, color] of bands) cylH(body, mat(`resBand${color.toString(16)}`, color, { r: 0.5, m: 0.1 }), R * 1.04, 0.62, x, Y, 0, 'x', 24);
+  // Legs: out of each end, then down to the bench
+  for (const sx of [-1, 1]) {
+    rod(body, K.silver, [sx * 3.65, Y, 0], [sx * 5 - sx * LEG, Y, 0], LEG);
+    rod(body, K.silver, [sx * 5 - sx * LEG, Y, 0], [sx * 5 - sx * LEG, 0, 0], LEG);
+  }
 }
 
 export function battery(ctx: PartContext) {

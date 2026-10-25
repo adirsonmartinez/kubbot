@@ -40,7 +40,9 @@ Principio: **la IA propone, el verificador decide.**
 En Render, con el blueprint `render.yaml`: Node 24, `npm ci && npm run build` y `npm run start`.
 
 - **`ANTHROPIC_API_KEY`:** opcional, en el panel de Render. Sin ella, el chat usa el asistente sin IA.
-- **`QUBBOT_MODEL`:** opcional; por defecto `claude-opus-5-5`.
+- **`QUBBOT_MODEL`:** opcional; uno de `claude-sonnet-5-5` (por defecto), `claude-opus-5-5` o `claude-haiku-5-5`. Otro valor se ignora.
+- **`QUBBOT_ALLOW_OPUS`:** opcional; con `1` cualquier visitante puede elegir Opus y esfuerzo alto. Sin esto el servidor baja Opus a Sonnet y el esfuerzo alto a medio.
+- **Límites:** cada ruta de `/api` limita por visitante (por minuto y por día, según el último salto de `x-forwarded-for`) y en total para todo el servidor; al pasarse responde 429 con `rate` o `busy`.
 
 ## Pendiente
 

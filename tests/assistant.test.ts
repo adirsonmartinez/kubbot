@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { componentOf } from "../src/models/lab/catalog.ts";
-import { addPart, emptyDesign, connect, type Design } from "../src/models/lab/circuit.ts";
+import { addPart, autoWire, emptyDesign, connect, type Design } from "../src/models/lab/circuit.ts";
 import { IDEAS, assist, ideasFor, intentOf, type AssistantCopy } from "../src/models/lab/assistant.ts";
 
 const copy: AssistantCopy = {
@@ -87,9 +87,11 @@ test("revisa: lists the checker's issues, says all good when there are none", ()
   assert.equal(wired.toolCalls.length, 1);
   // A green bench: wire by hand through the model functions
   let d = bench("arduino-uno", "led");
-  d = connect(d, { part: "led-1", pin: "SIG" }, { part: "arduino-uno-1", pin: "D3" }).design;
-  d = connect(d, { part: "led-1", pin: "GND" }, { part: "arduino-uno-1", pin: "GND" }).design;
+  d = autoWire(d, "led-1").design; // the LED gets its resistor
   assert.equal(assist("revisa", d, copy).text, "GOOD");
+  // A bare LED on a pin is red, and the review says so
+  const bare = connect(bench("arduino-uno", "led"), { part: "led-1", pin: "SIG" }, { part: "arduino-uno-1", pin: "D3" }).design;
+  assert.match(assist("revisa", bare, copy).text, /ledNoResistor/);
 });
 
 test("simula: refuses on red and without a board, otherwise calls the tool", () => {

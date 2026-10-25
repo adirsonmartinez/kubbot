@@ -8,6 +8,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import type { LabViewModel } from "@/viewmodels/useLabViewModel";
 import { labCopy } from "@/views/copy/lab";
+import { pinsCopy } from "@/views/copy/pins";
+import { printCopy } from "@/views/copy/print";
 import "@/views/styles/lab.css";
 import { Icon, type IconName } from "../Icon";
 import { enclosureFacts } from "./labText";
@@ -19,12 +21,17 @@ export type ToolbarSlice = Pick<
   | "sim"
   | "enclosure"
   | "wiring"
+  | "wiringTip"
+  | "dismissWiringTip"
   | "notice"
   | "partLabel"
   | "toggleSim"
   | "autoWire"
   | "toggleEnclosure"
   | "toggleExplode"
+  | "startPrint"
+  | "stopPrint"
+  | "print"
   | "exportStl"
   | "exportScad"
   | "exportSketch"
@@ -41,6 +48,7 @@ function Button({
   tone,
   pressed,
   className = "",
+  tour,
 }: {
   label: string;
   icon: IconName;
@@ -48,10 +56,12 @@ function Button({
   tone?: "primary" | "danger";
   pressed?: boolean;
   className?: string;
+  tour?: string;
 }) {
   return (
     <button
       type="button"
+      data-tour={tour}
       className={`lab-btn${tone ? ` ${tone}` : ""}${pressed ? " on" : ""} ${className}`.trim()}
       aria-pressed={pressed}
       title={label}
@@ -65,8 +75,9 @@ function Button({
 
 type MenuEntry =
   | { kind: "fact"; text: string }
+  | { kind: "heading"; text: string }
   | { kind: "separator" }
-  | { kind: "item"; label: string; icon: IconName; run: () => void; checked?: boolean; disabled?: boolean };
+  | { kind: "item"; label: string; icon: IconName; run: () => void; checked?: boolean; disabled?: boolean; reason?: string };
 
 function EnclosureMenu({ vm }: { vm: ToolbarSlice }) {
   const [open, setOpen] = useState(false);
@@ -108,9 +119,17 @@ function EnclosureMenu({ vm }: { vm: ToolbarSlice }) {
       run: done(() => vm.toggleExplode()),
       checked: vm.enclosure.exploded,
       disabled: !visible,
+      reason: visible ? undefined : labCopy.enclosure.exploreNeedsBox,
+    },
+    {
+      kind: "item",
+      label: vm.print.active ? printCopy.stop : printCopy.see,
+      icon: "play",
+      run: done(() => (vm.print.active ? vm.stopPrint() : vm.startPrint())),
     },
     { kind: "separator" },
     { kind: "item", label: labCopy.enclosure.exportStl, icon: "download", run: done(() => vm.exportStl()) },
+    { kind: "heading", text: labCopy.enclosure.advanced },
     { kind: "item", label: labCopy.enclosure.exportScad, icon: "download", run: done(() => vm.exportScad()) },
   ];
 
@@ -134,7 +153,7 @@ function EnclosureMenu({ vm }: { vm: ToolbarSlice }) {
   };
 
   return (
-    <div className="lab-box" ref={root}>
+    <div className="lab-box" ref={root} data-tour="toolbar-box">
       <button
         ref={trigger}
         type="button"
@@ -153,6 +172,10 @@ function EnclosureMenu({ vm }: { vm: ToolbarSlice }) {
           {entries.map((entry, i) =>
             entry.kind === "separator" ? (
               <hr key={i} className="lab-menu-sep" />
+            ) : entry.kind === "heading" ? (
+              <p key={i} className="lab-menu-heading">
+                {entry.text}
+              </p>
             ) : entry.kind === "fact" ? (
               <p key={i} className="lab-menu-fact">
                 {entry.text}
@@ -164,6 +187,7 @@ function EnclosureMenu({ vm }: { vm: ToolbarSlice }) {
                 role={entry.checked === undefined ? "menuitem" : "menuitemcheckbox"}
                 aria-checked={entry.checked}
                 aria-disabled={entry.disabled || undefined}
+                title={entry.reason}
                 tabIndex={-1}
                 className={`lab-menu-item${entry.checked ? " on" : ""}`}
                 onClick={() => !entry.disabled && entry.run()}
@@ -193,6 +217,8 @@ export function LabToolbar({
   const running = sim.running;
   const part = selected && design.parts.some((p) => p.id === selected) ? selected : null;
   const partName = part ? vm.partLabel(part) : "";
+  // After «Ver la caja»: how big it is and what it takes to print it
+  const boxFacts = vm.enclosure.visible ? enclosureFacts(vm.enclosure.data) : null;
 
   // The toast shows when a new notice arrives and hides itself after a few seconds
   const [gone, setGone] = useState<unknown>(null);
@@ -214,13 +240,42 @@ export function LabToolbar({
             {labCopy.bench.wiring(vm.partLabel(wiring.part), wiring.pin)}
           </p>
         )}
+        {vm.wiringTip && (
+          <p className="lab-tip" role="note">
+            <span className="lab-tip-dot" aria-hidden />
+            <span>{pinsCopy.wiringTip.text}</span>
+            <button type="button" className="lab-tip-close" onClick={() => vm.dismissWiringTip()}>
+              {pinsCopy.wiringTip.dismiss}
+            </button>
+          </p>
+        )}
         <p className="lab-toast" data-kind={toast?.kind ?? "ok"} hidden={!toast} role="status" aria-live="polite">
           {toast?.text}
         </p>
 
+        {part && (
+          <div className="lab-sel glass-panel" role="group" aria-label={labCopy.labUi.selectedPart(partName)}>
+            <span className="lab-sel-name" title={labCopy.labUi.selectedPart(partName)}>
+              {partName}
+            </span>
+            <Button label={labCopy.bench.rotate} icon="rotate" onClick={() => vm.rotate(part)} />
+            <Button label={labCopy.bench.remove} icon="trash" tone="danger" onClick={() => vm.remove(part)} />
+          </div>
+        )}
+
+        {boxFacts && (
+          <p className="lab-facts" role="status">
+            <Icon name="cube" size={14} />
+            <span>{boxFacts.size}</span>
+            <span aria-hidden>·</span>
+            <span>{boxFacts.print}</span>
+          </p>
+        )}
+
         <div className="lab-pill glass-panel" data-running={running || undefined} role="toolbar" aria-label={labCopy.panel.toolbar}>
           <button
             type="button"
+            data-tour="toolbar-sim"
             className={`lab-btn primary${running ? " running" : ""}`}
             aria-pressed={running}
             onClick={() => vm.toggleSim()}
@@ -228,20 +283,10 @@ export function LabToolbar({
             {running ? <span className="lab-pulse" aria-hidden /> : <Icon name="play" size={16} />}
             <span className="lab-btn-label">{running ? labCopy.sim.stop : labCopy.sim.start}</span>
           </button>
-          <Button label={labCopy.bench.autoWire} icon="plug" onClick={() => vm.autoWire()} />
+          <Button label={labCopy.bench.autoWire} icon="plug" tour="toolbar-wire" onClick={() => vm.autoWire()} />
           <EnclosureMenu vm={vm} />
-          <Button label={labCopy.sketch.make} icon="code" onClick={() => vm.exportSketch()} />
+          <Button label={labCopy.sketch.make} icon="code" tour="toolbar-code" onClick={() => vm.exportSketch()} />
 
-          {part && (
-            <>
-              <span className="lab-sep" aria-hidden />
-              <span className="lab-sel-name" title={labCopy.labUi.selectedPart(partName)}>
-                {partName}
-              </span>
-              <Button label={labCopy.bench.rotate} icon="rotate" onClick={() => vm.rotate(part)} />
-              <Button label={labCopy.bench.remove} icon="trash" tone="danger" onClick={() => vm.remove(part)} />
-            </>
-          )}
         </div>
       </div>
     </div>

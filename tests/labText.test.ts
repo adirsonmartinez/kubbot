@@ -54,5 +54,5 @@ test("enclosureFacts reads size and print estimate, and is null with no data", (
   assert.equal(enclosureFacts({ ok: false }), null);
   const facts = enclosureFacts({ ok: true, size: { w: 80.4, d: 60.2, h: 30 }, printMinutes: 90, grams: 24.3 });
   assert.equal(facts?.size, "80 × 60 × 30 mm");
-  assert.equal(facts?.print, "Unas 1.5 h de impresión · 24 g de PLA");
+  assert.equal(facts?.print, "Unas 1,5 h de impresión · 24 g de PLA");
 });

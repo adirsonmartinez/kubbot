@@ -79,7 +79,7 @@ Exporta `type LabViewModel = ReturnType<typeof useLabViewModel>`.
 Estilos en `src/views/styles/lab.css`. Se porta y mejora de `renderer/views/ui/catalogView.js`, `labToolbarView.js` y `labDropView.js`.
 
 ### Agente del chat (agente chat)
-- **`src/app/api/agent/route.ts`:** Route Handler que llama a Claude con el SDK oficial `@anthropic-ai/sdk` (instálalo). Lee `ANTHROPIC_API_KEY` y `QUBBOT_MODEL` del entorno; por defecto `claude-opus-5-5`. **Carga primero la skill `claude-api`.**
+- **`src/app/api/agent/route.ts`:** Route Handler que llama a Claude con el SDK oficial `@anthropic-ai/sdk` (instálalo). Lee `ANTHROPIC_API_KEY` y `QUBBOT_MODEL` del entorno; por defecto `claude-sonnet-5-5` (la lista de modelos está en `src/models/agentModels.ts`; Opus y esfuerzo alto solo con `QUBBOT_ALLOW_OPUS=1`). **Carga primero la skill `claude-api`.**
   - El *system prompt* hace al agente especialista en Arduino; usa `.claude/skills/kubbot-lab/references/arduino.md` como conocimiento si existe.
   - Las herramientas están en `src/models/lab/agentTools.ts`: esquemas de `lab_catalog`, `lab_view`, `lab_add_part`, `lab_connect`, `lab_auto_wire`, `lab_remove`, `lab_simulate`, `lab_make_enclosure`, `lab_make_sketch` y `applyAgentTool(design, name, input)` → `{ design, result }`, una función pura que corre en el cliente.
   - El navegador ejecuta las herramientas sobre su diseño y devuelve los resultados.
@@ -93,3 +93,17 @@ Estilos en `src/views/styles/lab.css`. Se porta y mejora de `renderer/views/ui/c
 - los lados `catalog` (en lugar de Capas), `check` y `settings`;
 - `LabBench` dentro de `IsoScene`, `LabToolbar` y el *drop* sobre el escenario;
 - el chat conectado al laboratorio.
+
+
+## Guía de conexión
+
+- **Modelo (`src/models/lab/guide.ts`, puro):**
+  - `pinRole(type, pin)` da el papel de cada pin (`power`, `ground`, `trigger`, `echo`, `pwm`, `analog-in`, `sda`... y `board-*` para los de la placa).
+  - `compatiblePins(design, from)` ordena todos los pines del banco por encaje: `best` (lo que elegiría `autoWire`), `ok` o `bad` (el verificador se quejaría). Cada uno trae un `reasonKey`.
+  - `suggestWires(design, partId?)` es el ensayo de `autoWire`: los cables que pondría, sin cambiar nada.
+  - `guideSteps(design, partId)` da los pasos en orden (energía, tierra, señales), con `done`.
+  - `pinStatuses(design, partId)` dice a qué está conectado cada pin.
+- **Banco:** `BenchState.guide = { part, step } | null` y las acciones `startGuide`, `nextGuide`, `prevGuide`, `goGuide`, `endGuide`, `guideDo`, `acceptSuggestions`. El paso avanza solo cuando se conecta el cable de ese paso; Esc cierra la guía.
+- **ViewModel:** `guide`, `fits`, `bestTarget`, `suggestions`, `help`, `pinInfo`, `wiringTip` y las acciones de arriba.
+- **Textos:** `src/views/copy/pins.ts` (qué hace cada pieza y cada pin, motivos, tarjeta, guía).
+- **Montaje:** `<GuideCard vm={lab} insetRight={insets.right} />` dentro de `<main className="stage">`, junto a `<LabToolbar />`.
