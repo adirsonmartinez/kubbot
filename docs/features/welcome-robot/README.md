@@ -31,7 +31,7 @@ Las integraciones que eligió la persona (Vercel, Supabase) aparecen en la banda
 
 Lo que preparó la bienvenida se recuerda por carpeta (la ruta completa) en este computador (`renderer/models/setupModel.js`, `localStorage`). Los proyectos que no pasaron por la bienvenida no cambian.
 
-Un clic en una integración por conectar abre el chat con un mensaje: ya está lista y solo falta conectar la cuenta. **«Conectar mi cuenta»** (iniciar sesión en el servicio y que el agente traiga las claves por MCP, con la confirmación de Platanus) es el proyecto B; al conectarla se llamará `setupModel.markConnected`.
+Un clic en una integración por conectar abre el chat con un mensaje: ya está lista y solo falta conectar la cuenta. En Supabase, el clic abre **«Conectar mi cuenta»** (`docs/features/connect-accounts/README.md`): Platanus inicia sesión, crea o elige el proyecto y guarda las claves; al terminar llama a `setupModel.markConnected`. Vercel sigue con el mensaje en el chat hasta tener su conexión.
 
 ### 2. Modo guía
 

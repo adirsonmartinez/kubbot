@@ -22,6 +22,7 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - «¡Empecemos!» registra lo que queda por conectar (`models/setupModel.js`, por ruta) y pide al agente el proyecto base sin claves;
   - estado de integración nuevo `pending` («por conectar»): punteado, translúcido, sin línea; clic → mensaje en el chat (`EVENTS.integrationPicked`);
   - logos de Simple Icons (CC0, `STACK_LOGOS`, `npm run icons`).
+- **Conectar mi cuenta: Supabase (proyecto B, 2026-10-24)** (`docs/features/connect-accounts/README.md`): lo hace Platanus, no el agente. `electron/supabaseConnect.js` es cliente OAuth del MCP de Supabase (SDK `@modelcontextprotocol/sdk`, PKCE, registro dinámico, retorno en `127.0.0.1:45789`); modal `connectViewModel` + `connectModalView`; claves a `.env.local` desde main. **Funciona de punta a punta con la cuenta real de Adirson (2026-10-24):** inicio de sesión, organizaciones, `get_cost` → `confirm_cost` → `create_project(confirm_cost_id)`, claves en `.env.local`. Vercel: su MCP solo acepta clientes aprobados → irá por su CLI.
 - **Carpetas de confianza (como VS Code)** (`electron/trust.js`, `models/trustModel.js`): al crear o abrir un proyecto, diálogo nativo «¿Confías…?»; confiada = el agente guarda sin preguntar (`trustedNow` en `platanus_write_file`, `approvedBy: 'trusted'`), secretos bloqueados y respaldo igual. «Sí» se recuerda (`userData/trusted-folders.json`), «No» vuelve a preguntar. Menú ⋯ del chat: confiar / dejar de confiar. **Sin probar en la app real todavía.**
 - **Espera de la obra inicial:** tras «¡Empecemos!» con agente, el globo muestra «Preparando tu proyecto…» con barra (`building` en `robotDialogViewModel`); `actions.askAgent` devuelve si el agente lo recibió.
 - **Sin tarjeta del proyecto en el mapa** (2026-10-24): se quitó la etiqueta con el nombre y «N archivos vigilados»; el nombre ya está en la barra de título y los riesgos en la tarjeta de seguridad.
@@ -56,7 +57,7 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - fijos: chat abajo a la derecha, panel lateral, tarjeta de seguridad (compacta, arriba a la izquierda; reemplazó al semáforo) y selector Mapa/Git. Solo el editor se arrastra. Se quitó `floater.js`.
 
 ## Cómo comprobar
-- `npm test` (472 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
+- `npm test` (493 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
 - **App real:** `npx electron . --remote-debugging-port=9223 --open=<proyecto>` y scripts CDP (`scripts/demo/cdp.mjs`).
 - **Banderas:**
   - `PLATANUS_SIM=1`: agente «Simulador», escenarios en `scripts/sim/scenarios.js`;
@@ -81,7 +82,7 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - Delegar tareas acotadas a Pi (gentle-shell) cuando convenga, no a opencode.
 
 ## Pendiente o ideas acordadas
-- **Proyecto B: «Conectar mi cuenta»** en el clic de una integración por conectar: iniciar sesión en Vercel/Supabase, el agente crea el proyecto y guarda las claves por los MCP oficiales, a través de Platanus y con su confirmación. Antes de diseñarlo, revisar qué permite hoy cada MCP. Al conectar: `setupModel.markConnected(root, key)`.
+- **Conectar mi cuenta, lo que falta:** Vercel por su CLI (`vercel login/link/env add/deploy` desde main); tablas reales de Supabase en el mapa (`list_tables`); que la regla de seguridad entienda `.gitignore` (hoy `.env.local` queda verde solo en la sesión en que se conectó).
 - A futuro, más tarjetas en el catálogo (React Native/Expo, Clerk, AWS) con sus reglas.
 - Guion único del video (`video/src/guion.js`) con sonidos (clics desde `cursor-path.json`), música, `@remotion/transitions` y el lanzamiento del robot. Propuesto, falta el «sí».
 - Informe del otro agente (8 funciones de seguridad, competidores, demo de 3 min): sin actuar, hay que preguntar.
@@ -101,4 +102,6 @@ El equipo cambió el mapa: ya no es un radar, ahora es **un árbol de todo el pr
 - Para ver la bienvenida sin tocar la app abierta: `renderer/index.html?demo=1` en un `BrowserWindow` oculto con `backgroundThrottling: false` (sin eso no corren los cuadros y el globo no aparece) y `__platanus.mapViewModel.createProject()` (no `projectModel.create()`: solo el primero activa `welcome`). `__platanus.projectModel` sirve para simular integraciones.
 - En el globo del robot, toda regla sobre un `span` necesita el prefijo `#map-labels .map-label.robot-speech`: si no, `labels.css` le gana (le pasó al ✓ de las tarjetas).
 - Para simular una obra en la demo web: un mensaje con `run: { status: 'running', steps: [{ name: 'write_file', target, status }] }` en `chatViewModel.store`; sin `diff` (un `diff` a medias rompe la tarjeta del chat: le faltan `hunks`).
+- `es.js` ya tiene una clave `connect` (el panel de agentes): una clave repetida en el objeto pisa a la otra sin error. Los textos de «Conectar mi cuenta» están en `accounts`.
+- El MCP de Supabase envuelve sus respuestas: `{ organizations: [...] }`, `{ projects: [...] }`, `{ url }`; los errores llegan como `{"error":{"message"}}`. Para crear un proyecto exige `get_cost` + `confirm_cost`.
 - La UI nueva llega pronto. Los selectores de la grabación viven en `scripts/demo/timeline.mjs`: si cambian, se ajustan solo ahí.

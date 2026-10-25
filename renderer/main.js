@@ -16,6 +16,9 @@ import { createHandTrackingService } from './services/handTrackingService.js';
 import { ProjectModel } from './models/projectModel.js';
 import { SetupModel } from './models/setupModel.js';
 import { TrustModel } from './models/trustModel.js';
+import { createIntegrationService } from './services/integrationService.js';
+import { ConnectViewModel } from './viewmodels/connectViewModel.js';
+import { createConnectModalView } from './views/ui/connectModalView.js';
 import { SecurityModel } from './models/securityModel.js';
 import { SupabaseModel } from './models/supabaseModel.js';
 import { AgentModel } from './models/agentModel.js';
@@ -204,9 +207,23 @@ const actions = {
     projectModel.reload();
   },
 };
-// A click on an integration of the map: one still waiting for the person's account explains what is missing
+// "Conectar mi cuenta": Supabase connects from its modal (Platanus signs in and writes the keys, not the agent)
+const connectViewModel = new ConnectViewModel({
+  service: createIntegrationService(),
+  onConnected: (key, result) => {
+    const S = strings.accounts.supabase;
+    setupModel.markConnected(projectModel.store.state.root, key);
+    securityModel.setScore(result.envFile, 'green', S.envReason); // Platanus wrote it and .gitignore keeps it out
+    projectModel.reload();
+    actions.openChat();
+    chatViewModel.sayFromMap({ text: S.chat(result.name) });
+  },
+});
+// A click on an integration of the map still waiting for the person's account: Supabase opens "Conectar mi
+// cuenta"; the others explain what is missing (their connection comes later)
 bus.on(EVENTS.integrationPicked, ({ key, status }) => {
   if (status !== 'pending') return;
+  if (key === 'supabase') return connectViewModel.open('supabase');
   actions.openChat();
   chatViewModel.sayFromMap({ text: strings.integrations.pendingInfo(strings.integrations.names[key] ?? key) });
 });
@@ -250,11 +267,12 @@ const robotView = createRobotView({
 });
 createBuildSiteView({ sceneView, labels, buildViewModel, hands: () => robotView.hands });
 createWelcomeRobotView({ sceneView, labels, mapViewModel, robotDialogViewModel, tourViewModel, buildViewModel });
+createConnectModalView({ connectViewModel });
 if (isDemo) {
   createDemoCursor(); // recording the product video (scripts/demo/)
   // the recorder (and checks) can drive the robot and find 3D things on screen
   window.__platanus = {
-    robotViewModel, robotDialogViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel, cameraViewModel, projectModel,
+    robotViewModel, robotDialogViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel, cameraViewModel, projectModel, connectViewModel,
     screenOf: (point) => { const r = stage.getBoundingClientRect(); const s = sceneView.toScreen(point); return { x: r.left + s.x, y: r.top + s.y }; },
   };
 }

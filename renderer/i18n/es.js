@@ -244,6 +244,38 @@ export const strings = {
   },
 
   // Integration nodes in the band at the top of the map (brand names)
+  // "Conectar mi cuenta" (renderer/viewmodels/connectViewModel.js, views/ui/connectModalView.js)
+  accounts: {
+    close: 'Cerrar',
+    desktopOnly: 'Conectar cuentas solo funciona en la app de escritorio.',
+    supabase: {
+      title: 'Conecta Supabase',
+      intro: 'Aquí se guardan los datos de tu app: usuarios, productos, pedidos. Tu proyecto ya está listo para usarlo; solo falta tu cuenta.',
+      steps: ['Inicia sesión en Supabase (se abre tu navegador)', 'Elige dónde crear tu base de datos', 'Yo guardo las claves en tu proyecto, sin mostrarlas'],
+      signIn: 'Iniciar sesión con Supabase',
+      signing: 'Esperando que inicies sesión en tu navegador…',
+      organization: 'Organización',
+      newProject: (name) => `Crear un proyecto nuevo: «${name}»`,
+      newNote: 'En la región de São Paulo. Antes de crearlo te muestro lo que cuesta (en el plan Free, nada).',
+      existing: 'Usar un proyecto que ya tengo',
+      noProjects: 'No hay proyectos activos en esta organización.',
+      connect: 'Conectar',
+      stages: {
+        creating: 'Creando tu proyecto en Supabase…',
+        starting: 'Supabase está preparando tu base de datos. Tarda uno o dos minutos…',
+        keys: 'Guardando las claves en tu proyecto…',
+      },
+      done: (name) => `¡Listo! Tu app ya está conectada a «${name}». Guardé las claves en .env.local, protegido para que no se suba a internet.`,
+      doneButton: 'Volver al mapa',
+      noOrganization: 'Tu cuenta de Supabase todavía no tiene una organización. Crea una en supabase.com y vuelve a intentarlo.',
+      failed: 'No se pudo conectar',
+      retry: 'Intentar de nuevo',
+      // What the chat says once it is connected, and why .env.local stays green
+      chat: (name) => `Supabase quedó conectado con «${name}» ✅. Las claves están en .env.local y no se suben a internet.`,
+      envReason: 'Claves guardadas por Platanus; .gitignore evita que se suban.',
+    },
+  },
+
   integrations: {
     names: { supabase: 'Supabase', vercel: 'Vercel', github: 'GitHub', clerk: 'Clerk', posthog: 'PostHog' },
     status: { connected: 'conectado', incident: 'con una incidencia', disconnected: 'desconectado', pending: 'por conectar' },

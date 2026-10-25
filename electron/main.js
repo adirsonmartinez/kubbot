@@ -13,6 +13,9 @@ const agents = require('./agents');
 const { loadVoice, composePrompt, composeRefinePrompt, composeTourPrompt } = require('./agentVoice');
 const { approvalMode, needsApproval } = require('./approval');
 const { createTrustStore } = require('./trust');
+const { createSecretStore } = require('./secretStore');
+const { createSupabaseConnector } = require('./supabaseConnect');
+const { mergeEnv, protectEnv, projectNameFor, isReady, ENV_URL, ENV_KEY } = require('./supabaseLink');
 const { canOpen } = require('./fileOpen');
 const { lineDiff } = require('./lineDiff');
 const { createKeyStore } = require('./keyStore');
@@ -697,6 +700,86 @@ ipcMain.handle('agent:approval', async (_e, requested) => {
 let keyStore = null;
 const keys = () => (keyStore ??= createKeyStore({ file: path.join(app.getPath('home'), '.platanus', 'keys.json'), safeStorage }));
 ipcMain.handle('keys:list', () => ({ ok: true, data: keys().list() }));
+
+// --- "Conectar mi cuenta": Supabase (supabaseConnect.js). Platanus does it, not the agent: the window only
+// says which organization or project the person picked (checked against what Supabase listed), main asks
+// in a native dialog, and the keys go straight to .env.local without ever reaching the window or an agent.
+const SUPABASE_POLL_MS = 4000;
+const SUPABASE_READY_MS = 5 * 60 * 1000;
+let supabaseConnector = null;
+const supabaseLink = () => (supabaseConnector ??= createSupabaseConnector({
+  store: createSecretStore({ file: path.join(app.getPath('userData'), 'connections.json'), safeStorage }),
+  openExternal: (url) => shell.openExternal(url),
+  page: t.supabase.page,
+  version: app.getVersion(),
+}));
+let supabaseChoices = { organizations: [], projects: [] }; // what Supabase listed last: the only valid picks
+
+ipcMain.handle('supabase:start', async () => {
+  if (!workspace.root) return { ok: false, error: t.mcp.noProject };
+  try {
+    await supabaseLink().signIn();
+    supabaseChoices = { organizations: await supabaseLink().organizations(), projects: await supabaseLink().projects() };
+    log('supabase:signin', workspace.root, true);
+    return { ok: true, data: { ...supabaseChoices, suggested: projectNameFor(path.basename(workspace.root)) } };
+  } catch (err) {
+    log('supabase:signin', workspace.root, false, err.message);
+    return { ok: false, error: err.message === 'timeout' ? t.supabase.signInFailed : err.message };
+  }
+});
+
+// { mode: 'new', organizationId } or { mode: 'existing', projectId }
+ipcMain.handle('supabase:connect', async (_e, choice = {}) => {
+  const root = workspace.root;
+  if (!root) return { ok: false, error: t.mcp.noProject };
+  const link = supabaseLink();
+  try {
+    let project;
+    if (choice.mode === 'new') {
+      const org = supabaseChoices.organizations.find((o) => o.id === choice.organizationId);
+      if (!org) return { ok: false, error: t.supabase.notChosen };
+      const name = projectNameFor(path.basename(root));
+      // Supabase says what it costs; the person sees it in the dialog and only then is it confirmed
+      const cost = await link.cost(org.id);
+      if (!(await confirm(t.supabase.confirmCreate(name, org.name), t.supabase.confirmCreateDetail(org.name, cost), t.supabase.create))) return { ok: false, cancelled: true };
+      send('supabase:progress', { stage: 'creating' });
+      project = await link.create({ name, organizationId: org.id, confirmCostId: await link.confirmCost(cost) });
+      log('supabase:create', project.id, true);
+    } else {
+      project = supabaseChoices.projects.find((p) => p.id === choice.projectId);
+      if (!project) return { ok: false, error: t.supabase.notChosen };
+      if (!(await confirm(t.supabase.confirmUse(project.name), t.supabase.confirmUseDetail, t.supabase.use))) return { ok: false, cancelled: true };
+    }
+    // A new project takes a minute or two to be ready
+    send('supabase:progress', { stage: 'starting' });
+    const until = Date.now() + SUPABASE_READY_MS;
+    while (!isReady(await link.project(project.id))) {
+      if (Date.now() > until) return { ok: false, error: t.supabase.notReady };
+      await new Promise((r) => setTimeout(r, SUPABASE_POLL_MS));
+    }
+    send('supabase:progress', { stage: 'keys' });
+    const [url, key] = [await link.url(project.id), await link.publicKey(project.id)];
+    if (!url || !key) return { ok: false, error: t.supabase.noKey };
+    if (workspace.root !== root) return { ok: false, error: t.mcp.noProject }; // the person opened another project meanwhile
+    const envPath = path.join(root, '.env.local');
+    const before = await fs.readFile(envPath, 'utf8').catch(() => '');
+    await fs.writeFile(envPath, mergeEnv(before, { [ENV_URL]: url, [ENV_KEY]: key }), { mode: 0o600 });
+    const ignorePath = path.join(root, '.gitignore');
+    const ignored = protectEnv(await fs.readFile(ignorePath, 'utf8').catch(() => ''));
+    if (ignored) await fs.writeFile(ignorePath, ignored);
+    log('supabase:connect', `${root} -> ${project.id}`, true);
+    return { ok: true, data: { name: project.name, envFile: '.env.local' } };
+  } catch (err) {
+    log('supabase:connect', root, false, err.message);
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('supabase:signOut', async () => {
+  await supabaseLink().signOut();
+  log('supabase:signout', '', true);
+  return { ok: true };
+});
 ipcMain.handle('keys:set', (_e, provider, value) => {
   const result = keys().set(String(provider), value);
   log('keys:set', String(provider), result.ok, result.error); // the provider, never the key

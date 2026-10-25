@@ -118,3 +118,18 @@ test('a pending integration only shows once its files are there', async () => {
   await model.choose();
   assert.deepEqual(model.store.state.integrations, []);
 });
+
+test('only a demo project is marked as demo (its Supabase shows made-up data)', async () => {
+  const demo = new ProjectModel(diskWorkspace('Platanus', [f('README.md')]));
+  await demo.choose();
+  assert.equal(demo.store.state.demo, true);
+  const real = new ProjectModel(diskWorkspace('tienda', [f('README.md')]));
+  await real.choose();
+  assert.equal(real.store.state.demo, false);
+});
+
+test('in the browser demo every project is a demo', async () => {
+  const model = new ProjectModel({ ...diskWorkspace('demo', [f('README.md')]), isDesktop: false });
+  await model.choose();
+  assert.equal(model.store.state.demo, true);
+});

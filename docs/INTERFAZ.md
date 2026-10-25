@@ -284,3 +284,7 @@ Cuando la bienvenida arma un proyecto con Vercel o Supabase, esas integraciones 
 ## Carpetas de confianza
 
 Al crear o abrir un proyecto, Platanus pregunta en un diálogo del sistema: «¿Confías en la carpeta…?». Si la persona confía, el agente guarda sus cambios en esa carpeta sin pedir permiso cada vez (igual se guarda una copia para deshacer y nunca puede tocar claves). «No» pregunta antes de cada cambio, según el modo de permisos, y vuelve a preguntar la próxima vez. En el menú ⋯ del chat: «Confiar en esta carpeta» o «Dejar de confiar en esta carpeta». La lista vive en el proceso principal (`electron/trust.js`).
+
+## Conectar mi cuenta
+
+Un clic en «Supabase · por conectar» abre un modal de vidrio: iniciar sesión (se abre el navegador), elegir organización y si crear un proyecto nuevo o usar uno existente, confirmar en un diálogo del sistema y esperar. Las claves quedan en `.env.local` sin mostrarse y Supabase se pone verde. Detalles en `docs/features/connect-accounts/README.md`.

@@ -18,8 +18,9 @@ export class ProjectModel {
   // `version` increases each time the tree is reloaded.
   // integrations: keys in INTEGRATIONS order; integrationStatus: key -> 'connected' | 'incident' | 'disconnected'
   // | 'pending' (set up by the welcome robot, waiting for the person's account); usesSupabase: a live Supabase
-  // the map draws with its schema (not a pending one); root: the folder's full path
-  store = new Observable({ open: false, name: null, root: null, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: 0, version: 0 });
+  // the map draws with its schema (not a pending one); root: the folder's full path; demo: a demo project
+  // (DEMO_INTEGRATIONS, or the browser demo), whose Supabase shows made-up data and a made-up vulnerability
+  store = new Observable({ open: false, name: null, root: null, demo: false, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: 0, version: 0 });
 
   // `setup` (SetupModel): what the welcome robot set up and is still waiting for an account
   constructor(workspace, setup = null) {
@@ -72,7 +73,7 @@ export class ProjectModel {
     clearTimeout(this.#reloadTimer);
     await this.#workspace.close();
     const { session, version } = this.store.state;
-    this.store.set({ open: false, name: null, root: null, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: session + 1, version: version + 1 });
+    this.store.set({ open: false, name: null, root: null, demo: false, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: session + 1, version: version + 1 });
   }
 
   async reload() {
@@ -89,7 +90,9 @@ export class ProjectModel {
     this.#setup?.pendingOf(root).forEach((key) => { if (integrationStatus[key] === 'connected') integrationStatus[key] = 'pending'; });
     const integrations = INTEGRATIONS.filter((key) => key in integrationStatus);
     const usesSupabase = integrations.includes('supabase') && integrationStatus.supabase !== 'pending';
-    return { tree: response.data, integrations, integrationStatus, usesSupabase };
+    // the demo project, or anything in the browser demo (no disk: always the made-up project)
+    const demo = Boolean(DEMO_INTEGRATIONS[(name ?? '').toLowerCase()]) || this.#workspace.isDesktop === false;
+    return { tree: response.data, integrations, integrationStatus, usesSupabase, demo };
   }
 
   // Groups bursts of disk changes into a single reload

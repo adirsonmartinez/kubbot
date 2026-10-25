@@ -84,6 +84,9 @@ electron/
                   words as arguments; no Terminal window; output kept in main; "starting" until the port listens;
                   a crash goes back to "Detenidos"; all stopped on quit; macOS only). The page never sends a pid,
                   a URL, a command or a program path.
+  supabaseConnect.js  "Conectar mi cuenta": Platanus (not the agent) is an OAuth client of Supabase's MCP (PKCE, dynamic
+                  registration, loopback 127.0.0.1:45789); fixed calls; supabaseLink.js (pure, tested) writes .env.local;
+                  secretStore.js keeps the tokens encrypted (safeStorage). trust.js: trusted folders (see Agents)
   mcpServer.js    local MCP server (127.0.0.1, rejects browser Origin), tool list, secret blocklist
   agents.js       the user's CLIs (Claude Code, Grok, Codex) with minimal context and only Platanus' tools
   agentEvents.js  CLI output -> chat events (text, reasoning, tools, subagents, result); tested
@@ -111,6 +114,7 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 - A tour run (session `tour`) gets the read-only MCP address (`/mcp/<token>/ro`: only get_project, list_risks, read_file); the window also stops it if it tries to write. Its answer only narrates the analyzer's facts (`tourSpec.parseTour` keeps known stop ids and real, non-secret paths).
 - Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`; Codex read-only, without the user's config and with its shell, browser, computer use, plugins and subagents disabled (`CODEX_DISABLED`). Do not loosen these flags.
 - The window only gets the camera (video only, never the microphone) and clipboard writes, and only for the app's page (`allowPermission` in `electron/main.js`); every other permission is denied. Hand tracking runs locally (`docs/features/hand-gestures/`).
+- "Conectar mi cuenta" (Supabase) is done by the main process, never by an agent: the window only sends the picked organization or project id (checked against what Supabase listed), main asks in a native dialog, and the public key goes straight to `.env.local` (never the `service_role`, never to the window). See `docs/features/connect-accounts/`.
 - Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
 
 ## Visual style ("digital twin", dark)
