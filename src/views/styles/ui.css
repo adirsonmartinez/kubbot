@@ -258,24 +258,36 @@
   color: var(--lg-text-2);
   font: 500 12px/1.2 var(--lg-font);
   text-align: left;
-  cursor: pointer;
+  cursor: grab;
   transition: background 0.15s var(--lg-ease);
 }
-.component-card:hover {
+.component-card:hover:not(:disabled) {
   background: var(--lg-chip-hover);
+}
+.component-card:disabled {
+  color: var(--lg-faint);
+  cursor: default;
 }
 .component-card:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 .component-preview {
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
+  flex: none;
+  width: 100%;
   aspect-ratio: 1;
   border-radius: var(--lg-r-sm);
   background: var(--lg-code);
   box-shadow: inset 0 0 0 1px var(--lg-code-ring);
   color: var(--lg-icon-muted);
+}
+.component-preview > div {
+  position: absolute !important; /* the preview canvas fills the square */
+  inset: 0;
 }
 .component-name {
   padding: 0 4px;

@@ -1,18 +1,21 @@
 "use client";
 
 // The workspace: the isometric map fills the stage; the side dock and panel, map controls
-// and chat float over it.
+// and chat float over it. Components drag from the side panel onto the map.
 
 import dynamic from "next/dynamic";
 import { useChatViewModel } from "@/viewmodels/useChatViewModel";
 import { useComponentsViewModel } from "@/viewmodels/useComponentsViewModel";
 import { useMapViewModel } from "@/viewmodels/useMapViewModel";
+import { usePlacementViewModel } from "@/viewmodels/usePlacementViewModel";
 import { useShellViewModel } from "@/viewmodels/useShellViewModel";
 import { ChatLauncher, ChatPanel } from "@/views/components/ChatPanel";
 import { ComponentGrid } from "@/views/components/ComponentGrid";
 import { IconBar, type IconBarItem } from "@/views/components/IconBar";
 import { MapControls } from "@/views/components/MapControls";
 import { SidePanel } from "@/views/components/SidePanel";
+import { MapDrop } from "@/views/scene/MapDrop";
+import { Placements } from "@/views/scene/Placements";
 
 // WebGL only exists in the browser
 const IsoScene = dynamic(() => import("@/views/scene/IsoScene").then((m) => m.IsoScene), {
@@ -33,6 +36,7 @@ export function WorkspaceScreen() {
   const shell = useShellViewModel<Side>();
   const map = useMapViewModel();
   const catalog = useComponentsViewModel();
+  const placement = usePlacementViewModel();
   const chat = useChatViewModel({ suggestions: SUGGESTIONS });
   const openSide = SIDES.find((s) => s.id === shell.side);
   const chatPinned = chat.pinned && !chat.minimized;
@@ -41,7 +45,14 @@ export function WorkspaceScreen() {
     <div className="shell">
       <div className={`workspace ${chatPinned ? "chat-pinned" : ""}`}>
         <main className="stage">
-          <IsoScene rig={map.rig} />
+          <IsoScene rig={map.rig}>
+            <Placements
+              placements={placement.placements}
+              preview={placement.preview}
+              pointer={placement.pointer}
+            />
+            <MapDrop onHover={placement.hover} onDrop={placement.drop} />
+          </IsoScene>
           <div className="vignette" aria-hidden />
 
           <IconBar
@@ -54,7 +65,11 @@ export function WorkspaceScreen() {
           {openSide && (
             <SidePanel title={openSide.label} onClose={shell.closeSidebar}>
               {openSide.id === "components" ? (
-                <ComponentGrid components={catalog.components} />
+                <ComponentGrid
+                  components={catalog.components}
+                  startDrag={placement.startDrag}
+                  endDrag={placement.endDrag}
+                />
               ) : (
                 <p className="muted">{openSide.hint}.</p>
               )}

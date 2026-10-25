@@ -1,12 +1,16 @@
-// The component catalog. Placeholders for now: swap this for the real catalog.
+// The component catalog. The rest of the slots are placeholders until more components exist.
 
 import type { MapComponent } from "@/models/component";
 
-const PLACEHOLDER_COUNT = 8;
+const CATALOG: MapComponent[] = [{ id: "button", name: "Button", kind: "button" }];
+
+const SLOTS = 8;
 
 export function listComponents(): MapComponent[] {
-  return Array.from({ length: PLACEHOLDER_COUNT }, (_, i) => ({
-    id: `c${i + 1}`,
-    name: `Componente ${i + 1}`,
+  const placeholders = Array.from({ length: SLOTS - CATALOG.length }, (_, i) => ({
+    id: `slot${i + 1}`,
+    name: "Próximamente",
+    kind: null,
   }));
+  return [...CATALOG, ...placeholders];
 }

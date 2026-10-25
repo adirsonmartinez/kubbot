@@ -7,8 +7,9 @@
 
 import { useEffect } from "react";
 import { useThree } from "@react-three/fiber";
-import * as THREE from "three";
+import type * as THREE from "three";
 import type { CameraRig } from "@/models/camera";
+import { groundPointAt as pick } from "./groundPick";
 
 const ROTATE_SPEED = 0.008;
 const TILT_SPEED = 0.005;
@@ -25,10 +26,6 @@ export function MapInput({ rig }: { rig: CameraRig }) {
   const camera = useThree((state) => state.camera);
 
   useEffect(() => {
-    const raycaster = new THREE.Raycaster();
-    const ndc = new THREE.Vector2();
-    const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
     // The camera matrix must match the rig before casting, or a drag lags one frame behind
     function syncCamera() {
       const o = rig.offset();
@@ -37,12 +34,7 @@ export function MapInput({ rig }: { rig: CameraRig }) {
       camera.updateMatrixWorld();
     }
 
-    function groundPointAt(clientX: number, clientY: number) {
-      const r = canvas.getBoundingClientRect();
-      ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
-      raycaster.setFromCamera(ndc, camera);
-      return raycaster.ray.intersectPlane(groundPlane, new THREE.Vector3());
-    }
+    const groundPointAt = (clientX: number, clientY: number) => pick(camera, canvas, clientX, clientY);
 
     let grabPoint: THREE.Vector3 | null = null;
     let rotatingFrom: { x: number; y: number } | null = null;
