@@ -94,7 +94,63 @@ const TOOLS = [
       additionalProperties: false,
     },
   },
+  // Arduino lab (spec/005-arduino-lab.md). A lab project is a folder with diagram.json (Wokwi's format),
+  // lab.json (level, goal, components, steps, cautions, sources) and one .ino sketch.
+  {
+    name: 'platanus_arduino_parts',
+    description: 'Lists the parts the Arduino lab supports (Wokwi types for diagram.json), with their pins, current and whether the emulator runs them. Use only these types.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'platanus_arduino_validate',
+    description: "Checks a lab's diagram.json with the electrical rules (LED without resistor, missing ground, motors or MG996R servos on the board's 5V, pins that do not exist…) and explains each issue in Spanish.",
+    inputSchema: {
+      type: 'object',
+      properties: { path: { type: 'string', description: 'Path of the diagram.json, relative to the project root' } },
+      required: ['path'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'platanus_arduino_compile',
+    description: "Compiles a sketch (.ino) with the person's arduino-cli and returns the compiler errors, summarized. board: arduino:avr:uno (default), arduino:avr:nano or arduino:avr:mega.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'Path of the .ino, relative to the project root' },
+        board: { type: 'string', enum: ['arduino:avr:uno', 'arduino:avr:nano', 'arduino:avr:mega'] },
+      },
+      required: ['path'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'platanus_arduino_test',
+    description: "Runs a lab project in the emulator (Uno or Nano) for a few simulated seconds with the HC-SR04's obstacle at each distance, and returns what the LEDs, the buzzer and the serial monitor did. Use it to check your sketch before saying it is ready.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        path: { type: 'string', description: 'The lab folder (with diagram.json and the .ino), relative to the project root' },
+        distances: { type: 'string', description: 'Obstacle distances in cm, comma separated, e.g. "10,50,150"' },
+      },
+      required: ['path'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'platanus_github_repo',
+    description: 'Checks a GitHub repository before you mention it: whether it exists, its description, its license (SPDX), whether it is archived or moved to another name. Never show a repository link you did not check here.',
+    inputSchema: {
+      type: 'object',
+      properties: { owner: { type: 'string' }, repo: { type: 'string' } },
+      required: ['owner', 'repo'],
+      additionalProperties: false,
+    },
+  },
 ];
+
+// Tools whose `path` is checked against the secret blocklist before anything else
+const PATH_TOOLS = ['platanus_read_file', 'platanus_write_file', 'platanus_arduino_validate', 'platanus_arduino_compile', 'platanus_arduino_test'];
 
 const text = (value, isError = false) => ({
   content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }],
@@ -110,7 +166,7 @@ function createMcpHandler({ handlers, onCall = () => {} }) {
     for (const key of tool.inputSchema.required ?? []) {
       if (typeof args?.[key] !== 'string') return text(`Missing "${key}".`, true);
     }
-    if ((name === 'platanus_read_file' || name === 'platanus_write_file') && isBlockedPath(args.path)) {
+    if (PATH_TOOLS.includes(name) && isBlockedPath(args.path)) {
       onCall({ tool: name, args, ok: false, error: 'blocked' });
       return text('Refused: this file can contain secrets and is never shared with agents.', true);
     }
@@ -135,7 +191,7 @@ function createMcpHandler({ handlers, onCall = () => {} }) {
           capabilities: { tools: { listChanged: false } },
           serverInfo: { name: 'platanus', version: '0.1.0' },
           instructions:
-            'Platanus shows a project as an isometric map with a security traffic light per file. Explain risks in plain Spanish for non-developers.',
+            'Platanus shows a project as an isometric map with a security traffic light per file. Explain risks in plain Spanish for non-developers. For Arduino projects, use the platanus_arduino_* tools: validate, compile and test before saying a project is ready, and check every repository with platanus_github_repo before mentioning it.',
         };
       case 'ping':
         return {};

@@ -584,7 +584,94 @@ export const strings = {
   },
 
   // View switcher on the map
-  stageTabs: { map: 'Mapa', git: 'Git' },
+  stageTabs: { map: 'Mapa', git: 'Git', lab: 'Lab' },
+
+  // Arduino lab (spec/005-arduino-lab.md): the bench in 3D, its card and the electrical rules' texts
+  lab: {
+    tabTip: 'Laboratorio Arduino: tu circuito en 3D, probado en un emulador',
+    levels: { principiante: 'Principiante', intermedio: 'Intermedio', avanzado: 'Avanzado' },
+    status: {
+      empty: 'Este proyecto no tiene laboratorio todavía',
+      loading: 'Abriendo el laboratorio…',
+      ready: 'Listo para probar',
+      compiling: 'Compilando el sketch…',
+      running: 'Corriendo en el emulador',
+      error: 'No se pudo probar',
+    },
+    emptyHint: 'Pídele al agente: «quiero un sensor que pite cuando algo se acerca».',
+    openExample: 'Abrir el ejemplo: sensor de proximidad',
+    run: 'Probar',
+    stop: 'Detener',
+    components: 'Componentes',
+    steps: 'Pasos',
+    cautions: 'Cuidado',
+    issuesTitle: 'Revisión del circuito',
+    noIssues: 'El circuito pasa la revisión.',
+    serial: 'Monitor serie',
+    serialEmpty: 'Aquí aparece lo que el Arduino escribe con Serial.print.',
+    obstacle: (cm) => `Obstáculo a ${cm} cm`,
+    closer: 'Más cerca',
+    farther: 'Más lejos',
+    rulerHint: 'Toca la regla del 3D para poner el obstáculo ahí.',
+    speed: (pct) => `Emulador al ${pct} % del tiempo real`,
+    example: 'Ejemplo',
+    selected: 'Pieza',
+    pinsOf: (pins) => `Conectada a: ${pins}`,
+    errors: {
+      noCli: 'Falta arduino-cli para compilar. En la Terminal: brew install arduino-cli, arduino-cli core install arduino:avr.',
+      noCore: 'Falta el core de Arduino AVR. En la Terminal: arduino-cli core install arduino:avr.',
+      compile: 'El sketch no compila. Revisa los errores abajo o pídele al agente que lo arregle.',
+      timeout: 'La compilación tardó demasiado.',
+      unsafe: 'El sketch intenta incluir un archivo de fuera de su carpeta: por seguridad no se compila.',
+      noEmulator: 'Falta el emulador (avr8js). En la carpeta del proyecto Qubbot: npm install y npm run vendor.',
+      notEmulated: 'Esta placa todavía no se emula (por ahora: Uno y Nano).',
+      hasErrors: 'Antes de probar, corrige los errores del circuito.',
+      desktopOnly: 'El laboratorio funciona en la app de escritorio.',
+      failed: 'No se pudo abrir el laboratorio.',
+    },
+    // The parts, for the card and the 3D hover (keys from models/arduino/parts.js)
+    parts: {
+      uno: { name: 'Arduino Uno', role: 'El cerebro: corre tu código y maneja los pines.' },
+      nano: { name: 'Arduino Nano', role: 'El mismo cerebro que el Uno, más pequeño.' },
+      mega: { name: 'Arduino Mega', role: 'Más pines y memoria, para proyectos grandes.' },
+      breadboard: { name: 'Protoboard', role: 'Para conectar sin soldar.' },
+      led: { name: 'LED', role: 'Una luz: se prende cuando su pin está en alto.' },
+      resistor: { name: 'Resistencia', role: 'Limita la corriente para que nada se queme.' },
+      buzzer: { name: 'Buzzer pasivo', role: 'Suena con la frecuencia que le da tone().' },
+      ultrasonic: { name: 'Sensor HC-SR04', role: 'Mide la distancia con el eco de un sonido que no oímos.' },
+      servo: { name: 'Servomotor', role: 'Gira a un ángulo exacto (0 a 180°).' },
+      joystick: { name: 'Joystick', role: 'Dos ejes que el Arduino lee como valores analógicos.' },
+      l298n: { name: 'Driver L298N', role: 'Da la fuerza para los motores; el Arduino solo le dice qué hacer.' },
+      motor: { name: 'Motor DC', role: 'Hace girar una rueda.' },
+      hc05: { name: 'Bluetooth HC-05', role: 'Recibe órdenes del teléfono por el puerto serie.' },
+      battery: { name: 'Batería', role: 'La energía aparte para motores y servos.' },
+      unknown: { name: 'Pieza desconocida', role: 'El laboratorio todavía no la conoce.' },
+    },
+    // The electrical rules (models/arduino/validate.js), for the card, the 3D view and the agent
+    issues: {
+      noBoard: () => 'Falta la placa Arduino.',
+      boardNotEmulated: ({ board }) => `La placa ${board === 'mega' ? 'Mega' : board} todavía no se emula: se puede dibujar y compilar, no probar.`,
+      unknownPart: ({ type }) => `«${type}» no es una pieza que el laboratorio conozca.`,
+      unknownPin: ({ part, pin }) => `${part} no tiene un pin «${pin}».`,
+      shortCircuit: () => 'El pin 5V está conectado directo a GND: es un cortocircuito.',
+      ledNoResistor: () => 'Este LED va directo al pin, sin resistencia: pide demasiada corriente y puede quemar el LED o el pin. Pon una de 220 Ω.',
+      pinOverload: ({ pin, count }) => `El pin ${pin} alimenta ${count} LEDs: es más corriente de la que un pin aguanta (20 mA).`,
+      noCommonGround: () => 'Esta pieza no comparte la tierra (GND) del Arduino: sin tierra común las señales no se entienden.',
+      externalPower: ({ part }) => (part === 'l298n'
+        ? 'Los motores del L298N no pueden salir del 5V del Arduino: usa una batería aparte y une las tierras.'
+        : 'Un servo MG996R pide más corriente de la que da el Arduino: usa una fuente de 5 V y 3 A y une las tierras.'),
+      motorOnPin: () => 'Un motor directo a un pin quema el Arduino: va con un driver como el L298N.',
+      pwmPin: ({ pin, input }) => `${input} está en el pin ${pin}, que no tiene PWM: la velocidad no se va a poder regular.`,
+      hc05Divider: () => 'El RX del HC-05 trabaja a 3,3 V: ponle un divisor de voltaje (por ejemplo 1 kΩ y 2 kΩ) antes del pin del Arduino.',
+      notConnected: ({ pin }) => `El ${pin} del sensor no está conectado a ningún pin del Arduino.`,
+      tooManyServos: ({ count }) => `${count} servos en el 5V del Arduino lo pueden reiniciar al moverse juntos: usa una fuente aparte.`,
+    },
+    // The chat's scripted answer (no agent connected)
+    scripted: {
+      intro: 'Te armé un sensor de proximidad: mide la distancia con un HC-SR04 y avisa con 3 luces y un pitido. Es para principiantes.',
+      open: 'Ábrelo en el laboratorio: pulsa «Probar» y acerca el obstáculo.',
+    },
+  },
 
   chat: {
     agentName: 'Agente Platanus',
@@ -1056,6 +1143,8 @@ export const strings = {
       fix: ['correg', 'corrig', 'corrij', 'arregl', 'soluc', 'fix', 'parche'],
       details: ['detalle', 'supabase', 'rls', 'vulnera'],
       attack: ['simula', 'ataca', 'hackea'],
+      // The Arduino lab's scripted answer (spec/005): opens the example
+      arduino: ['arduino', 'sensor', 'pite', 'pitido', 'proximidad', 'ultrason', 'buzzer', 'circuito', 'laboratorio'],
     },
     vulnerability: {
       alert: '<strong>⚠ Vulnerabilidad detectada en Supabase</strong>\nLa tabla <b>users</b> tiene RLS (Row Level Security) desactivado. Cualquiera con la anon key puede leer correos y datos personales.\n\nEstoy viendo datos saliendo del nodo en rojo.\n\nHaz clic en el nodo de Supabase para ver tus tablas.',

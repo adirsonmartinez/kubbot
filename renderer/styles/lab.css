@@ -1,0 +1,47 @@
+/* The Arduino lab's card (spec/005-arduino-lab.md): the chat's liquid glass (--lg-* tokens), over the
+   bench on the left; mono for distances, pins and the serial monitor. Buttons are at least 32 px. */
+.lab-card {
+  position: absolute; left: 84px; top: 72px; z-index: 3; width: 360px; max-height: calc(100% - 96px); overflow: auto;
+  display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: var(--lg-r-card);
+  background: var(--lg-panel);
+  -webkit-backdrop-filter: blur(22px) saturate(175%); backdrop-filter: blur(22px) saturate(175%);
+  box-shadow: var(--lg-rim-strong), var(--lg-shadow);
+  color: var(--lg-text); font-family: var(--lg-font); font-size: 13px; -webkit-font-smoothing: antialiased;
+}
+.lab-card[hidden], .lab-card [hidden], #stage-tabs button[hidden] { display: none !important; }
+.lab-head { display: flex; align-items: center; gap: 8px; }
+.lab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+.lab-title { font-size: 15px; font-weight: 600; flex: 1; }
+.lab-level { font-style: normal; font-size: 11px; padding: 3px 8px; border-radius: 99px; background: var(--lg-chip); color: var(--lg-text-2); }
+.lab-status { margin: 0; color: var(--lg-text-2); }
+.lab-status.bad { color: var(--danger); }
+.lab-actions, .lab-obstacle { display: flex; gap: 8px; align-items: center; }
+.lab-btn {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 6px 12px; border: 0; border-radius: 99px;
+  background: var(--lg-chip); color: var(--lg-text); font: inherit; cursor: pointer; box-shadow: var(--lg-rim);
+}
+.lab-btn:hover:not(:disabled) { background: var(--lg-chip-hover); }
+.lab-btn:disabled { opacity: .45; cursor: default; }
+.lab-btn.primary { background: var(--accent); color: #141414; box-shadow: none; }
+.lab-obstacle .lab-btn { flex: none; }
+.lab-distance { flex: 1; text-align: center; font-family: var(--lg-mono); font-size: 13px; }
+.lab-hint { margin: -4px 0 0; color: var(--lg-muted); font-size: 12px; }
+.lab-section { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: var(--lg-r-block); background: var(--lg-card); }
+.lab-section h4, .lab-section summary { margin: 0; font-size: 12px; font-weight: 600; color: var(--lg-text-2); cursor: default; }
+.lab-section summary { cursor: pointer; }
+.lab-section ul { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--lg-text-2); }
+.lab-section p { margin: 0; line-height: 1.45; }
+.lab-issue { padding-left: 10px; border-left: 2px solid var(--warn); color: var(--lg-text-2); }
+.lab-issue.error { border-left-color: var(--danger); color: var(--lg-text); }
+.lab-ok { color: var(--lg-text-2); }
+.lab-serial, .lab-errors {
+  margin: 0; padding: 8px 10px; border-radius: var(--lg-r-sm); background: var(--lg-stage);
+  font-family: var(--lg-mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; max-height: 150px; overflow: auto;
+}
+.lab-serial.empty { color: var(--lg-muted); }
+.lab-errors { color: var(--danger); }
+.lab-pins { font-family: var(--lg-mono); font-size: 12px; color: var(--lg-text-2); }
+.lab-part-name { font-weight: 600; }
+.lab-goal { margin: 0; color: var(--lg-text-2); line-height: 1.45; }
+.lab-details { display: flex; flex-direction: column; gap: 8px; }
+.lab-speed { margin: 0; color: var(--lg-muted); font-family: var(--lg-mono); font-size: 11px; }

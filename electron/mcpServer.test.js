@@ -105,3 +105,15 @@ test('symlinks: a harmless-looking path that lands in .git/ or a secret is refus
   assert.equal(await isBlockedRealPath(root, path.join(root, 'src/new/app.js')), false);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('the Arduino lab tools are listed and their paths go through the same secret filter (spec/005)', async () => {
+  const names = TOOLS.map((t) => t.name);
+  for (const n of ['platanus_arduino_parts', 'platanus_arduino_validate', 'platanus_arduino_compile', 'platanus_arduino_test', 'platanus_github_repo']) assert.ok(names.includes(n), n);
+  const reached = [];
+  const arduino = createMcpHandler({ handlers: { platanus_arduino_compile: async ({ path }) => reached.push(path) } });
+  const r = await arduino({ jsonrpc: '2.0', id: 9, method: 'tools/call', params: { name: 'platanus_arduino_compile', arguments: { path: '.env' } } });
+  assert.equal(r.result.isError, true);
+  assert.deepEqual(reached, []);
+  const missing = await arduino({ jsonrpc: '2.0', id: 10, method: 'tools/call', params: { name: 'platanus_github_repo', arguments: { owner: 'a' } } });
+  assert.match(missing.result.content[0].text, /Missing "repo"/);
+});

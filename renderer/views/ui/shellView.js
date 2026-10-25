@@ -565,6 +565,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     const info = {
       map: [S.rail.map, S.tabInfo.map(state.guide.filter((g) => g.depth === 0).length, cracked), cracked],
       git: [S.rail.git, S.railInfo.git, 0],
+      lab: [strings.stageTabs.lab, strings.lab.tabTip, 0], // the Arduino lab (spec/005)
     };
     for (const tab of tabs) {
       const [title, text, badge] = info[tab.dataset.stage];

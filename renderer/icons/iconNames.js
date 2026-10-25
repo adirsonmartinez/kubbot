@@ -71,4 +71,5 @@ export const ICON_NAMES = {
   shieldWarn: 'SecurityWarningIcon',
   layers: 'Layers01Icon',
   subagent: 'UserGroupIcon',
+  chip: 'ChipIcon', // the Arduino lab's tab (spec/005-arduino-lab.md)
 };

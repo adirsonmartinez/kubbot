@@ -20,7 +20,17 @@ function loadVoice(dir) {
     const name = config.modes?.[mode]?.skill;
     skills[mode] = name ? stripFrontmatter(fs.readFileSync(path.join(dir, 'skills', name, 'SKILL.md'), 'utf8')) : '';
   }
+  // The Arduino lab's skill (spec/005), added when the conversation is about Arduino
+  const arduino = config.arduino?.skill;
+  skills.arduino = arduino ? stripFrontmatter(fs.readFileSync(path.join(dir, 'skills', arduino, 'SKILL.md'), 'utf8')) : '';
   return { config, skills };
+}
+
+// Whether the person's recent messages are about Arduino (a word starting with one of config.arduino.words)
+function aboutArduino(recent, config) {
+  const keys = config.arduino?.words ?? [];
+  if (!keys.length) return false;
+  return cleanRecent(recent).some((t) => wordsOf(t).some((w) => keys.some((k) => w.startsWith(k))));
 }
 
 const cleanRecent = (recent) =>
@@ -57,6 +67,7 @@ function composePrompt({ config, skills }, { mode, recent, task } = {}) {
   return [
     typeof task === 'string' && task.trim() ? task.trim() : config.base.join('\n'),
     skills[m],
+    skills.arduino && aboutArduino(recent, config) ? skills.arduino : '',
     fill(config.format.join('\n'), settings),
     settings.maxWords ? fill(config.lengthRule, settings) : '',
     hints.length ? [config.adapt.intro, ...hints.map((h) => `- ${h}`)].join('\n') : '',

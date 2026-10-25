@@ -38,6 +38,19 @@ require('esbuild').buildSync({
   logLevel: 'warning',
 });
 
+// The Arduino lab's CPU (spec/005-arduino-lab.md)
+require('esbuild').buildSync({
+  entryPoints: [path.join(__dirname, 'vendor', 'avr8js.entry.js')],
+  outfile: path.join(out, 'avr8js.js'),
+  bundle: true,
+  format: 'esm',
+  platform: 'browser',
+  minify: true,
+  target: 'chrome120',
+  legalComments: 'eof',
+  logLevel: 'warning',
+});
+
 const orbs = path.join(modules, 'thinking-orbs', 'dist');
 fs.readdirSync(orbs).filter((f) => f === 'engine.es.js' || /^index-[\w-]+\.js$/.test(f))
   .forEach((f) => fs.copyFileSync(path.join(orbs, f), path.join(out, 'thinking-orbs', f)));
@@ -54,6 +67,7 @@ for (const [pkg, files] of fonts) files.forEach((f) => fs.copyFileSync(path.join
 fs.writeFileSync(path.join(out, 'README.md'), `# vendor (generated, do not edit)
 
 Built by \`scripts/vendor-ui.js\` (\`npm run vendor\`). Licenses: border-beam, metal-fx, thinking-orbs
-(libraries.dev, MIT), React (MIT, notices at the end of react-ui.js), CodeMirror (MIT), Inter and Roboto Mono fonts (SIL OFL 1.1).
+(libraries.dev, MIT), React (MIT, notices at the end of react-ui.js), CodeMirror (MIT), avr8js (Wokwi, MIT),
+Inter and Roboto Mono fonts (SIL OFL 1.1).
 `);
-console.log('renderer/vendor: react-ui (border-beam, metal-fx), codemirror, thinking-orbs engine, fonts');
+console.log('renderer/vendor: react-ui (border-beam, metal-fx), codemirror, avr8js, thinking-orbs engine, fonts');

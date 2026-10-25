@@ -66,3 +66,12 @@ test('the chat format teaches the agent to work a spec task by task, test first'
   assert.ok(prompt.includes('T1'));
   assert.ok(/prueba/i.test(voice.config.format.join(' ')));
 });
+
+test('the Arduino skill joins the prompt only when the conversation is about Arduino (spec/005)', () => {
+  assert.ok(voice.skills.arduino.includes('platanus_arduino_validate'));
+  const about = composePrompt(voice, { mode: 'vibe', recent: ['quiero un sensor que pite cuando algo se acerca'] });
+  assert.ok(about.includes(voice.skills.arduino.slice(0, 80)));
+  const other = composePrompt(voice, { mode: 'vibe', recent: ['¿qué archivos tienen riesgo?'] });
+  assert.ok(!other.includes(voice.skills.arduino.slice(0, 80)));
+  assert.ok(voice.config.base.join('\n').includes('platanus_github_repo'));
+});

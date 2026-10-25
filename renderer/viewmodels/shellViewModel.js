@@ -6,7 +6,7 @@ import { allFiles, baseName } from '../models/fileTree.js';
 import { LEVEL_RANK, worstLevel } from '../models/securityModel.js';
 import { fileTags, folderGuide } from '../models/folderTags.js';
 
-export const STAGES = ['map', 'git'];
+export const STAGES = ['map', 'git', 'lab']; // lab: the Arduino lab (spec/005), only when a lab is open
 
 export const SIDE_VIEWS = ['explorer', 'risks', 'repairs', 'servers', 'agent'];
 
@@ -18,7 +18,7 @@ export class ShellViewModel {
 
   store = new Observable({
     side: 'explorer',
-    stage: 'map', // 'map' | 'git'
+    stage: 'map', // 'map' | 'git' | 'lab'
     sidebarOpen: false, // the map comes first: the side panel floats over it and starts folded
     chatOpen: false, // the chat waits for the person: opening a project does not open it
     projectName: '',

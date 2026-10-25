@@ -13,10 +13,11 @@
     "watch": "electron . --watch",
     "icons": "node scripts/build-icons.mjs",
     "models": "node scripts/fetch-face-model.js",
+    "arduino:build": "node scripts/arduino-build.js",
     "build:web": "node scripts/build-web.js",
     "dist:mac": "electron-builder --mac --publish never",
     "dist:win": "electron-builder --win --publish never",
-    "test": "node --test electron/mcpServer.test.js electron/agentEvents.test.js electron/agentVoice.test.js electron/servers.test.js electron/git.test.js electron/approval.test.js electron/fileOpen.test.js electron/lineDiff.test.js electron/keyStore.test.js electron/opencode.test.js scripts/sim/fakeAgent.test.js tests/renderer/*.test.mjs tests/secrets.test.mjs"
+    "test": "node --test electron/mcpServer.test.js electron/agentEvents.test.js electron/agentVoice.test.js electron/servers.test.js electron/git.test.js electron/approval.test.js electron/fileOpen.test.js electron/lineDiff.test.js electron/keyStore.test.js electron/opencode.test.js electron/arduino.test.js scripts/sim/fakeAgent.test.js tests/renderer/*.test.mjs tests/secrets.test.mjs"
   },
   "build": {
     "appId": "us.platan.hack26.team12.ide",
@@ -29,6 +30,7 @@
       "electron/**",
       "renderer/**",
       "agent/**",
+      "examples/**",
       "package.json"
     ],
     "artifactName": "Platanus-${version}-${os}-${arch}.${ext}",
@@ -95,6 +97,7 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.1.1",
+    "avr8js": "^0.20.1",
     "three": "^0.160.0"
   }
 }

@@ -21,6 +21,7 @@ const AGENT_DIR = path.join(__dirname, '..', 'agent'); // voice.json + skills (p
 const SESSIONS = ['chat', 'repair', 'refine'];
 const { startMcpServer, MAX_READ_BYTES, isBlockedPath, isBlockedRealPath } = require('./mcpServer');
 const servers = require('./servers');
+const arduino = require('./arduino');
 
 const workspace = new Workspace();
 const audit = []; // log of everything done on disk
@@ -571,7 +572,131 @@ const mcpHandlers = {
     return `${rel}: ${level}`;
   },
   platanus_show_folder: ({ path: rel }) => askRenderer('show_folder', { path: rel }),
+  // Arduino lab (spec/005-arduino-lab.md)
+  platanus_arduino_parts: async () => (await labModels()).parts.catalog(),
+  platanus_arduino_validate: async ({ path: rel }) => {
+    if (!workspace.root) throw new Error(t.mcp.noProject);
+    const m = await labModels();
+    const circuit = m.circuit.parseDiagram(await readSmall(rel));
+    const issues = m.validate.validate(circuit);
+    return {
+      parts: circuit.parts.length, wires: circuit.wires.length, dropped: circuit.dropped, invalidJson: Boolean(circuit.invalid),
+      issues: issues.map((i) => ({ level: i.level, code: i.code, parts: i.parts, message: m.strings.lab.issues[i.code]?.(i.values) ?? i.code })),
+    };
+  },
+  platanus_arduino_compile: async ({ path: rel, board }) => {
+    if (!workspace.root) throw new Error(t.mcp.noProject);
+    const r = await compileFor({ path: rel, board });
+    return r.ok ? { ok: true, bytes: r.bytes } : { ok: false, error: r.error, lines: r.lines };
+  },
+  platanus_arduino_test: ({ path: dir, distances }) => runLabTest(dir, distances),
+  platanus_github_repo: ({ owner, repo }) => arduino.githubRepo({ owner, repo }),
 };
+
+// --- Arduino lab (spec/005-arduino-lab.md) ---
+// The lab's models are the renderer's own ES modules (pure, no DOM), loaded here so the window and the
+// agent apply the same rules and the same emulator
+const rendererModule = (rel) => import(pathToFileURL(path.join(__dirname, '..', 'renderer', rel)).href);
+async function labModels() {
+  const [circuit, validate, parts, emulator, es] = await Promise.all(
+    ['models/arduino/circuit.js', 'models/arduino/validate.js', 'models/arduino/parts.js', 'models/arduino/emulator.js', 'i18n/es.js'].map(rendererModule),
+  );
+  return { circuit, validate, parts, emulator, strings: es.strings };
+}
+const EXAMPLES_DIR = path.join(__dirname, '..', 'examples', 'arduino');
+const EXAMPLE_ID = /^[a-z0-9-]{1,40}$/;
+let arduinoCli = null;
+const cliPath = () => (arduinoCli ??= arduino.findArduinoCli()); // looked for again until found (installed later)
+
+// A project file for the lab: inside the workspace, not a secret, small
+async function readSmall(rel) {
+  if (typeof rel !== 'string' || isBlockedPath(rel)) throw new Error(t.mcp.secret);
+  const abs = await workspace.resolve(rel);
+  await refuseSecretTarget(abs);
+  if ((await fs.stat(abs)).size > MAX_READ_BYTES) throw new Error(t.mcp.tooLarge(Math.round(MAX_READ_BYTES / 1024)));
+  return workspace.readFile(rel);
+}
+
+// A lab folder of the project: its diagram.json, lab.json, first .ino and .hex (paths relative to the root)
+async function labProjectIn(dir) {
+  const base = dir && dir !== '.' ? dir.replace(/\/+$/, '') : '';
+  const entries = flatten(await workspace.tree(base || '.', 1)).filter((p) => !p.endsWith('/'));
+  const inDir = entries.filter((p) => (base ? p.startsWith(`${base}/`) && !p.slice(base.length + 1).includes('/') : !p.includes('/')));
+  const pick = (test) => inDir.find(test) ?? null;
+  const diagramPath = pick((p) => p.endsWith('diagram.json'));
+  if (!diagramPath) throw new Error('No diagram.json in that folder');
+  const sketchPath = pick((p) => p.endsWith('.ino'));
+  const hexPath = pick((p) => p.endsWith('.hex'));
+  const labPath = pick((p) => p.endsWith('lab.json'));
+  const read = (rel) => (rel ? readSmall(rel) : null);
+  const mtime = async (rel) => (rel ? (await fs.stat(await workspace.resolve(rel))).mtimeMs : 0);
+  return {
+    dir: base, diagram: await read(diagramPath), lab: await read(labPath), sketch: await read(sketchPath), sketchPath,
+    hex: await read(hexPath), hexStale: Boolean(hexPath && sketchPath && (await mtime(hexPath)) < (await mtime(sketchPath))),
+  };
+}
+
+// The first lab folder in the project (the root first, then the shallowest)
+async function findLabProject() {
+  if (!workspace.root) return null;
+  const diagrams = flatten(await workspace.tree('.', 4)).filter((p) => p === 'diagram.json' || p.endsWith('/diagram.json'));
+  if (!diagrams.length) return null;
+  diagrams.sort((a, b) => a.split('/').length - b.split('/').length);
+  return labProjectIn(path.posix.dirname(diagrams[0]));
+}
+
+// The examples that ship with the app (examples/arduino/<id>/): read-only, by id
+async function readExample(id) {
+  if (typeof id !== 'string' || !EXAMPLE_ID.test(id)) throw new Error('example');
+  const dir = path.join(EXAMPLES_DIR, id);
+  const read = (name) => fs.readFile(path.join(dir, name), 'utf8');
+  return { id, diagram: await read('diagram.json'), lab: await read('lab.json'), sketch: await read('sketch.ino'), hex: await read('sketch.hex').catch(() => null) };
+}
+
+// { path } of a .ino in the project, or { example }; board: one of arduino.BOARDS (default: the Uno)
+async function compileFor(req) {
+  const fqbn = arduino.BOARDS.includes(req?.board) ? req.board : 'arduino:avr:uno';
+  let source;
+  if (typeof req?.example === 'string') source = (await readExample(req.example)).sketch;
+  else if (typeof req?.path === 'string' && req.path.endsWith('.ino')) source = await readSmall(req.path);
+  else throw new Error('Expected a .ino file');
+  return arduino.compileSketch({ cli: cliPath(), source, fqbn });
+}
+
+// The agent's check: compile, then run the emulator a moment with the obstacle at each distance
+async function runLabTest(dir, distances) {
+  if (!workspace.root) throw new Error(t.mcp.noProject);
+  const m = await labModels();
+  const project = await labProjectIn(dir);
+  const circuit = m.circuit.parseDiagram(project.diagram);
+  const board = m.circuit.boardOf(circuit);
+  if (!board) return { ok: false, step: 'circuit', error: 'noBoard' };
+  if (!board.spec.emulated) return { ok: false, step: 'emulator', error: 'notEmulated' };
+  if (!project.sketch) return { ok: false, step: 'compile', error: 'No .ino in that folder' };
+  const compiled = await arduino.compileSketch({ cli: cliPath(), source: project.sketch, fqbn: board.spec.fqbn });
+  if (!compiled.ok) return { ok: false, step: 'compile', error: compiled.error, lines: compiled.lines };
+  let avr;
+  try { avr = require('avr8js'); } catch { return { ok: false, step: 'emulator', error: 'noEmulator' }; }
+  const list = String(distances ?? '').split(',').map(Number).filter((n) => Number.isFinite(n) && n > 0).slice(0, 5);
+  const sensors = circuit.parts.filter((p) => p.spec?.kind === 'ultrasonic').map((p) => p.id);
+  const results = [];
+  for (const cm of list.length ? list : [10, 50, 150]) {
+    const emu = new m.emulator.ArduinoEmulator({ avr, hex: compiled.hex, circuit });
+    sensors.forEach((id) => emu.setDistance(id, cm));
+    emu.run(0.8 * 16e6); // let the sketch start and measure a few times
+    emu.read();
+    emu.run(0.4 * 16e6);
+    const s = emu.read();
+    results.push({ distanceCm: sensors.length ? cm : null, parts: s.parts, serial: s.serial.split('\n').map((l) => l.trim()).filter(Boolean).slice(-3) });
+    if (!sensors.length) break;
+  }
+  return { ok: true, board: board.spec.key, results };
+}
+
+handle('arduino:status', 'arduino:status', async () => ({ cli: Boolean(cliPath()) }));
+handle('arduino:project', 'arduino:project', () => findLabProject());
+handle('arduino:example', 'arduino:example', (id) => readExample(id));
+handle('arduino:compile', 'arduino:compile', (req) => compileFor(req));
 
 // A symlink inside the project may point to a secret: check where the path really lands. For a file
 // that does not exist yet, resolve its nearest existing parent folder and add the rest of the path.

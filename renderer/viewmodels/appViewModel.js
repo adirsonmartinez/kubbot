@@ -1,9 +1,10 @@
-// Which view is on screen: the project map or the git branches. Each view keeps its own camera,
+// Which view is on screen: the project map, the git branches or the Arduino lab. Each view keeps its own camera,
 // so switching back and forth returns to where you were.
 import { Observable } from '../core/observable.js';
 import { CAMERA } from './cameraViewModel.js';
 
-export const VIEWS = ['map', 'git'];
+export const VIEWS = ['map', 'git', 'lab']; // lab: the Arduino lab's bench (spec/005-arduino-lab.md)
+const LAB_ZOOM = 1.5;
 
 export class AppViewModel {
   #camera;
@@ -34,6 +35,9 @@ export class AppViewModel {
     } else if (view === 'git') {
       this.#camera.azimuthGoal = CAMERA.gitAzimuth;
       this.#gitViewModel.centerOnHead();
+    } else if (view === 'lab') {
+      this.#camera.azimuthGoal = CAMERA.azimuth; // the bench is centered on the origin
+      this.#camera.flyTo({ x: 0, z: 0 }, LAB_ZOOM);
     }
     if (view === 'git') this.#gitModel.load(); // always show fresh history
     this.store.set({ view });

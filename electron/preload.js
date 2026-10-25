@@ -87,6 +87,14 @@ contextBridge.exposeInMainWorld('platanus', {
     undo: (change) => ipcRenderer.invoke('agent:undo', change),
     setApproval: (mode) => ipcRenderer.invoke('agent:approval', mode), // 'manual' | 'auto' | 'bypass'
   },
+  // Arduino lab (spec/005): the project's lab folder, the app's examples, compiling with arduino-cli.
+  // compile({ path } of a .ino in the project | { example }, board?) -> { ok, hex } | { ok: false, error, lines }
+  arduino: {
+    status: () => ipcRenderer.invoke('arduino:status'),
+    project: () => ipcRenderer.invoke('arduino:project'),
+    example: (id) => ipcRenderer.invoke('arduino:example', id),
+    compile: (req) => ipcRenderer.invoke('arduino:compile', req),
+  },
   onMenuAction: on('menu:action'), // ({ action: 'newProject'|'openProject'|'openRecent'|'closeProject', root? }) => ...
   onChanged: on('fs:changed'), // (paths) => ...
   onDialog: on('dialog:state'), // (open) => ... a confirmation dialog of the main process is open

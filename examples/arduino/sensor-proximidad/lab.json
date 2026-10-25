@@ -1,0 +1,25 @@
+{
+  "title": "Sensor de proximidad con alerta",
+  "level": "principiante",
+  "goal": "Medir a qué distancia está un objeto y avisar con luces y un pitido cuando se acerca.",
+  "components": [
+    { "name": "Arduino Uno R3 (o Nano)", "qty": 1, "why": "Es el cerebro: lee el sensor y decide qué luz prender." },
+    { "name": "Sensor ultrasónico HC-SR04", "qty": 1, "why": "Mide la distancia con sonido que no oímos: cuánto tarda el eco en volver." },
+    { "name": "LED verde, amarillo y rojo", "qty": 3, "why": "Dicen de un vistazo si el objeto está lejos, cerca o muy cerca." },
+    { "name": "Resistencia de 220 Ω", "qty": 3, "why": "Una por LED: limita la corriente para que el LED y el pin no se quemen." },
+    { "name": "Buzzer pasivo", "qty": 1, "why": "Pita cuando el objeto está muy cerca; más cerca, más agudo." },
+    { "name": "Protoboard y cables dupont", "qty": 1, "why": "Para conectar todo sin soldar." }
+  ],
+  "steps": [
+    "Conecta el HC-SR04: VCC a 5V, GND a GND, TRIG al pin 9 y ECHO al pin 10.",
+    "Cada LED va de su pin (2, 3 y 4) a una resistencia de 220 Ω, y su pata corta (cátodo) a GND.",
+    "El buzzer va del pin 8 a GND.",
+    "Pulsa «Probar» y acerca el obstáculo: mira cómo cambian las luces y la distancia en el monitor serie.",
+    "Reto: cambia CERCA_CM y MUY_CERCA_CM en el código y prueba de nuevo."
+  ],
+  "cautions": [
+    "Sin resistencia, un LED pide demasiada corriente y puede quemar el LED o el pin del Arduino.",
+    "Conecta y desconecta cables con el Arduino sin alimentación."
+  ],
+  "sources": []
+}

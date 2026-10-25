@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "author": "Qubbot",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-hc-sr04", "id": "sonar", "top": -140, "left": 260, "attrs": { "distance": "100" } },
+    { "type": "wokwi-led", "id": "led_verde", "top": -120, "left": 40, "attrs": { "color": "green" } },
+    { "type": "wokwi-led", "id": "led_amarillo", "top": -120, "left": 90, "attrs": { "color": "yellow" } },
+    { "type": "wokwi-led", "id": "led_rojo", "top": -120, "left": 140, "attrs": { "color": "red" } },
+    { "type": "wokwi-resistor", "id": "r1", "top": -60, "left": 30, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r2", "top": -60, "left": 80, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "r3", "top": -60, "left": 130, "attrs": { "value": "220" } },
+    { "type": "wokwi-buzzer", "id": "buzzer", "top": -130, "left": 190, "attrs": { "volume": "0.1" } }
+  ],
+  "connections": [
+    ["uno:2", "r1:1", "green", []],
+    ["r1:2", "led_verde:A", "green", []],
+    ["led_verde:C", "uno:GND.1", "black", []],
+    ["uno:3", "r2:1", "gold", []],
+    ["r2:2", "led_amarillo:A", "gold", []],
+    ["led_amarillo:C", "uno:GND.1", "black", []],
+    ["uno:4", "r3:1", "red", []],
+    ["r3:2", "led_rojo:A", "red", []],
+    ["led_rojo:C", "uno:GND.1", "black", []],
+    ["uno:8", "buzzer:2", "purple", []],
+    ["buzzer:1", "uno:GND.2", "black", []],
+    ["uno:5V", "sonar:VCC", "red", []],
+    ["uno:GND.3", "sonar:GND", "black", []],
+    ["uno:9", "sonar:TRIG", "blue", []],
+    ["uno:10", "sonar:ECHO", "cyan", []]
+  ],
+  "dependencies": {}
+}

@@ -4,7 +4,7 @@
   "defaultMode": "vibe",
   "base": [
     "Eres el agente de Platanus, un IDE visual donde el proyecto completo se ve como un mapa 3D con su semáforo: lo seguro se ve plateado y tranquilo, lo que tiene problemas brilla (amarillo = a revisar, rojo = en riesgo). Al abrir una carpeta, sus subcarpetas y archivos aparecen junto a ella.",
-    "Herramientas de Platanus: platanus_get_project (ver el proyecto), platanus_list_risks (archivos en riesgo), platanus_read_file (leer un archivo), platanus_set_file_score (poner el semáforo de un archivo: verde, amarillo o rojo, con una razón corta), platanus_show_folder (mostrar una carpeta en el mapa) y platanus_write_file (guardar un arreglo; solo si la persona lo pide o estás reparando, y ella aprueba cada cambio).",
+    "Herramientas de Platanus: platanus_get_project (ver el proyecto), platanus_list_risks (archivos en riesgo), platanus_read_file (leer un archivo), platanus_set_file_score (poner el semáforo de un archivo: verde, amarillo o rojo, con una razón corta), platanus_show_folder (mostrar una carpeta en el mapa) y platanus_write_file (guardar un arreglo; solo si la persona lo pide o estás reparando, y ella aprueba cada cambio). Para proyectos Arduino: platanus_arduino_parts (piezas soportadas), platanus_arduino_validate (revisar el circuito), platanus_arduino_compile (compilar el sketch), platanus_arduino_test (probarlo en el emulador) y platanus_github_repo (comprobar un repositorio antes de mencionarlo).",
     "Nunca pidas, leas ni muestres secretos (claves, contraseñas, archivos .env). Si algo parece un secreto, di que existe y dónde, sin copiarlo.",
     "Responde siempre en español, también lo que escribas entre una herramienta y otra (la persona ve todo lo que escribes)."
   ],
@@ -20,6 +20,11 @@
   "modes": {
     "vibe": { "skill": "modo-vibe", "maxWords": 140, "suggestions": "2 y 3" },
     "dev": { "skill": "modo-dev", "maxWords": 280, "suggestions": "2 y 4" }
+  },
+  "arduino": {
+    "$comment": "The Arduino lab (spec/005-arduino-lab.md): when one of the person's recent messages has a word starting with one of these, the modo-arduino skill joins the prompt.",
+    "skill": "modo-arduino",
+    "words": ["arduino", "sensor", "led", "buzzer", "servo", "motor", "robot", "carrito", "brazo", "joystick", "circuito", "protoboard", "ultrason", "bluetooth", "sketch", "laboratorio"]
   },
   "refine": {
     "$comment": "\"Mejorar mi mensaje\": the person's draft becomes a test-first spec (gentle-shell ODD shape). Parsed by renderer/models/promptSpec.js.",

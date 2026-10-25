@@ -512,7 +512,7 @@ export class ChatViewModel {
       else {
         this.#push({ role: 'bot', text: reply.text, html: reply.html, tone: reply.tone, card: reply.card, result: reply.result });
         this.store.set({ typing: false, chips: reply.chips ?? this.store.state.chips });
-        reply.then?.();
+        reply.after?.();
       }
       this.#next();
     }, typingDelay(reply));

@@ -1,6 +1,8 @@
 // The chat agent's "brain". Today it is a scripted demo (keywords + file commands);
 // the real AI agent will replace reply() keeping the same reply shape:
-//   { text?, html?, tone?: 'alert', chips?: string[], then?: () => void }
+//   { text?, html?, tone?: 'alert', chips?: string[], after?: () => void }
+// (`after`, not `then`: an object with a then() method is a promise to `await`, which would run it at once
+// and never deliver the reply)
 // `html` is only ever built from our own strings, never from user input.
 import { strings } from '../i18n/es.js';
 import { escapeHtml } from '../core/format.js';
@@ -26,7 +28,11 @@ export class AgentModel {
 
   #mode;
 
-  constructor({ workspace, projectModel, supabaseModel, connection = null, modeModel = null, gitService = null }) {
+  #lab;
+
+  // lab: { open() } opens the Arduino lab's example (spec/005-arduino-lab.md)
+  constructor({ workspace, projectModel, supabaseModel, connection = null, modeModel = null, gitService = null, lab = null }) {
+    this.#lab = lab;
     this.#mode = modeModel;
     this.#workspace = workspace;
     this.#project = projectModel;
@@ -100,7 +106,7 @@ export class AgentModel {
 
     if (hasKeyword(list, AGENT.keywords.fix)) {
       if (!this.#supabase.vulnerable) return { text: vuln.nothingToFix };
-      return { text: vuln.fix, then: () => this.#supabase.setVulnerable(false) };
+      return { text: vuln.fix, after: () => this.#supabase.setVulnerable(false) };
     }
     if (hasKeyword(list, AGENT.keywords.details)) {
       return this.#supabase.vulnerable
@@ -109,7 +115,11 @@ export class AgentModel {
     }
     if (hasKeyword(list, AGENT.keywords.attack)) {
       if (!this.#project.store.state.open) return { text: vuln.needsProject, chips: [strings.chat.chips.openFolder] };
-      return { text: vuln.attack, then: () => this.#supabase.setVulnerable(true) };
+      return { text: vuln.attack, after: () => this.#supabase.setVulnerable(true) };
+    }
+    // Arduino (spec/005): without an agent, the lab's example (a proximity sensor) opens on the bench
+    if (this.#lab && hasKeyword(list, AGENT.keywords.arduino ?? [])) {
+      return { text: `${strings.lab.scripted.intro}\n\n${strings.lab.scripted.open}`, after: () => this.#lab.open() };
     }
     const match = AGENT.replies.find((r) => hasKeyword(list, r.keys));
     return { text: match?.text ?? AGENT.fallback };

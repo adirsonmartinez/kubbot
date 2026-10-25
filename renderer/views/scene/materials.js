@@ -10,7 +10,15 @@ export const PALETTE = {
   warn: 0xffc24a,
   danger: 0xff5a6a,
   ok: 0x3ddc97, // healthy integrations (the same green as the UI's --ok)
+  // Arduino lab (views/scene/labView.js): what LEDs and wires are called in diagram.json -> a color
+  // (a "black" wire is dark grey, or it would vanish on the bench)
+  lab: {
+    pcb: 0x2b3036, header: 0x15171a, breadboard: 0xd9dde2,
+    named: { red: 0xff5a6a, orange: 0xff9f4a, yellow: 0xffc24a, gold: 0xe6b84a, green: 0x3ddc97, blue: 0x6aa8ff, cyan: 0x63d6e6, purple: 0x8b83ff, violet: 0x8b83ff, white: 0xf4f6f8, gray: 0x8d959e, grey: 0x8d959e, black: 0x4d545d, brown: 0x9a6b4f },
+  },
 };
+
+export const labColor = (name, fallback = PALETTE.lab.named.green) => PALETTE.lab.named[String(name).toLowerCase()] ?? fallback;
 
 const cache = {};
 function material(name, color = 0xffffff, options = {}) {

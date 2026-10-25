@@ -37,6 +37,10 @@ import { HandControlViewModel } from './viewmodels/handControlViewModel.js';
 import { HandsFreeViewModel } from './viewmodels/handsFreeViewModel.js';
 import { HandsFreeSettings } from './models/handsFreeSettings.js';
 import { EditorViewModel } from './viewmodels/editorViewModel.js';
+import { LabViewModel } from './viewmodels/labViewModel.js';
+import { createLabService } from './services/labService.js';
+import { createLabView } from './views/scene/labView.js';
+import { createLabCardView } from './views/ui/labCardView.js';
 
 import { createSceneView } from './views/scene/sceneView.js';
 import { createMapView } from './views/scene/mapView.js';
@@ -82,7 +86,9 @@ const modeModel = new ModeModel();
 const repairHistory = new RepairHistoryModel();
 const serversModel = new ServersModel(createServerService());
 const gitService = createGitService();
-const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel, gitService });
+// The Arduino lab (spec/005-arduino-lab.md): opened from the Lab tab, the chat or a project's diagram.json
+const labHooks = {};
+const agentModel = new AgentModel({ workspace, projectModel, supabaseModel, connection, modeModel, gitService, lab: { open: () => labHooks.open?.() } });
 
 // Reload git history automatically after every write operation (commit, revert, reset, checkout...)
 if (gitService.onChanged) {
@@ -99,6 +105,7 @@ const shellViewModel = new ShellViewModel({ projectModel, securityModel, mapView
 const repairViewModel = new RepairViewModel({ securityModel, mapViewModel, cameraViewModel, connection, history: repairHistory, agentService, bus, voiceMode: () => (modeModel.tech ? 'dev' : 'vibe') });
 const serversViewModel = new ServersViewModel({ serversModel });
 const editorViewModel = new EditorViewModel({ workspace, bus }); // files clicked on the map open as tabs
+const labViewModel = new LabViewModel({ service: createLabService() });
 const handTracking = createHandTrackingService();
 // The hand's screen side (what is under the cursor, selecting it, zooming around a point) is filled in
 // below, once the 3D views and the input controller exist (spec/003-hand-gestures.md)
@@ -149,14 +156,32 @@ const actions = {
   },
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
+  // The Arduino lab: the project's lab, or else the example
+  async openLab() {
+    if (labViewModel.store.state.source !== 'project') await labViewModel.openExample();
+    shellViewModel.setStage('lab');
+  },
 };
+labHooks.open = () => actions.openLab();
+// A sketch clicked on the map opens in the editor and, when its folder is the project's lab, the bench too
+bus.on(EVENTS.fileSelected, ({ path }) => {
+  if (!/\.ino$/i.test(String(path)) || labViewModel.store.state.source !== 'project') return;
+  shellViewModel.setStage('lab');
+});
 const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection });
 // The agent waits for the person to approve a change (main process dialog): the chat says so
 agentService.onAwaiting((detail) => bus.emit(EVENTS.agentAwaiting, detail));
 agentService.onChanged((change) => bus.emit(EVENTS.agentChanged, change)); // its diff, live in the chat
 
-// The stage tab drives which 3D view is on screen: the git tab shows the branches, the rest the map
-shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 'git' ? 'git' : 'map'), { immediate: true });
+// The stage tab drives which 3D view is on screen: the git tab shows the branches, the lab tab the
+// Arduino bench, the rest the map
+shellViewModel.store.subscribe(({ stage: tab }) => appViewModel.setView(tab === 'git' || tab === 'lab' ? tab : 'map'), { immediate: true });
+// The Lab tab only shows while a lab is open; when it goes away, back to the map
+labViewModel.store.subscribe(({ available }) => {
+  const tab = document.querySelector('#stage-tabs [data-stage="lab"]');
+  if (tab) tab.hidden = !available;
+  if (!available && shellViewModel.store.state.stage === 'lab') shellViewModel.setStage('map');
+}, { immediate: true });
 
 // --- Views ---
 applyStrings();
@@ -168,6 +193,8 @@ const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, 
 const gitView = createGitView({ sceneView, labels, gitViewModel });
 createRemiView({ sceneView, labels, repairViewModel });
 createRobotView({ sceneView, labels, mapViewModel });
+const labView = createLabView({ sceneView, labViewModel });
+createLabCardView({ container: stage, labViewModel, appViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
 appViewModel.store.subscribe(({ view }) => {
   sceneView.setActiveLayer(view);
@@ -184,12 +211,16 @@ const pickers = {
     handle: (pick) => mapViewModel.handlePick(pick),
   }),
   git: () => ({ targets: gitView.pickTargets(), handle: (pick) => gitViewModel.handlePick(pick) }),
+  lab: () => ({ targets: labView.pickTargets(), handle: (pick) => labViewModel.handlePick(pick) }),
 };
+// The lab's bench answers even without a project (its example); the map and git need one
+const activePicker = () => (appViewModel.view === 'lab' ? pickers.lab() : projectOpen() ? pickers[appViewModel.view]() : null);
+const ESCAPES = { git: () => gitViewModel.escape(), lab: () => labViewModel.escape() };
 const input = createInputController({
   sceneView,
   cameraViewModel,
-  picker: () => (projectOpen() ? pickers[appViewModel.view]() : null),
-  onEscape: () => (appViewModel.view === 'git' ? gitViewModel.escape() : mapViewModel.escape()),
+  picker: activePicker,
+  onEscape: () => (ESCAPES[appViewModel.view] ?? (() => mapViewModel.escape()))(),
   onToggleView: () => shellViewModel.setStage(appViewModel.view === 'git' ? 'map' : 'git'),
   onHover: (pick, x, y) => hoverCard.show(appViewModel.view === 'map' ? pick : null, x, y),
 });
@@ -202,7 +233,7 @@ const gestureTargets = createHandTargets({
   canvas: sceneView.canvas,
   pickAtScreen: input.pickAtScreen,
   zoomAt: input.zoomAt,
-  handlePick: (pick) => (projectOpen() ? pickers[appViewModel.view]().handle(pick) : undefined),
+  handlePick: (pick) => activePicker()?.handle(pick),
   hover: (pick, x, y) => hoverCard.show(appViewModel.view === 'map' ? pick : null, x, y),
   dialogOpen: () => dialogOpen,
 });
@@ -269,6 +300,7 @@ projectModel.store.subscribe((state, previous) => {
   if (!state.open) { // closed: back to the start screen
     handControlViewModel.stop(); // the camera goes off with the project
     handsFreeViewModel.projectClosed(); // the hands-free control stays on, to pick another project (B34)
+    labViewModel.projectClosed();
     gitModel.clear();
     bus.emit(EVENTS.projectClosed, { name: previous.name ?? strings.map.defaultProjectName });
     return;
@@ -280,6 +312,7 @@ projectModel.store.subscribe((state, previous) => {
   gitModel.clear();
   gitModel.load();
   if (appViewModel.view === 'git') gitViewModel.centerOnHead();
+  labViewModel.refresh(); // a folder with a diagram.json opens the Lab tab
 });
 
 // macOS: the Project menu of the system menu bar runs the same actions as the in-app one
@@ -291,10 +324,17 @@ const MENU_ACTIONS = {
 };
 workspace.onMenuAction((payload) => MENU_ACTIONS[payload?.action]?.(payload));
 
+// The agent (or the person) wrote a lab's files: the bench follows (debounced: an agent writes 3 files)
+let labRefresh = null;
+const LAB_FILE = /(^|\/)(diagram\.json|lab\.json)$|\.(ino|hex)$/;
 workspace.onChanged((paths) => {
   bus.emit(EVENTS.diskChanged, { paths });
   projectModel.scheduleReload();
   gitModel.scheduleReload();
+  if ((Array.isArray(paths) ? paths : []).some((p) => LAB_FILE.test(String(p)))) {
+    clearTimeout(labRefresh);
+    labRefresh = setTimeout(() => labViewModel.refresh(), 400);
+  }
 });
 
 // .git is not watched (too noisy), so commits made in a terminal show up when the window regains focus
