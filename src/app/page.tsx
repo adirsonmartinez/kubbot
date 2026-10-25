@@ -1,5 +1,5 @@
-import { CounterScreen } from "@/views/screens/CounterScreen";
+import { WorkspaceScreen } from "@/views/screens/WorkspaceScreen";
 
 export default function Home() {
-  return <CounterScreen />;
+  return <WorkspaceScreen />;
 }

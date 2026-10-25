@@ -28,6 +28,7 @@ app/  →  views/  →  viewmodels/  →  services/  →  models/
 
 Conventions:
 - Name files after the feature: `models/fire.ts`, `services/terrainService.ts`, `viewmodels/useFireViewModel.ts`, `views/screens/FireScreen.tsx`.
+- 3D lives in `src/views/scene/`. `IsoScene` is the isometric map (orthographic camera, grid, lights, bloom): add objects as its children. Camera math is `models/camera.ts` (`CameraRig`), driven by `useMapViewModel`.
+- Styles: theme tokens in `src/app/globals.css`, the glass UI in `src/views/styles/ui.css`.
 - A View never imports from `models/` or `services/` directly. Go through the ViewModel.
 - Export `type XViewModel = ReturnType<typeof useXViewModel>` so subcomponents can take a VM slice as props.
-- `src/models/counter.ts` and its chain are a reference example. Delete them once a real feature exists.

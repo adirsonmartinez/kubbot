@@ -1,26 +1,51 @@
 @import "tailwindcss";
 
+/* Dark "digital twin" theme: graphite map, clear liquid-glass UI, one purple accent.
+   Amber and red are reserved for warnings and problems. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0b0f;
+  --accent: #8b83ff;
+  --accent-soft: rgba(139, 131, 255, 0.14);
+  --warn: #ffc24a;
+  --danger: #ff5a6a;
+  --ok: #3ddc97;
+
+  --lg-font: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --lg-mono: var(--font-roboto-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --lg-text: #ffffff;
+  --lg-text-2: rgba(222, 222, 222, 0.78);
+  --lg-muted: rgba(202, 202, 202, 0.62);
+  --lg-faint: #8f8f8f;
+  --lg-icon: #ededed;
+  --lg-icon-muted: rgba(237, 237, 237, 0.6);
+  /* glass layers */
+  --lg-panel: rgba(18, 18, 18, 0.34);
+  --lg-card: rgba(255, 255, 255, 0.045);
+  --lg-chip: rgba(255, 255, 255, 0.07);
+  --lg-chip-hover: rgba(255, 255, 255, 0.11);
+  --lg-chip-press: rgba(255, 255, 255, 0.08);
+  --lg-line: rgba(255, 255, 255, 0.08);
+  --lg-code: rgba(255, 255, 255, 0.05);
+  --lg-code-ring: rgba(255, 255, 255, 0.09);
+  /* the rim: light catching the top edge, a faint one at the bottom */
+  --lg-rim: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(255, 255, 255, 0.03);
+  --lg-rim-strong: inset 0 1px 0 rgba(255, 255, 255, 0.26), inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    inset 1px 0 0 rgba(255, 255, 255, 0.05), inset -1px 0 0 rgba(255, 255, 255, 0.03);
+  --lg-shadow: 0 1px 2px rgba(0, 0, 0, 0.25), 0 12px 40px rgba(0, 0, 0, 0.35);
+  --lg-r-panel: 26px;
+  --lg-r-card: 22px;
+  --lg-r-block: 14px;
+  --lg-r-sm: 9px;
+  --lg-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--lg-text);
+  font: 13px/1.4 var(--lg-font);
+  -webkit-font-smoothing: antialiased;
 }
