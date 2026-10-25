@@ -2,7 +2,10 @@
 
 import type { MapComponent } from "@/models/component";
 
-const CATALOG: MapComponent[] = [{ id: "button", name: "Button", kind: "button" }];
+const CATALOG: MapComponent[] = [
+  { id: "button", name: "Button", kind: "button" },
+  { id: "led", name: "LED", kind: "led" },
+];
 
 const SLOTS = 8;
 

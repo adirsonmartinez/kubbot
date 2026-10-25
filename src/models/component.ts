@@ -1,6 +1,6 @@
 // Components that can be placed on the map. No React, no I/O.
 
-export type ComponentKind = "button";
+export type ComponentKind = "button" | "led";
 
 export type MapComponent = {
   id: string;
@@ -11,6 +11,7 @@ export type MapComponent = {
 // Grid cells per side each component covers on the map
 const FOOTPRINT: Record<ComponentKind, number> = {
   button: 3,
+  led: 3,
 };
 
 export function footprintOf(kind: ComponentKind): number {
