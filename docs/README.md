@@ -6,4 +6,5 @@ Cada función de Platanus tiene su página en `docs/features/<nombre>/README.md`
 |---|---|---|---|
 | Servidores | [features/running-servers](features/running-servers/README.md) | [001-running-servers](../spec/001-running-servers.md) | `feature/server` |
 | Gestos con la mano (mover, girar, acercar con dos manos, elegir quieto) | [features/hand-gestures](features/hand-gestures/README.md) | [003-hand-gestures](../spec/003-hand-gestures.md) | `feature/hand-gestures` |
+| Control sin manos (ojos con lupa o cabeza, para personas con discapacidad física) | [features/hands-free](features/hands-free/README.md) | [004-hands-free-control](../spec/004-hands-free-control.md) | `feature/hand-gestures` |
 | Editor de archivos | [features/file-editor](features/file-editor/README.md) | — | `feature/file-viewer` |

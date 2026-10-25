@@ -26,7 +26,10 @@ renderer/
   services/       bridges to Electron (no logic): workspaceService (disk), agentService (agents + MCP),
                   mcpBridge (answers the MCP tools that need the window), serverService (listening servers),
                   handTrackingService (camera -> up to two hands' landmarks with MediaPipe, local model in assets/hands/;
-                  GPU or CPU, one hand when the CPU is too slow)
+                  GPU or CPU, one hand when the CPU is too slow), faceTrackingService (camera at 1280×720 -> face
+                  landmarks, 10 blendshapes (blinks, eyeLook*), the head's pose matrix and the mean light of a 32×24
+                  thumbnail once a second; local model in assets/face/ from `npm run models`), cameraLoop (the
+                  camera both share; video only, ideal size per use)
   models/         data and rules; no DOM, no three.js, no UI state
     projectModel (tree + detected integrations), fileTree, securityModel (traffic light), supabaseModel, demoProject,
     demoIntegrations (demo projects shown as connected to every integration)
@@ -38,13 +41,23 @@ renderer/
     serversModel (servers listening on this computer: exposed = yellow), demoServers (web demo),
     handGesture (pinch -> drag; two pinches, one holding and the other moving: up/down -> zoom, sideways -> turn;
     open hand -> cursor; holding still -> select;
-    thresholds relative to the hand's size, with hysteresis)
+    thresholds relative to the hand's size, with hysteresis),
+    gazeModel (the gaze: a vector per frame (irises, lids, eyeLook*, head pose), guided calibration (9 points, a head
+    step, 4 test points; all frames of each fixation, outliers dropped), ridge chosen leaving one point out, mirror
+    check, One Euro + fixation hold, implicit affine correction, position check),
+    gazeReport (the precision report, npm run dev + ⌘⇧D copies it: per point, per feature, leave-one-out per axis
+    and per feature group, arrival in 150 ms steps, test error in px and degrees, filter; numbers only),
+    faceGesture (head pointer, long blink, magnifier geometry, pull to the nearest target),
+    handsFreeSettings (opt-in and adjustments: numbers only, validated)
   viewmodels/     screen state + actions; no DOM, no three.js (layout.js = world geometry)
     camera, map (the whole project; problems glow), supabase, git (branches), app (which 3D view),
     shell (sidebar, stage tabs, explorer guide/tree, risks), chat,
     repair (Remi's job: walk, agent repair, outcome, queue), servers (polls every 3 s while its side view is open),
     handControl (camera on/off, pinch and move pans the map; one hand holds and the other moves: up or down zooms
     around the holding hand, sideways turns; an open hand moves a cursor that selects by holding still ~800 ms; fps; spec/003),
+    handsFree (eyes or head, spec/004: with the eyes, holding still opens a magnifier and inside it selects; with
+    the head, holding still selects; position check -> calibration -> result to accept; each selection teaches a
+    correction; pause, correct / recenter, long blink, "Ajustes"; one input at a time),
     editor (files clicked on the map as tabs: edit, save with the read mtime, disk changes reload or mark stale)
   views/scene/    three.js: sceneView, mapView, gitView, supabaseView, remiView, robotView, inputController,
                   builders/ (block, glassFolder, folderIcon, fileIcon, plaza, folder, git, schema, supabase, integration, remi, remiModelLoader, robot)
@@ -53,8 +66,11 @@ renderer/
                   (libraries.dev orbs over the package engine), agentPicker
                   (+ effortSlider), chatMenu, agentConnect, devTree, hoverCard, hud,
                   repairPanel, remiJump, editor (floating file editor with tabs, CodeMirror with syntax colors; secrets open flagged), panels (breadcrumb, schema, git), controls, handControl (hand button + camera preview + "?" with the gestures),
-                  handCursor (purple cursor + hold-still ring; selects like a click), handTargets (what the cursor may
-                  select: 3D picks, and in panels anything clickable except data-gesture="never"), labels
+                  handCursor (purple cursor + hold-still ring; selects like a click; createHandTargets: what is under or
+                  near a point), handTargets (what the cursor may select: 3D picks, and in panels anything clickable
+                  except data-gesture="never"), handsFree (the eye button next to the hand's; its content in the hand's
+                  camera card; a layer outside <body> with the cursor, the magnifier frame, the calibration veil
+                  (a hole around the card) and its points), labels
                   floating layout: iconBar (reorderable icons), draggable (the chat by
                   header), floater (map cards: move, minimize, dock), chatDock (pinned chat column),
                   floatingMenu (⋯ menus: one layer above the app, anchored to its button, flips up, keyboard)
@@ -64,7 +80,8 @@ renderer/
   styles/         main.css (scene overlays, dark tokens), shell.css (glass IDE; floating layout at the end),
                   sidebar.css (motion), devtree.css, agents.css, chat.css (answer cards, chips, orbs, beam),
                   chat-glass.css (the chat's neutral liquid glass, `--lg-*` tokens), start.css (start screen in that glass),
-                  controls.css (map controls, hand preview and traffic-light counts in that glass), dock.css (side dock and view switcher in that glass), labels.css (folder, file and project labels), hud.css (security card and its floating bar), panel.css (side panel: redefines the shell tokens with the chat's), editor.css (floating editor, same idea)
+                  controls.css (map controls, hand preview, gesture cursor and traffic-light counts in that glass),
+                  handsfree.css (the hands-free card inside the hand's, and its layer: big buttons, at least the gaze's measured error), dock.css (side dock and view switcher in that glass), labels.css (folder, file and project labels), hud.css (security card and its floating bar), panel.css (side panel: redefines the shell tokens with the chat's), editor.css (floating editor, same idea)
   vendor/         generated by scripts/vendor-ui.js (committed): border-beam (+React), thinking-orbs engine,
                   codemirror.js (the editor; languages per models/fileLanguage.js, colors = `--syntax-*` tokens)
 electron/
@@ -90,7 +107,7 @@ agent/            voice.json + skills/modo-vibe, skills/modo-dev (see agent/READ
 tests/renderer/   node:test unit tests for models and view models (renderer/package.json marks ESM for Node)
 tests/secrets.test.mjs  fails if any tracked file contains a credential
 docs/INTERFAZ.md  the interface: layout, chat and agents, repairs, where each piece lives, what is stored
-spec/             feature specs (TEMPLATE.md, 001-running-servers.md, 003-hand-gestures.md)
+spec/             feature specs (TEMPLATE.md, 001-running-servers.md, 003-hand-gestures.md, 004-hands-free-control.md)
 docs/             one README per feature (docs/features/<name>/README.md, in Spanish) and an index (docs/README.md)
 ```
 
@@ -106,7 +123,8 @@ docs/             one README per feature (docs/features/<name>/README.md, in Spa
 - The agent only acts through the local MCP tools. `platanus_write_file` always opens a confirmation dialog and backs up the previous version to `~/.platanus/backups/` (undo from the repair history). Secrets (`.env*`, keys, `.git/`, `.ssh/`, `.npmrc`…) are refused on the normalized and the real path.
 - Grok runs with its terminal, edit and media tools removed (`--disallowed-tools`); Claude with `--tools ""`; Codex read-only, without the user's config and with its shell, browser, computer use, plugins and subagents disabled (`CODEX_DISABLED`). Do not loosen these flags.
 - The window only gets the camera (video only, never the microphone) and clipboard writes, and only for the app's page (`allowPermission` in `electron/main.js`); every other permission is denied. Hand tracking runs locally (`docs/features/hand-gestures/`).
-- Hand gestures select anything clickable in panels (`handTargets.js`), except what carries `data-gesture="never"` and everything inside it. Mark `never` on every action that runs without a confirmation dialog and changes code or security: repair, verify / mark fixed, undo an agent change, the approval mode, server actions (and `#server-menu`), the hand button. Actions that open a native `confirm()` (commit, revert, reset, switch, agent writes) are safe because, while a dialog is open, `electron/main.js` sends `dialog:state` and the hand selects nothing.
+- Hand gestures and the hands-free control select anything clickable in panels (`handTargets.js`), except what carries `data-gesture="never"` and everything inside it (the hands-free pull never goes around a blocked target). Mark `never` on every action that runs without a confirmation dialog and changes code or security: repair, verify / mark fixed, undo an agent change, the approval mode, server actions (and `#server-menu`), the hand button and the eye button. Actions that open a native `confirm()` (commit, revert, reset, switch, agent writes) are safe because, while a dialog is open, `electron/main.js` sends `dialog:state` and nothing is selected.
+- The hands-free control (spec/004) treats the face as biometric data: frames are analysed and dropped in the renderer; only the mesh points, 10 blendshapes (2 blinks, 8 eyeLook*) and the head's pose matrix reach the logic; calibration samples live in memory; nothing from the face is stored, logged, sent or given to the agent; `handsFreeSettings` keeps numbers only (validated on read). Nothing starts on its own: the camera only with the hand or eye button, the calibration only with "Empezar". The magnifier scales `<body>` with CSS, so a selection is always the real element.
 - Remi never edits files himself; a repair ends as `planned` (plan only), `fixed` (agent changed files, yellow until the person verifies), `verified` or `failed`.
 
 ## Visual style ("digital twin", dark)
@@ -155,6 +173,7 @@ The Project menu (new, open, recent, close) is built twice from the same actions
 npm install
 npm start      # npm run dev opens DevTools
 npm run watch  # live reload: renderer/ changes reload the window, electron/ changes restart the app
+npm run models # once: downloads the face model for the hands-free control into renderer/assets/face/ (commit it)
 ```
 
 Opening `renderer/index.html` in a browser serves a demo project (no disk access).
