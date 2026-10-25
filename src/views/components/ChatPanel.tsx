@@ -6,6 +6,15 @@ import { useEffect, useRef, type KeyboardEvent } from "react";
 import type { ChatViewModel } from "@/viewmodels/useChatViewModel";
 import { Icon } from "./Icon";
 
+// A card is something the agent did on the bench; the tag marks replies that did not come from an AI
+const CARD_STYLE = {
+  padding: "5px 12px",
+  borderRadius: 99,
+  background: "rgba(255, 255, 255, 0.07)",
+  color: "var(--lg-text-2)",
+} as const;
+const TAG_STYLE = { marginLeft: 8, padding: "1px 7px", borderRadius: 99, fontSize: 10, background: "rgba(255, 255, 255, 0.09)", color: "var(--lg-faint)" } as const;
+
 export function ChatPanel({
   vm,
   agentName,
@@ -62,8 +71,9 @@ export function ChatPanel({
 
       <div className="chat-body" ref={body} aria-live="polite">
         {vm.messages.map((m) => (
-          <div key={m.id} className={`msg ${m.role}`}>
+          <div key={m.id} className={`msg ${m.role} ${m.card ? "card" : ""}`} style={m.card ? CARD_STYLE : undefined}>
             {m.text}
+            {m.tag && <span style={TAG_STYLE}>{m.tag}</span>}
           </div>
         ))}
         {vm.busy && (
