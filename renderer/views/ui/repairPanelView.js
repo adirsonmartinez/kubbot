@@ -81,14 +81,16 @@ export function createRepairPanelView({ container, repairViewModel: vm, modeMode
     if (done) {
       parts.push(el('p', 'remi-honest', R.honest));
       const row = el('div', 'remi-actions');
+      const markFixed = () => vm.markFixed();
       const button = (label, run, primary = false) => {
         const b = el('button', `remi-btn${primary ? ' primary' : ''}`, label);
         b.type = 'button';
+        if (run === markFixed) b.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
         b.addEventListener('click', run);
         row.appendChild(b);
       };
-      if (job.outcome === 'fixed') button(R.history.verify, () => vm.markFixed(), true);
-      else if (job.outcome === 'planned') button(R.markFixed, () => vm.markFixed(), true);
+      if (job.outcome === 'fixed') button(R.history.verify, markFixed, true);
+      else if (job.outcome === 'planned') button(R.markFixed, markFixed, true);
       button(R.history.title, () => actions?.showRepairs());
       button(R.close, () => vm.close());
       parts.push(row);

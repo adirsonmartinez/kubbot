@@ -45,6 +45,7 @@ export function attachMenu(button, menu, getItems) {
     const tiles = el('div', 'chat-menu-tiles');
     for (const item of items.filter((x) => x.kind === 'tile')) {
       const b = entry(item, `chat-menu-tile ${item.id}${item.accent ? ` accent-${item.accent}` : ''}`);
+      if (item.id === 'repair') b.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
       b.append(icon(item.icon, { size: 16 }), el('span', '', item.label));
       if (item.badge) b.appendChild(el('b', 'chat-menu-badge', String(item.badge)));
       tiles.appendChild(b);

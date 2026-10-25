@@ -49,6 +49,8 @@ function createWindow() {
       contextIsolation: true, // the page sees neither Node nor Electron, only what preload exposes
       nodeIntegration: false,
       sandbox: true,
+      // npm run dev: the window shows dev-only readouts (the hand tracker's frame rate)
+      additionalArguments: process.argv.includes('--dev') ? ['--platanus-dev'] : [],
     },
   });
 
@@ -883,16 +885,22 @@ ipcMain.handle('agents:cancel', (_e, runId) => {
 // so automated scenario runs never hang on a dialog
 async function confirm(message, detail, okLabel = t.allow) {
   const signal = process.env.PLATANUS_SIM === '1' ? AbortSignal.timeout(5000) : undefined;
-  const { response } = await dialog.showMessageBox(win, {
-    ...(signal ? { signal } : {}),
-    type: 'warning',
-    buttons: [t.cancel, okLabel],
-    defaultId: 0,
-    cancelId: 0,
-    message,
-    detail,
-  });
-  return response === 1;
+  // While it is open, the window's hand cursor selects nothing (spec/003-hand-gestures.md, B21)
+  send('dialog:state', true);
+  try {
+    const { response } = await dialog.showMessageBox(win, {
+      ...(signal ? { signal } : {}),
+      type: 'warning',
+      buttons: [t.cancel, okLabel],
+      defaultId: 0,
+      cancelId: 0,
+      message,
+      detail,
+    });
+    return response === 1;
+  } finally {
+    send('dialog:state', false);
+  }
 }
 
 // `npx electron . --open=/path/to/project` opens that folder at start (the window restores it)

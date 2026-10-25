@@ -105,16 +105,15 @@ test('a frame that arrives after turning it off is ignored', async () => {
   assert.deepEqual(goal(camera), { x: 0, z: 0 });
 });
 
-test('pinching and turning the hand clockwise turns the map clockwise, without panning', async () => {
-  const { vm, camera, tracking, state } = setup();
+// Turning the map is now a two-hand gesture (one holds, the other moves sideways: spec/003-hand-gestures.md)
+test('turning one pinching hand like a knob no longer turns the map, and does not pan either', async () => {
+  const { vm, camera, tracking } = setup();
   await vm.toggle();
   const start = camera.azimuthGoal;
   tracking.send(hand(0.5, 0.5, 0.02));
   for (let i = 1; i <= 12; i++) tracking.send(hand(0.5, 0.5, 0.02, -i * 0.05));
-  // A higher azimuth moves the camera counterclockwise around the map, so the map turns clockwise on screen
-  assert.ok(camera.azimuthGoal - start > 0.35, String(camera.azimuthGoal - start));
+  assert.equal(camera.azimuthGoal, start);
   assert.deepEqual(goal(camera), { x: 0, z: 0 });
-  assert.equal(state().gesture, 'rotate');
 });
 
 test('the camera view model glides to a pan (eased like a flight)', () => {

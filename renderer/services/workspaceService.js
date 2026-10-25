@@ -43,6 +43,8 @@ export function createWorkspaceService(bridge = window.platanus) {
       gitHistory: async () => ({ ok: true, data: demo.git }),
       onChanged: () => () => {},
       onMenuAction: () => () => {},
+      onDialog: () => () => {},
+      isDev: false,
     };
   }
 
@@ -69,5 +71,9 @@ export function createWorkspaceService(bridge = window.platanus) {
     onChanged: (callback) => bridge.onChanged(callback),
     // macOS system menu bar (Project menu): { action, root? }
     onMenuAction: (callback) => bridge.onMenuAction(callback),
+    // A confirmation dialog of the main process opens (true) or closes (false)
+    onDialog: (callback) => bridge.onDialog?.(callback) ?? (() => {}),
+    isDev: Boolean(bridge.dev), // npm run dev
+
   };
 }

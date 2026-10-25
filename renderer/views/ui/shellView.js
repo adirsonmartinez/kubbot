@@ -165,6 +165,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     for (const g of state.guide.filter((x) => x.depth === 0)) {
       const card = el('button', 'guide-card');
       card.type = 'button';
+      card.dataset.gesture = 'safe';
       const head = el('div', 'guide-head');
       head.append(entryIcon('folder', g.red ? 'red' : g.yellow ? 'yellow' : 'green'), el('strong', '', g.name), counters(g.red, g.yellow));
       card.append(head, el('span', 'guide-folder', `${g.folder}/`), el('p', 'guide-summary', g.summary));
@@ -176,6 +177,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
         subs.forEach((sub) => {
           const row = el('button', 'guide-sub');
           row.type = 'button';
+          row.dataset.gesture = 'safe';
           row.title = sub.summary;
           row.append(entryIcon('folder', sub.red ? 'red' : sub.yellow ? 'yellow' : 'green'), el('span', '', sub.name), counters(sub.red, sub.yellow));
           row.addEventListener('click', () => vm.showFolder(g.path));
@@ -195,6 +197,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
   function fileRow(file, depth = 0) {
     const row = el('button', 'side-row file');
     row.type = 'button';
+    row.dataset.gesture = 'safe'; // opening a file: the hand may select it (spec/003-hand-gestures.md, D1)
     row.style.paddingLeft = `${8 + depth * 12}px`;
     row.append(entryIcon('file', file.level), el('span', 'side-name', file.name));
     row.title = file.path;
@@ -213,6 +216,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     b.innerHTML = icon('wrench'); // static icon
     b.append(el('span', '', queued ? strings.repair.repairing : strings.repair.repair));
     b.type = 'button';
+    b.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
     b.disabled = queued;
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -384,6 +388,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     else {
       const waiting = busy.includes(server.port);
       const box = el('div', 'server-actions');
+    box.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
       box.append(
         server.paused
           ? iconButton('play', SV.resumeTitle(server.port), () => serversViewModel.resume(server.port), { disabled: waiting })
@@ -414,6 +419,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     head.append(el('span', `server-chip ${row.state}`, chip), el('span', 'risk-level', detail));
     const waiting = busy.includes(row.id);
     const box = el('div', 'server-actions');
+    box.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
     if (starting) box.append(iconButton('stop', SV.cancelStartTitle(row.port), () => serversViewModel.cancelStart(row.id), { disabled: waiting }));
     else if (row.canRestart) box.append(iconButton('play', SV.restartTitle(row.port), () => serversViewModel.restart(row.id), { disabled: waiting }));
     box.append(iconButton('more', SV.more(row.port), () => serversViewModel.toggleOpenMenu(row.id), { disabled: waiting, menuKey: row.id, expanded: openMenu === row.id }));
@@ -564,6 +570,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
         if (change.backup && !change.undone) {
           const undo = el('button', 'pill', strings.repair.undo);
           undo.type = 'button';
+          undo.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
           undo.addEventListener('click', () => repairViewModel.undo(entry.id, change));
           row.appendChild(undo);
         } else if (change.undone) row.appendChild(el('span', 'task-undone', strings.repair.undone));
@@ -583,14 +590,15 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     }
     if (entry.error || entry.interrupted) body.appendChild(el('p', 'task-error', entry.interrupted ? H.interrupted : entry.error));
     const buttons = el('div', 'task-actions');
-    const button = (label, run, primary = false) => {
+    const button = (label, run, primary = false, never = false) => {
       const b = el('button', `pill${primary ? ' active' : ''}`, label);
       b.type = 'button';
+      if (never) b.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
       b.addEventListener('click', (e) => run(e.currentTarget));
       buttons.appendChild(b);
     };
-    if (entry.status === 'fixed' || entry.status === 'planned') button(H.verify, () => repairViewModel.markFixed(entry.id), true);
-    if (entry.status === 'failed') button(H.retry, (b) => actions.repair(entry.path, b), true);
+    if (entry.status === 'fixed' || entry.status === 'planned') button(H.verify, () => repairViewModel.markFixed(entry.id), true, true);
+    if (entry.status === 'failed') button(H.retry, (b) => actions.repair(entry.path, b), true, true);
     button(H.open, () => vm.showFile(entry.path));
     body.appendChild(buttons);
     card.appendChild(body);

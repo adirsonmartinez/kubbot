@@ -61,6 +61,7 @@ import { createHudView } from './views/ui/hudView.js';
 import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
 import { createHandControlView } from './views/ui/handControlView.js';
+import { createHandCursorView, createHandTargets } from './views/ui/handCursorView.js';
 import { createPanelsView } from './views/ui/panelsView.js';
 import { createChatView } from './views/ui/chatView.js';
 import { createShellView } from './views/ui/shellView.js';
@@ -114,7 +115,10 @@ const editorViewModel = new EditorViewModel({ workspace, bus }); // files clicke
 const handTracking = createHandTrackingService();
 // The tour of the open project ("Recorrido"): the analyzer decides the stops, the agent narrates them
 const tourViewModel = new TourViewModel({ projectModel, workspace, connection, modeModel, camera: cameraViewModel, mapViewModel, repairViewModel, bus });
-const handControlViewModel = new HandControlViewModel({ tracking: handTracking, camera: cameraViewModel });
+// The hand's screen side (what is under the cursor, selecting it, zooming around a point) is filled in
+// below, once the 3D views and the input controller exist (spec/003-hand-gestures.md)
+const handActions = {};
+const handControlViewModel = new HandControlViewModel({ tracking: handTracking, camera: cameraViewModel, actions: handActions });
 // The server list only refreshes while its side view is on screen
 shellViewModel.store.subscribe(({ side, sidebarOpen }) => serversViewModel.setVisible(sidebarOpen && side === 'servers'), { immediate: true });
 
@@ -307,7 +311,7 @@ const pickers = {
   }),
   git: () => ({ targets: gitView.pickTargets(), handle: (pick) => gitViewModel.handlePick(pick) }),
 };
-createInputController({
+const input = createInputController({
   sceneView,
   cameraViewModel,
   picker: () => (projectOpen() ? pickers[appViewModel.view]() : null),
@@ -317,7 +321,19 @@ createInputController({
   grabber: () => (appViewModel.view === 'map' ? robotView.grabber : null), // the robot is dragged, not the map
 });
 createControlsView({ cameraViewModel, onReset: () => (appViewModel.view === 'map' ? mapViewModel.home() : cameraViewModel.reset()) });
-createHandControlView({ handControlViewModel, video: handTracking.video });
+createHandControlView({ handControlViewModel, video: handTracking.video, dev: workspace.isDev });
+// A confirmation dialog is open: the hand selects nothing meanwhile
+let dialogOpen = false;
+workspace.onDialog((open) => { dialogOpen = Boolean(open); });
+Object.assign(handActions, createHandTargets({
+  canvas: sceneView.canvas,
+  pickAtScreen: input.pickAtScreen,
+  zoomAt: input.zoomAt,
+  handlePick: (pick) => (projectOpen() ? pickers[appViewModel.view]().handle(pick) : undefined),
+  hover: (pick, x, y) => hoverCard.show(appViewModel.view === 'map' ? pick : null, x, y),
+  dialogOpen: () => dialogOpen,
+}));
+createHandCursorView({ handControlViewModel });
 createPanelsView({ appViewModel, mapViewModel, supabaseViewModel, gitViewModel });
 // Which agent changes ask first (Manual / Auto / Sin preguntar)
 const approvalModel = new ApprovalModel(agentService);

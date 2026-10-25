@@ -10,7 +10,7 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
 ## Ramas
 | Rama | Estado |
 |---|---|
-| `develop` | Tiene todo: chat natural, recorrido, robot, video, editor de archivos y la UI nueva. `feature/chat-natural`, `feature/recorrido` y `feature/robot-speech-bubbles` (Desire: robot de bienvenida con entrevista, agente en Windows) ya están fusionadas (2026-10-24). |
+| `develop` | `feature/hand-gestures` de Genesis (zagenesis19: zoom y giro con dos manos, cursor de mano, seleccionar quedándose quieto; `data-gesture="never"` en acciones sin confirmación) fusionada el 2026-10-24. Tiene todo: chat natural, recorrido, robot, video, editor de archivos y la UI nueva. `feature/chat-natural`, `feature/recorrido` y `feature/robot-speech-bubbles` (Desire: robot de bienvenida con entrevista, agente en Windows) ya están fusionadas (2026-10-24). |
 
 - Adirson trabaja directo en `develop` (sin ramas `feature/*`) y sube a su mirror: `git push personal develop`. `origin` (repo de la organización) le responde 403: alguien con permisos tiene que subir `develop` allí.
 
@@ -59,7 +59,7 @@ ADE de escritorio (Electron) para personas no técnicas: el proyecto se ve como 
   - fijos: chat abajo a la derecha, panel lateral, tarjeta de seguridad (compacta, arriba a la izquierda; reemplazó al semáforo) y selector Mapa/Git. Solo el editor se arrastra. Se quitó `floater.js`.
 
 ## Cómo comprobar
-- `npm test` (515 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
+- `npm test` (546 pruebas al 2026-10-24) y `npx esbuild renderer/main.js --bundle --outfile=/dev/null '--external:*.css' '--external:*.task'`.
 - **App real:** `npx electron . --remote-debugging-port=9223 --open=<proyecto>` y scripts CDP (`scripts/demo/cdp.mjs`).
 - **Banderas:**
   - `PLATANUS_SIM=1`: agente «Simulador», escenarios en `scripts/sim/scenarios.js`;

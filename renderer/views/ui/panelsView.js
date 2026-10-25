@@ -24,7 +24,7 @@ export function createPanelsView({ appViewModel, mapViewModel, supabaseViewModel
     if (status !== 'ready') return;
     $('crumbs').innerHTML = crumbs.map((c, i) => (i === crumbs.length - 1
       ? `<strong>${escapeHtml(c.name)}</strong>`
-      : `<button type="button" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button><span class="sep">/</span>`)).join('');
+      : `<button type="button" data-gesture="safe" data-path="${escapeHtml(c.path)}">${escapeHtml(c.name)}</button><span class="sep">/</span>`)).join('');
     $('crumbs').title = crumbs.length > 1 ? strings.panels.upHint : '';
   };
 

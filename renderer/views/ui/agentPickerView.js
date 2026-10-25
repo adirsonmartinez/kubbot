@@ -204,6 +204,7 @@ export function createAgentPickerView({ container, connection, approval = null, 
     const current = approval.store.state.mode;
     const seg = el('div', 'segmented permissions');
     seg.setAttribute('role', 'radiogroup');
+    seg.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
     seg.setAttribute('aria-label', PM.label);
     for (const mode of APPROVAL_MODES) {
       const b = el('button', `${mode}${current === mode ? ' active' : ''}`, PM.names[mode]);

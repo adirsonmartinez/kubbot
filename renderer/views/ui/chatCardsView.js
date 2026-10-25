@@ -21,6 +21,7 @@ export const CHIP_ICON = { ask: 'ask', repair: 'wrench', audit: 'audit', locate:
 export function actionButton(action, vm, className = 'card-action') {
   const b = el('button', `${className} ${action.kind ?? ''}`.trim());
   b.type = 'button';
+  if (action.kind === 'repair') b.dataset.gesture = 'never'; // the hand cursor never selects it (spec/003-hand-gestures.md, B20)
   b.append(icon(CHIP_ICON[action.kind] ?? 'arrowRight', { size: 15 }), el('span', '', action.label));
   b.addEventListener('click', () => vm.choose(action, b));
   return b;
