@@ -1,0 +1,752 @@
+/* The chat panel: Qubi's header, the run card, formatted answers, cards of what he did, the model picker
+   and the composer's help. Same clear dark glass as ui.css, on the --lg-* tokens; neutral, and only
+   problems get color. The libraries.dev effects (orbs, beam, metal, avatar) are the only things that glow. */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Header ---------- */
+.chat .chat-avatar {
+  width: 32px;
+  height: 32px;
+  background: none;
+  box-shadow: none;
+  position: relative;
+  overflow: visible;
+}
+.chat .chat-avatar canvas {
+  pointer-events: auto;
+}
+.chat .chat-title strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chat .chat-title span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.chat-badge {
+  display: inline-flex;
+  align-items: center;
+  font: 600 12px/1 var(--lg-font);
+  letter-spacing: 0.02em;
+}
+.chat-badge:not(.metal) {
+  padding: 3px 7px;
+  border-radius: 99px;
+  background: var(--lg-chip);
+  box-shadow: var(--lg-rim);
+  color: var(--lg-text-2);
+}
+.chat-badge.metal {
+  /* the metal badge has its own size (45 x 25); this keeps the title line from growing */
+  height: 18px;
+  transform: scale(0.8);
+  transform-origin: left center;
+  margin-right: -9px;
+}
+.chat-menu-wrap {
+  position: relative;
+  flex: none;
+}
+
+/* ---------- Pop menus (model picker and chat menu) ---------- */
+.glass-pop {
+  z-index: 8;
+  padding: 8px;
+  border-radius: var(--lg-r-card);
+  background: rgba(26, 26, 28, 0.98);
+  -webkit-backdrop-filter: blur(22px) saturate(175%);
+  backdrop-filter: blur(22px) saturate(175%);
+  box-shadow: var(--lg-rim-strong), var(--lg-shadow);
+  animation: rise 0.18s var(--lg-ease);
+}
+.chat-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 216px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px;
+  border-radius: var(--lg-r-block);
+}
+.chat-menu button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lg-text-2);
+  font: 500 12.5px var(--lg-font);
+  text-align: left;
+  cursor: pointer;
+}
+.chat-menu button:hover:not(:disabled),
+.chat-menu button:focus-visible {
+  background: var(--lg-chip);
+  color: var(--lg-text);
+  outline: none;
+}
+.chat-menu button:disabled {
+  color: var(--lg-faint);
+  cursor: default;
+}
+
+/* ---------- Conversation ---------- */
+.chat-body-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.chat .chat-body {
+  flex: 1;
+  min-height: 0;
+}
+.chat-more-below {
+  position: absolute;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px 6px 10px;
+  border: 0;
+  border-radius: 99px;
+  background: rgba(30, 30, 32, 0.92);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--lg-rim-strong), var(--lg-shadow);
+  color: var(--lg-text);
+  font: 500 12px var(--lg-font);
+  cursor: pointer;
+  animation: rise 0.2s var(--lg-ease);
+}
+.chat-more-below:hover {
+  background: rgba(46, 46, 50, 0.95);
+}
+.chat-more-below:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+/* A card is something Qubi did on the bench */
+.msg.card {
+  padding: 5px 12px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--lg-text-2);
+}
+.msg.waiting {
+  color: var(--lg-muted);
+  animation: chat-pulse 1.4s ease-in-out infinite;
+}
+.msg-tag {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--lg-faint);
+}
+.msg-voice {
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: -2px;
+  color: var(--lg-faint);
+}
+/* Qubi's answers are formatted text, not pre-wrapped lines */
+.msg.bot {
+  white-space: normal;
+}
+.msg.bot .md > :first-child {
+  margin-top: 0;
+}
+.msg.bot .md > :last-child {
+  margin-bottom: 0;
+}
+.msg.bot .md p {
+  margin: 0 0 8px;
+}
+.msg.bot .md h4 {
+  margin: 10px 0 4px;
+  color: var(--lg-text);
+  font: 600 13px/1.4 var(--lg-font);
+}
+.msg.bot .md strong {
+  color: var(--lg-text);
+  font-weight: 600;
+}
+.msg.bot .md ul,
+.msg.bot .md ol {
+  margin: 0 0 8px;
+  padding-left: 20px;
+}
+.msg.bot .md ul {
+  list-style: disc;
+}
+.msg.bot .md ol {
+  list-style: decimal;
+}
+.msg.bot .md li {
+  margin: 2px 0;
+}
+.msg.bot .md code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--lg-code);
+  box-shadow: inset 0 0 0 1px var(--lg-code-ring);
+  color: var(--lg-icon);
+  font: 12px var(--lg-mono);
+}
+.msg.bot .md pre {
+  margin: 0 0 8px;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.msg.bot .md pre code {
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  white-space: pre;
+}
+.msg.bot .md blockquote {
+  margin: 0 0 8px;
+  padding: 2px 0 2px 10px;
+  border-left: 2px solid var(--lg-line);
+  color: var(--lg-muted);
+}
+
+/* ---------- Run card: what Qubi did for one question ---------- */
+.run-card {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px 13px;
+  border-radius: var(--lg-r-block);
+  background: var(--lg-card);
+  box-shadow: var(--lg-rim);
+  color: var(--lg-text-2);
+  animation: rise 0.25s var(--lg-ease);
+}
+.run-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.run-badge {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--lg-chip);
+  box-shadow: var(--lg-rim);
+  color: var(--lg-icon);
+}
+.run-card.error .run-badge,
+.run-card.has-failed .run-badge {
+  color: #ff6b6b;
+}
+.run-who {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.run-who strong {
+  color: var(--lg-text);
+  font: 600 13px/1.3 var(--lg-font);
+  letter-spacing: -0.01em;
+}
+.run-model {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--lg-muted);
+  font-size: 12px;
+}
+.run-state {
+  color: var(--lg-muted);
+  font: 500 12px var(--lg-font);
+  white-space: nowrap;
+}
+.run-card.error .run-state,
+.run-card.has-failed .run-state {
+  color: #ff6b6b;
+}
+.run-time {
+  flex: none;
+  color: var(--lg-faint);
+  font: 12px var(--lg-font);
+  font-variant-numeric: tabular-nums;
+}
+/* What he does right now: a pill, with the orb that names the activity once the wait is long enough */
+.run-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 12px 5px 8px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  color: var(--lg-text-2);
+  font: 12px/1.3 var(--lg-font);
+}
+.run-pill > span:last-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.run-orb {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+.run-orb canvas {
+  display: block;
+  animation: orb-in 0.35s var(--lg-ease) both;
+}
+.run-fold {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+  border: 0;
+  background: transparent;
+  color: var(--lg-text-2);
+  font: 500 12px var(--lg-font);
+  text-align: left;
+  cursor: pointer;
+}
+.run-fold:hover {
+  color: var(--lg-text);
+}
+.run-fold:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+.run-chevron {
+  width: 5px;
+  height: 5px;
+  border: solid var(--lg-icon-muted);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(-45deg);
+  transition: transform 0.2s var(--lg-ease);
+}
+.run-fold[aria-expanded="true"] .run-chevron {
+  transform: rotate(45deg);
+}
+.run-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.run-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  list-style: none;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.run-step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 12.5px/1.4 var(--lg-font);
+  color: var(--lg-muted);
+}
+.run-step.running {
+  color: var(--lg-text);
+}
+.run-step.failed {
+  color: #ff6b6b;
+}
+.run-step-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.run-step-name {
+  flex: 1;
+  min-width: 0;
+}
+.run-step-time {
+  color: var(--lg-faint);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+.run-spin {
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--lg-line);
+  border-top-color: var(--lg-text);
+  animation: chat-spin 0.8s linear infinite;
+}
+
+/* ---------- Composer ---------- */
+.composer-wrap .composer textarea {
+  max-height: 160px;
+  overflow-y: auto;
+}
+.composer-bar {
+  gap: 8px;
+}
+.picker-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--lg-text);
+  font: 500 12.5px var(--lg-font);
+  cursor: pointer;
+  transition: background 0.2s var(--lg-ease);
+}
+.picker-pill:hover,
+.picker-pill.open {
+  background: var(--lg-chip);
+  box-shadow: var(--lg-rim);
+}
+.picker-pill:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 1px;
+}
+.picker-model {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.picker-meter {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11px;
+}
+.picker-meter i {
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.2);
+}
+.picker-meter i.on {
+  background: rgba(255, 255, 255, 0.85);
+}
+.picker-chevron {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin: 0 2px 3px;
+  border: solid var(--lg-icon-muted);
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(45deg);
+}
+.picker-pill.open .picker-chevron {
+  transform: rotate(-135deg) translate(-1px, -1px);
+}
+.picker-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.picker-label {
+  margin: 4px 8px;
+  color: var(--lg-faint);
+  font: 500 12px var(--lg-font);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.model-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 4px 6px;
+}
+.model-option {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s var(--lg-ease);
+}
+.model-option:hover {
+  background: var(--lg-chip);
+}
+.model-option:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 1px;
+}
+.model-option.active {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: var(--lg-rim-strong);
+}
+.model-option strong {
+  color: var(--lg-text);
+  font: 600 12.5px var(--lg-font);
+}
+.model-option small {
+  color: var(--lg-faint);
+  font: 12px var(--lg-font);
+}
+.picker-note {
+  margin: 4px 8px 2px;
+  color: var(--lg-faint);
+  font: 12px/1.4 var(--lg-font);
+}
+
+/* The effort slider: the more it thinks, the brighter and fuller the track */
+.effort {
+  margin: 0 4px;
+}
+.effort-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.effort-head .picker-label {
+  margin-left: 4px;
+}
+.effort-name {
+  margin-right: 4px;
+  color: var(--lg-text);
+  font: 600 12px var(--lg-font);
+}
+.effort-track {
+  position: relative;
+  height: 22px;
+  margin: 2px 4px 4px;
+}
+.effort-track::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 9px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.effort-fill {
+  position: absolute;
+  left: 0;
+  top: 9px;
+  height: 4px;
+  width: calc(var(--level, 0) * 100%);
+  min-width: 4px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.8));
+  box-shadow: 0 0 calc(2px + var(--level, 0) * 10px) rgba(255, 255, 255, 0.3);
+  transition: width 0.2s var(--lg-ease);
+}
+.effort-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 7px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+.effort-ticks i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+.effort-ticks i.on {
+  background: rgba(255, 255, 255, 0.9);
+}
+.effort-input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+  opacity: 0.001; /* the track above is what is seen; the real input keeps keys, touch and screen readers */
+  cursor: pointer;
+}
+.effort-track:focus-within {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+.effort-hint {
+  display: block;
+  margin: 0 4px 4px;
+  color: var(--lg-faint);
+  font: 12px/1.4 var(--lg-font);
+}
+
+/* ---------- Help while writing ---------- */
+.composer-assist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: -2px 0 6px -4px;
+}
+.assist-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 9px;
+  border-radius: 10px;
+  background: var(--lg-chip);
+  box-shadow: var(--lg-rim);
+  color: var(--lg-text-2);
+  font: 12px/1.4 var(--lg-font);
+}
+.assist-row svg {
+  flex: none;
+}
+.assist-row.secret {
+  background: rgba(255, 90, 106, 0.12);
+  color: #ffb3bb;
+}
+.composer-complete {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 0 0 1px var(--lg-line);
+}
+.composer-complete li {
+  padding: 5px 8px;
+  border-radius: 7px;
+  color: var(--lg-text-2);
+  font: 12.5px var(--lg-font);
+  cursor: pointer;
+}
+.composer-complete li.active,
+.composer-complete li:hover {
+  background: var(--lg-chip-hover);
+  color: var(--lg-text);
+}
+
+@keyframes chat-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes chat-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes orb-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .run-card,
+  .glass-pop,
+  .chat-more-below,
+  .run-orb canvas,
+  .msg.waiting {
+    animation: none;
+  }
+  .run-spin {
+    animation: none;
+    border-top-color: var(--lg-line);
+    border-right-color: var(--lg-text);
+  }
+  .effort-fill,
+  .run-chevron,
+  .picker-pill,
+  .model-option {
+    transition: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-pop,
+  .chat-more-below {
+    background: #1b1b1d;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* ---------- The call bar's voice glow (components/qubi/CallBar) ---------- */
+/* The beam wrapper takes the bar's place at the top of the stage; the bar sits inside it */
+.call-beam {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  z-index: 30;
+  width: max-content;
+  max-width: min(560px, calc(100% - 32px));
+  border-radius: 999px;
+  box-shadow: var(--lg-shadow);
+  transform: translateX(-50%);
+  animation: call-drop 0.35s var(--lg-ease);
+}
+.call-beam > .call-bar {
+  position: relative;
+  top: auto;
+  left: auto;
+  max-width: none;
+  box-shadow: var(--lg-rim-strong);
+  transform: none;
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .call-beam {
+    animation: none;
+  }
+}

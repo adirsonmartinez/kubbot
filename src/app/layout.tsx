@@ -7,8 +7,8 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const robotoMono = Roboto_Mono({ variable: "--font-roboto-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Platanus",
-  description: "Platanus Hack 26",
+  title: "Qubbot",
+  description: "Qubbot: laboratorio de sistemas Arduino en 3D",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

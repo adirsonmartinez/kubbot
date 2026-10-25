@@ -1,0 +1,235 @@
+/* Lab health pill (top-left of the scenario). Glass-morphism: score ring,
+   counters, budget bar. Only problems glow (red, amber); green stays neutral.
+   Animations are soft and respect prefers-reduced-motion. */
+
+.lab-hud {
+  position: absolute;
+  z-index: 5;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%); /* centered over the bench: the catalog and the chat take the sides */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 18px;
+  background: var(--lg-panel);
+  -webkit-backdrop-filter: blur(22px) saturate(175%) brightness(1.04);
+  backdrop-filter: blur(22px) saturate(175%) brightness(1.04);
+  -webkit-backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);
+  backdrop-filter: url(#liquid-glass) blur(22px) saturate(175%) brightness(1.04);
+  box-shadow: var(--lg-rim-strong), var(--lg-shadow);
+  color: var(--lg-text);
+  font: 12px/1.2 var(--lg-font);
+  -webkit-font-smoothing: antialiased;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s var(--lg-ease);
+}
+.lab-hud:hover {
+  background: rgba(24, 24, 24, 0.44);
+}
+.lab-hud:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 1px;
+}
+/* Glass rim */
+.lab-hud::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: linear-gradient(150deg, rgba(255, 255, 255, .34), rgba(255, 255, 255, .07) 28%, rgba(255, 255, 255, .02) 55%, rgba(255, 255, 255, .1));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* ── Score ring ─────────────────────────────────────────────────────────── */
+
+.lab-hud-ring {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 8px;
+  margin-right: 6px;
+  border-right: 1px solid var(--lg-line);
+}
+.lab-hud-ring svg {
+  width: 32px;
+  height: 32px;
+  /* Rotate so the arc starts at the top (12 h) */
+  transform: rotate(-90deg);
+}
+.lab-hud-ring circle {
+  fill: none;
+  stroke-width: 6;
+}
+.lab-hud-track {
+  stroke: rgba(255, 255, 255, 0.08);
+}
+.lab-hud-value {
+  stroke: var(--lg-text);
+  stroke-linecap: round;
+  /* Transition the offset for a smooth number animation */
+  transition: stroke-dashoffset 0.6s var(--lg-ease);
+}
+/* Colors by level — only problems glow */
+.lab-hud[data-level="red"] .lab-hud-value {
+  stroke: var(--danger);
+  filter: drop-shadow(0 0 4px rgba(255, 90, 106, 0.7));
+}
+.lab-hud[data-level="yellow"] .lab-hud-value {
+  stroke: var(--warn);
+  filter: drop-shadow(0 0 4px rgba(255, 194, 74, 0.6));
+}
+.lab-hud[data-level="green"] .lab-hud-value {
+  stroke: var(--ok);
+}
+.lab-hud[data-level="red"] .lab-hud-score { color: var(--danger); }
+.lab-hud[data-level="yellow"] .lab-hud-score { color: var(--warn); }
+
+/* ── Score text ─────────────────────────────────────────────────────────── */
+
+.lab-hud-score {
+  display: block;
+  font: 600 14px/1.15 var(--lg-font);
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--lg-text);
+  white-space: nowrap;
+}
+.lab-hud-score span {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--lg-muted);
+  margin-left: 1px;
+}
+
+/* ── Counters ───────────────────────────────────────────────────────────── */
+
+.lab-hud-counters {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 12px;
+}
+.lab-hud-parts {
+  color: var(--lg-text-2);
+  white-space: nowrap;
+}
+.lab-hud-issues {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+.lab-hud-issue {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+.lab-hud-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.lab-hud-dot.red {
+  background: var(--danger);
+  box-shadow: 0 0 6px rgba(255, 90, 106, 0.6);
+}
+.lab-hud-dot.yellow {
+  background: var(--warn);
+  box-shadow: 0 0 5px rgba(255, 194, 74, 0.5);
+}
+.lab-hud-issue b {
+  font-variant-numeric: tabular-nums;
+  color: var(--lg-text);
+}
+.lab-hud-issue span {
+  color: var(--lg-muted);
+}
+
+/* ── Budget bar ─────────────────────────────────────────────────────────── */
+
+.lab-hud-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid var(--lg-line);
+  font-size: 12px;
+}
+.lab-hud-budget-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  white-space: nowrap;
+  color: var(--lg-muted);
+  font-size: 12px;
+}
+.lab-hud-budget-value {
+  font-variant-numeric: tabular-nums;
+}
+.lab-hud-budget-label b {
+  color: var(--lg-text-2);
+  font-variant-numeric: tabular-nums;
+}
+.lab-hud-budget-bar {
+  display: block;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.lab-hud-budget-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.7);
+  transition: width 0.5s var(--lg-ease);
+}
+.lab-hud-budget.over .lab-hud-budget-bar i {
+  background: var(--warn);
+  box-shadow: 0 0 6px rgba(255, 194, 74, 0.5);
+}
+.lab-hud-budget.over .lab-hud-budget-label b {
+  color: var(--warn);
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .lab-hud,
+  .lab-hud-value,
+  .lab-hud-budget-bar i {
+    transition: none;
+  }
+}
+
+/* ── Reduced transparency ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-transparency: reduce) {
+  .lab-hud {
+    background: rgba(24, 24, 24, 0.92);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+/* Undo / redo: a glass pill at the top left of the stage (the side panel starts below it) */
+.lab-undo-redo {
+  position: absolute;
+  z-index: 5;
+  top: 14px;
+  left: 16px;
+}
+.lab-undo-redo > button:disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}

@@ -196,7 +196,7 @@
 }
 .icon-bar .tip small {
   color: var(--lg-muted);
-  font: 11px/1.45 var(--lg-font);
+  font: 12px/1.45 var(--lg-font);
 }
 .side-dock .tip {
   left: calc(100% + 14px);
@@ -235,6 +235,67 @@
   padding: 14px 16px;
   color: var(--lg-text-2);
 }
+
+/* ---------- Component catalog ---------- */
+.component-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.component-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 6px 9px;
+  border: 0;
+  border-radius: var(--lg-r-block);
+  background: var(--lg-card);
+  box-shadow: var(--lg-rim);
+  color: var(--lg-text-2);
+  font: 500 12px/1.2 var(--lg-font);
+  text-align: left;
+  cursor: grab;
+  transition: background 0.15s var(--lg-ease);
+}
+.component-card:hover:not(:disabled) {
+  background: var(--lg-chip-hover);
+}
+.component-card:disabled {
+  color: var(--lg-faint);
+  cursor: default;
+}
+.component-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.component-preview {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: var(--lg-r-sm);
+  background: var(--lg-code);
+  box-shadow: inset 0 0 0 1px var(--lg-code-ring);
+  color: var(--lg-icon-muted);
+}
+.component-preview > div {
+  position: absolute !important; /* the preview canvas fills the square */
+  inset: 0;
+}
+.component-name {
+  padding: 0 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .muted {
   margin: 0;
   color: var(--lg-muted);
@@ -298,14 +359,14 @@
   font: 600 14px/1.2 var(--lg-font);
   letter-spacing: -0.01em;
 }
-.chat-title span {
+.chat-title > span {
   display: flex;
   align-items: center;
   gap: 6px;
   color: var(--lg-muted);
   font-size: 12px;
 }
-.chat-title span::before {
+.chat-title > span::before {
   content: "";
   width: 6px;
   height: 6px;
@@ -376,14 +437,14 @@
 .chat-suggest {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap; /* long chips go to a second line instead of being cut */
   margin: 0 12px 10px;
-  overflow-x: auto;
-  scrollbar-width: none;
 }
 .chat-suggest button {
-  flex: none;
-  min-height: 32px;
-  padding: 0 14px;
+  flex: 0 1 auto;
+  min-height: 30px;
+  padding: 0 13px;
+  white-space: nowrap;
   border: 0;
   border-radius: 999px;
   background: var(--lg-chip);
@@ -397,13 +458,21 @@
   background: var(--lg-chip-hover);
 }
 
-.composer {
+/* The wrapper holds the composer, its border beam and the model menu (see chat.css) */
+.composer-wrap {
   position: relative;
   margin: 0 12px 12px;
+}
+.composer-beam {
+  border-radius: var(--lg-r-card);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+.composer {
+  position: relative;
   padding: 10px 10px 8px 14px;
   border-radius: var(--lg-r-card);
   background: rgba(255, 255, 255, 0.055);
-  box-shadow: var(--lg-rim-strong), 0 8px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--lg-rim-strong);
 }
 .composer:focus-within {
   background: rgba(255, 255, 255, 0.07);

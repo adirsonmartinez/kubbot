@@ -1,0 +1,25 @@
+# Render Blueprint — Qubbot, el laboratorio de sistemas Arduino en 3D. Un solo servicio web (Next.js).
+# Sin claves funciona igual: el chat usa el asistente sin IA. Con ANTHROPIC_API_KEY habla Qubi con Claude.
+services:
+  - type: web
+    name: qubbot
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: ANTHROPIC_API_KEY # opcional: el agente del chat con Claude (se pone en el panel de Render, nunca aquí)
+        sync: false
+      - key: QUBBOT_MODEL # opcional: otro modelo de la lista (claude-sonnet-5-5, claude-opus-5-5, claude-haiku-5-5; por defecto claude-sonnet-5-5)
+        sync: false
+      - key: QUBBOT_ALLOW_OPUS # opcional: 1 deja que cualquier visitante elija Opus y esfuerzo alto (sin esto, tope Sonnet/Haiku y esfuerzo medio)
+        sync: false
+      - key: ELEVENLABS_API_KEY # opcional: la llamada con voz de Qubi (se pone en el panel de Render, nunca aquí)
+        sync: false
+      - key: ELEVENLABS_VOICE_ID # opcional: la voz de Qubi en ElevenLabs
+        sync: false
+      - key: ELEVENLABS_LLM # opcional: el modelo de lenguaje del agente de voz
+        sync: false

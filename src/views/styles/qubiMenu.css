@@ -1,0 +1,95 @@
+/* Qubi's action menu on the bench: a glass card that hangs over his head, like his speech bubble, with the
+   same look (tokens --lg-*). Every class starts with qm-. */
+
+.qm-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  box-sizing: border-box;
+  width: max-content;
+  min-width: 200px;
+  max-width: 280px;
+  padding: 10px 8px 8px;
+  border-radius: 18px;
+  color: var(--lg-text, #fff);
+  font: 500 13px/1.4 var(--lg-font, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+  background: rgba(18, 18, 18, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: var(--lg-rim, inset 0 1px 0 rgba(255, 255, 255, 0.16)), 0 12px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(18px) saturate(175%);
+  -webkit-backdrop-filter: blur(18px) saturate(175%);
+  z-index: 7;
+  opacity: 0;
+  visibility: hidden;
+  will-change: transform, opacity;
+  user-select: none;
+}
+
+.qm-tail {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  background: rgba(18, 18, 18, 0.8);
+  border: 0 solid rgba(255, 255, 255, 0.14);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.qm-name {
+  display: block;
+  padding: 0 8px;
+  font: 600 12px/1.2 var(--lg-font, sans-serif);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent, #8b83ff);
+}
+
+.qm-title {
+  text-wrap: balance;
+  margin: 2px 0 6px;
+  padding: 0 8px;
+  font-weight: 600;
+  color: var(--lg-text, #fff);
+}
+
+.qm-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qm-item {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--lg-text, #fff);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s var(--lg-ease, ease);
+}
+.qm-item:hover,
+.qm-item:focus-visible {
+  background: var(--lg-chip-hover, rgba(255, 255, 255, 0.11));
+}
+.qm-item:active {
+  background: var(--lg-chip-press, rgba(255, 255, 255, 0.08));
+}
+.qm-item:focus-visible {
+  outline: 2px solid var(--accent, #8b83ff);
+  outline-offset: -2px;
+}
+.qm-item.danger {
+  color: var(--danger, #ff8a80);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qm-item {
+    transition: none;
+  }
+}

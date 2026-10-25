@@ -1,0 +1,255 @@
+/* ── Guided tour ──────────────────────────────────────────────────────────── */
+/* TourOverlay draws a hole around the target (its shadow dims the rest of the screen) and puts the card
+   beside it; without a target the whole screen is dimmed and the card is centered. */
+
+.tour-root {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: auto; /* the tour is modal: clicks do not reach the lab */
+}
+
+.tour-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.tour-hole {
+  position: absolute;
+  border-radius: 16px;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55), 0 0 0 2px rgba(139, 131, 255, 0.85), 0 0 24px rgba(139, 131, 255, 0.5);
+  pointer-events: none;
+  transition: left 0.25s var(--lg-ease), top 0.25s var(--lg-ease), width 0.25s var(--lg-ease), height 0.25s var(--lg-ease);
+}
+
+.tour-pop {
+  position: absolute;
+  width: min(360px, calc(100vw - 32px));
+}
+.tour-pop[data-standalone='true'] {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ── Tour card ────────────────────────────────────────────────────────────── */
+
+.tour-card {
+  border-radius: 16px;
+  background: rgba(28, 31, 35, 0.92);
+  -webkit-backdrop-filter: blur(22px) saturate(175%);
+  backdrop-filter: blur(22px) saturate(175%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--lg-rim-strong), var(--lg-shadow);
+  color: var(--lg-text);
+  font: var(--lg-font);
+  animation: tour-card-in 0.3s ease-out;
+}
+
+.tour-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px 0;
+}
+
+.tour-card-step {
+  font: 500 12px var(--lg-font);
+  color: var(--lg-muted);
+}
+
+.tour-card-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lg-chip-hover);
+}
+
+.tour-dot-pass {
+  background: var(--accent, #8b83ff);
+}
+
+
+.tour-card-body {
+  padding: 18px;
+}
+
+.tour-card-title {
+  font: 600 16px/1.3 var(--lg-font);
+  color: var(--lg-text);
+  margin: 0 0 8px;
+}
+
+.tour-card-text {
+  font: 400 14px/1.55 var(--lg-font);
+  color: var(--lg-text-2);
+  margin: 0;
+}
+
+.tour-card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 18px 16px;
+}
+
+.tour-btn {
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  font: 500 13px var(--lg-font);
+  cursor: pointer;
+  transition: background 0.15s var(--lg-ease);
+}
+
+.tour-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tour-btn--prev,
+.tour-btn--next {
+  background: var(--lg-chip);
+  color: var(--lg-text);
+  box-shadow: var(--lg-rim);
+}
+
+.tour-btn--prev:hover:not(:disabled),
+.tour-btn--next:hover:not(:disabled) {
+  background: var(--lg-chip-hover);
+}
+
+.tour-btn--next {
+  background: var(--accent, #8b83ff);
+  color: #fff;
+  box-shadow: none;
+}
+
+.tour-btn--next:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.tour-btn--skip {
+  background: transparent;
+  color: var(--lg-muted);
+  padding: 8px 12px;
+}
+
+.tour-btn--skip:hover {
+  color: var(--lg-text);
+}
+
+/* The offer after the welcome: a small card at the bottom center of the stage */
+.tour-offer {
+  position: absolute;
+  z-index: 9;
+  left: 50%;
+  bottom: 120px;
+  transform: translateX(-50%);
+  width: min(340px, calc(100% - 32px));
+  padding: 18px;
+  animation: tour-offer-rise 0.3s ease-out;
+}
+.tour-offer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+@keyframes tour-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes tour-offer-rise {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Where Qubi walks (his front corner of the bench): the tour highlights this stage-level box */
+.tour-qubi-anchor {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 140px;
+  height: 160px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .tour-card,
+  .tour-offer {
+    animation: none;
+  }
+  .tour-hole {
+    transition: none;
+  }
+}
+
+/* Stage-level boxes the tour can highlight where the thing itself is 3D or a whole panel */
+.tour-bench-anchor {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: min(520px, 50%);
+  height: 38%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.tour-panel-anchor {
+  position: absolute;
+  top: 72px;
+  bottom: 72px;
+  left: 82px;
+  width: min(300px, calc(100% - 100px));
+  pointer-events: none;
+}
+
+/* The «Recorrido» entry in the settings panel */
+.tour-settings {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--lg-line);
+}
+
+.tour-settings.first {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.tour-settings-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tour-btn--danger {
+  background: var(--danger);
+  color: #fff;
+}
+.tour-btn--danger:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
