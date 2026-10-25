@@ -814,3 +814,14 @@ button.lab-issue:focus-visible {
     animation: none;
   }
 }
+
+/* The empty bench's "Probar con un ejemplo": a glass pill just below the bench's hint */
+.lab-example {
+  position: absolute; left: 50%; top: calc(50% + 46px); transform: translateX(-50%); z-index: 5;
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 999px;
+  font: inherit; font-size: 14px; color: var(--lg-text); cursor: pointer; border: 0;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.lab-example:hover { transform: translateX(-50%) translateY(-2px); box-shadow: 0 0 0 1px rgba(139, 131, 255, .55), 0 10px 30px -12px rgba(139, 131, 255, .6); }
+.lab-example:focus-visible { outline: 2px solid rgba(255, 255, 255, .6); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .lab-example, .lab-example:hover { transition: none; transform: translateX(-50%); } }

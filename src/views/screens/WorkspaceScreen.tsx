@@ -11,6 +11,7 @@ import { useLabViewModel } from "@/viewmodels/useLabViewModel";
 import { useMapViewModel } from "@/viewmodels/useMapViewModel";
 import { useShellViewModel } from "@/viewmodels/useShellViewModel";
 import { ChatLauncher, ChatPanel } from "@/views/components/ChatPanel";
+import { Icon } from "@/views/components/Icon";
 import { IconBar, type IconBarItem } from "@/views/components/IconBar";
 import { MapControls } from "@/views/components/MapControls";
 import { SidePanel } from "@/views/components/SidePanel";
@@ -52,7 +53,7 @@ const MAP_CONTROLS_RIGHT = 252; // the zoom / turn / center buttons at the botto
 const TOOLBAR_HEIGHT = 96; // the toolbar and its hint above the bottom edge
 
 export function WorkspaceScreen() {
-  const shell = useShellViewModel<Side>();
+  const shell = useShellViewModel<Side>("catalog"); // the catalog starts open: it is where everything begins
   const map = useMapViewModel();
   const lab = useLabViewModel();
   const { sim, enclosure, toggleSim, toggleEnclosure, exportSketch, add } = lab;
@@ -109,6 +110,12 @@ export function WorkspaceScreen() {
             </SidePanel>
           )}
           <MapControls vm={map} />
+          {lab.design.parts.length === 0 && (
+            <button type="button" className="lab-example glass-panel" onClick={lab.loadExample} title={labCopy.bench.exampleHint}>
+              <Icon name="sparkles" size={16} />
+              {labCopy.bench.example}
+            </button>
+          )}
           <LabToolbar vm={lab} insetLeft={MAP_CONTROLS_RIGHT} insetRight={insets.right} />
         </main>
 

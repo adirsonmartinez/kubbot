@@ -53,6 +53,8 @@ export const labCopy = {
   // --- The bench (3D view) ---
   bench: {
     empty: 'Tu banco está vacío. Arrastra una placa desde el catálogo para empezar.',
+    example: 'Probar con un ejemplo',
+    exampleHint: 'Un sensor de estacionamiento ya conectado: simúlalo, mira su caja y su código.',
     dropHere: 'Suelta para ponerla en el banco',
     wiring: (part: string, pin: string) => `Conectando ${pin} de ${part}: toca el pin de destino. Esc para cancelar.`,
     selected: (name: string) => `${name} seleccionada`,

@@ -10,6 +10,7 @@ import { catalogSections, type Component } from "@/models/lab/catalog";
 import { emptyDesign, parseDesign, serializeDesign, type Design, type Issue } from "@/models/lab/circuit";
 import { applyAgentTool } from "@/models/lab/agentTools";
 import { enclosureFor, toScad, toStl } from "@/models/lab/enclosure";
+import { parkingSensor } from "@/models/lab/examples";
 import { simulate } from "@/models/lab/simulation";
 import { sketchFor } from "@/models/lab/sketch";
 import { downloadFile, loadDesign, readDesignFile, saveDesign } from "@/services/labStorage";
@@ -285,6 +286,13 @@ export function useLabViewModel() {
           if (!sketch.ok) return makeNotice("warn", sketch.reason === "noBoard" ? "sketchNoBoard" : "notReady");
           return { data: sketch.code, mime: "text/plain" };
         }),
+
+      // Puts a ready-made, wired circuit on the bench (the empty bench's "Probar con un ejemplo")
+      loadExample: () => {
+        const example = parkingSensor();
+        designRef.current = example;
+        dispatch({ type: "load", design: example });
+      },
 
       // Replaces the bench with a circuit.json the person picked -> whether it was loaded
       importDesign: async (file: File) => {

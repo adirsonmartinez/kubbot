@@ -4,8 +4,9 @@
 
 import { useState } from "react";
 
-export function useShellViewModel<Side extends string>() {
-  const [side, setSide] = useState<Side | null>(null);
+// `initial`: the panel open when the workspace starts (null: none)
+export function useShellViewModel<Side extends string>(initial: Side | null = null) {
+  const [side, setSide] = useState<Side | null>(initial);
 
   return {
     side,
