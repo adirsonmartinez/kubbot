@@ -22,6 +22,9 @@ export function createWorkspaceService(bridge = window.platanus) {
         return { ok: true, data: { name: 'nuevo-proyecto', root: null } };
       },
       current: async () => ({ ok: true, data: null }),
+      // The browser demo never writes to disk: nothing to trust
+      trust: async () => ({ ok: true, data: false }),
+      untrust: async () => ({ ok: true, data: false }),
       close: async () => ({ ok: true }),
       recent: async () => ({ ok: true, data: [] }),
       openRecent: async () => DESKTOP_ONLY,
@@ -50,6 +53,8 @@ export function createWorkspaceService(bridge = window.platanus) {
     choose: () => bridge.chooseWorkspace(),
     create: () => bridge.createWorkspace(),
     current: () => bridge.currentWorkspace(),
+    trust: (ask = false) => bridge.trustWorkspace(ask),
+    untrust: () => bridge.untrustWorkspace(),
     close: () => bridge.closeWorkspace(),
     recent: () => bridge.recentWorkspaces(),
     openRecent: (root) => bridge.openRecentWorkspace(root),

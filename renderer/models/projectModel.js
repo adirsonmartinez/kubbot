@@ -11,15 +11,21 @@ const RELOAD_DEBOUNCE_MS = 250;
 
 export class ProjectModel {
   #workspace;
+  #setup;
   #reloadTimer = null;
 
   // `session` increases each time a project is opened (to reset per-project state);
   // `version` increases each time the tree is reloaded.
   // integrations: keys in INTEGRATIONS order; integrationStatus: key -> 'connected' | 'incident' | 'disconnected'
-  store = new Observable({ open: false, name: null, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: 0, version: 0 });
+  // | 'pending' (set up by the welcome robot, waiting for the person's account); usesSupabase: a live Supabase
+  // the map draws with its schema (not a pending one); root: the folder's full path; demo: a demo project
+  // (DEMO_INTEGRATIONS, or the browser demo), whose Supabase shows made-up data and a made-up vulnerability
+  store = new Observable({ open: false, name: null, root: null, demo: false, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: 0, version: 0 });
 
-  constructor(workspace) {
+  // `setup` (SetupModel): what the welcome robot set up and is still waiting for an account
+  constructor(workspace, setup = null) {
     this.#workspace = workspace;
+    this.#setup = setup;
   }
 
   // Shows the folder picker; resolves to the bridge response ({ ok, data }).
@@ -54,11 +60,11 @@ export class ProjectModel {
   }
 
   // The tree is loaded before publishing, so the map never draws a half-loaded project
-  async open({ name }) {
-    const loaded = await this.#load(name);
+  async open({ name, root = null }) {
+    const loaded = await this.#load(name, root);
     if (!loaded) return;
     const { session, version } = this.store.state;
-    this.store.set({ open: true, name: name || null, ...loaded, session: session + 1, version: version + 1 });
+    this.store.set({ open: true, name: name || null, root, ...loaded, session: session + 1, version: version + 1 });
   }
 
   // Back to the start screen: the main process stops watching the folder and the agent loses access
@@ -67,21 +73,26 @@ export class ProjectModel {
     clearTimeout(this.#reloadTimer);
     await this.#workspace.close();
     const { session, version } = this.store.state;
-    this.store.set({ open: false, name: null, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: session + 1, version: version + 1 });
+    this.store.set({ open: false, name: null, root: null, demo: false, tree: [], usesSupabase: false, integrations: [], integrationStatus: {}, session: session + 1, version: version + 1 });
   }
 
   async reload() {
     if (!this.store.state.open) return;
-    const loaded = await this.#load(this.store.state.name);
+    const loaded = await this.#load(this.store.state.name, this.store.state.root);
     if (loaded) this.store.set({ ...loaded, version: this.store.state.version + 1 });
   }
 
-  async #load(name) {
+  async #load(name, root) {
     const response = await this.#workspace.tree();
     if (!response.ok) return null;
     const integrationStatus = await this.#detectIntegrations(response.data, name);
+    // Found in the files but still waiting for the person's account (set up by the welcome robot)
+    this.#setup?.pendingOf(root).forEach((key) => { if (integrationStatus[key] === 'connected') integrationStatus[key] = 'pending'; });
     const integrations = INTEGRATIONS.filter((key) => key in integrationStatus);
-    return { tree: response.data, integrations, integrationStatus, usesSupabase: integrations.includes('supabase') };
+    const usesSupabase = integrations.includes('supabase') && integrationStatus.supabase !== 'pending';
+    // the demo project, or anything in the browser demo (no disk: always the made-up project)
+    const demo = Boolean(DEMO_INTEGRATIONS[(name ?? '').toLowerCase()]) || this.#workspace.isDesktop === false;
+    return { tree: response.data, integrations, integrationStatus, usesSupabase, demo };
   }
 
   // Groups bursts of disk changes into a single reload

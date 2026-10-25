@@ -33,7 +33,7 @@ function setup(tree = TREE) {
   const supabase = { store: { state: { schemaOpen: false } }, openSchema() {}, setOnScreen() {}, selectTable() {} };
   const bus = createEventBus();
   const events = [];
-  for (const name of ['folderOpened', 'fileSelected']) bus.on(EVENTS[name], (p) => events.push([name, p]));
+  for (const name of ['folderOpened', 'fileSelected', 'integrationPicked']) bus.on(EVENTS[name], (p) => events.push([name, p]));
   const vm = new MapViewModel({
     projectModel, securityModel: security, camera: { flyTo: (to, zoom) => flights.push({ ...to, zoom }), reset() {} }, supabaseViewModel: supabase, bus,
   });
@@ -261,8 +261,21 @@ test('opening another top-level folder folds the previous branch: one path at a 
   assert.deepEqual(state().buildings.filter((b) => b.open).map((b) => b.path), ['docs']);
 });
 
-test('the integrations band runs across the top, above the plaza and as wide as the tree', () => {
+test('with no integrations there is no band (nothing to hold)', () => {
   const { state } = setup();
+  assert.equal(state().band, null);
+  assert.deepEqual(state().integrations, []);
+});
+
+test('an empty project (a new one) has no name card; one with files does', () => {
+  assert.equal(setup([]).state().plaza.empty, true);
+  assert.equal(setup().state().plaza.empty, false);
+  assert.equal(setup([file('README.md')]).state().plaza.empty, false);
+});
+
+test('the integrations band runs across the top, above the plaza and as wide as the tree', () => {
+  const { state, projectModel } = setup();
+  projectModel.store.set({ integrations: ['vercel'] });
   const { band, buildings } = state();
   const c = screenOf(band.x, band.z);
   assert.ok(c.v + band.depth / 2 < -state().plaza.size / 2);
@@ -369,4 +382,27 @@ test('the robot leaves when another project is opened', async () => {
   await vm.createProject();
   projectModel.store.set({ session: projectModel.store.state.session + 1 });
   assert.equal(state().welcome, false);
+});
+
+test('pending integrations (set up, waiting for an account) sit in the band, Supabase too, and light no way', () => {
+  const { state, projectModel } = setup();
+  projectModel.store.set({ integrations: ['supabase', 'vercel'], usesSupabase: false, integrationStatus: { supabase: 'pending', vercel: 'pending' } });
+  const { integrations, integrationLines } = state();
+  // A pending Supabase is not the live database node: it is drawn in the row like the others
+  assert.deepEqual(integrations.map((i) => [i.key, i.status]), [['supabase', 'pending'], ['vercel', 'pending']]);
+  assert.equal(integrationLines.length, 0);
+});
+
+test('clicking an integration on the map tells which one, with its state', () => {
+  const { vm, projectModel, events } = setup();
+  projectModel.store.set({ integrations: ['vercel'], integrationStatus: { vercel: 'pending' } });
+  vm.handlePick({ type: 'integration', key: 'vercel' });
+  assert.deepEqual(events.filter(([name]) => name === 'integrationPicked'), [['integrationPicked', { key: 'vercel', status: 'pending' }]]);
+});
+
+test('clicking the live Supabase node opens its panel (an integration pick), not the schema', () => {
+  const { vm, projectModel, events } = setup();
+  projectModel.store.set({ integrations: ['supabase'], usesSupabase: true, integrationStatus: { supabase: 'connected' } });
+  vm.handlePick({ type: 'supabase' });
+  assert.deepEqual(events.filter(([name]) => name === 'integrationPicked').at(-1), ['integrationPicked', { key: 'supabase', status: 'connected' }]);
 });

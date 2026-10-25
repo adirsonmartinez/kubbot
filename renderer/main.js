@@ -15,6 +15,12 @@ import { createHandTrackingService } from './services/handTrackingService.js';
 import { createFaceTrackingService } from './services/faceTrackingService.js';
 
 import { ProjectModel } from './models/projectModel.js';
+import { SetupModel } from './models/setupModel.js';
+import { TrustModel } from './models/trustModel.js';
+import { createIntegrationService } from './services/integrationService.js';
+import { ConnectViewModel } from './viewmodels/connectViewModel.js';
+import { DatabaseViewModel } from './viewmodels/databaseViewModel.js';
+import { createConnectModalView } from './views/ui/connectModalView.js';
 import { SecurityModel } from './models/securityModel.js';
 import { SupabaseModel } from './models/supabaseModel.js';
 import { AgentModel } from './models/agentModel.js';
@@ -33,6 +39,9 @@ import { GitViewModel } from './viewmodels/gitViewModel.js';
 import { AppViewModel } from './viewmodels/appViewModel.js';
 import { ShellViewModel } from './viewmodels/shellViewModel.js';
 import { RepairViewModel } from './viewmodels/repairViewModel.js';
+import { TourViewModel } from './viewmodels/tourViewModel.js';
+import { RobotViewModel } from './viewmodels/robotViewModel.js';
+import { BuildViewModel } from './viewmodels/buildViewModel.js';
 import { HandControlViewModel } from './viewmodels/handControlViewModel.js';
 import { HandsFreeViewModel } from './viewmodels/handsFreeViewModel.js';
 import { HandsFreeSettings } from './models/handsFreeSettings.js';
@@ -49,6 +58,12 @@ import { createInputController } from './views/scene/inputController.js';
 import { createGitView } from './views/scene/gitView.js';
 import { createRemiView } from './views/scene/remiView.js';
 import { createRobotView } from './views/scene/robotView.js';
+import { createTourView } from './views/scene/tourView.js';
+import { createBuildSiteView } from './views/scene/buildSiteView.js';
+import { createDemoCursor } from './views/ui/demoCursorView.js';
+import { isDemo } from './core/demoMode.js';
+import { RobotDialogViewModel } from './viewmodels/robotDialogViewModel.js';
+import { createWelcomeRobotView } from './views/scene/welcomeRobotView.js';
 import { createHudView } from './views/ui/hudView.js';
 import { createLabelLayer } from './views/ui/labelLayer.js';
 import { createControlsView } from './views/ui/controlsView.js';
@@ -63,8 +78,6 @@ import { createAgentPickerView } from './views/ui/agentPickerView.js';
 import { attachMenu } from './views/ui/chatMenuView.js';
 import { chatMenuItems } from './viewmodels/chatMenu.js';
 import { createIconBarView } from './views/ui/iconBarView.js';
-import { makeFloating } from './views/ui/floater.js';
-import { makeDraggable } from './views/ui/draggable.js';
 import { createChatDockView } from './views/ui/chatDockView.js';
 import { createRepairPanelView } from './views/ui/repairPanelView.js';
 import { createHoverCardView } from './views/ui/hoverCardView.js';
@@ -76,7 +89,11 @@ import { applyIcons } from './views/icons.js';
 // --- Models ---
 const bus = createEventBus();
 const workspace = createWorkspaceService();
-const projectModel = new ProjectModel(workspace);
+// What the welcome robot set up in a new project and still waits for the person's account ("Por conectar")
+const setupModel = new SetupModel();
+const projectModel = new ProjectModel(workspace, setupModel);
+// Trusted folder (like VS Code): asked each time a project opens; trusted, the agent saves without asking each time
+const trustModel = new TrustModel({ workspace, projectModel });
 const securityModel = new SecurityModel();
 const supabaseModel = new SupabaseModel();
 const gitModel = new GitModel(workspace);
@@ -107,6 +124,8 @@ const serversViewModel = new ServersViewModel({ serversModel });
 const editorViewModel = new EditorViewModel({ workspace, bus }); // files clicked on the map open as tabs
 const labViewModel = new LabViewModel({ service: createLabService() });
 const handTracking = createHandTrackingService();
+// The tour of the open project ("Recorrido"): the analyzer decides the stops, the agent narrates them
+const tourViewModel = new TourViewModel({ projectModel, workspace, connection, modeModel, camera: cameraViewModel, mapViewModel, repairViewModel, bus });
 // The hand's screen side (what is under the cursor, selecting it, zooming around a point) is filled in
 // below, once the 3D views and the input controller exist (spec/003-hand-gestures.md)
 const handActions = {};
@@ -126,6 +145,7 @@ const stage = document.getElementById('stage');
 const actions = {
   // Remi hops from the button to the map, then walks to the file's folder
   repair(path, from = null) {
+    tourViewModel.exit({ restore: false }); // Remi takes the map
     shellViewModel.setStage('map');
     if (repairViewModel.busy || !from) return repairViewModel.start(path);
     remiJump(from, stage).then(() => repairViewModel.start(path));
@@ -154,8 +174,63 @@ const actions = {
     shellViewModel.setStage('map');
     if (!mapViewModel.show(path)) chatViewModel.sayFromMap({ text: strings.chat.notInProject(path) });
   },
+  async startTour() {
+    shellViewModel.setStage('map');
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    const result = await tourViewModel.start();
+    if (result.reason === 'busy') chatViewModel.sayFromMap({ text: strings.tour.busy });
+  },
+  // Starts a message in the chat box (the person finishes it)
+  draft(text) {
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+    composerViewModel.setDraft(text);
+    requestAnimationFrame(() => {
+      const box = document.getElementById('chat-text');
+      box?.focus();
+      box?.setSelectionRange(box.value.length, box.value.length);
+    });
+  },
+  tourNext: () => tourViewModel.next(),
+  tourPrev: () => tourViewModel.prev(),
+  tourExit: () => tourViewModel.exit(),
   showConnect: () => (shellViewModel.store.state.side === 'agent' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('agent'),
   showRepairs: () => (shellViewModel.store.state.side === 'repairs' && shellViewModel.store.state.sidebarOpen) || shellViewModel.setSide('repairs'),
+  openChat() {
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+  },
+  // The welcome robot hands a ready-made request to the agent (scaffold, .gitignore, README). With no agent
+  // connected (none logged in, so none picked automatically) the scripted demo would answer, so the request
+  // waits until the person picks one
+  // Returns true when an agent got the request now, false when it waits for one
+  askAgent(prompt) {
+    actions.openChat();
+    if (connection.live) {
+      chatViewModel.send(prompt);
+      return true;
+    }
+    pendingAgentPrompt = prompt;
+    actions.showConnect();
+    chatViewModel.sayFromMap({ text: strings.map.welcome.pickAgent });
+    return false;
+  },
+  // The robot's "save my progress": a commit understood by the chat itself (git asks before writing)
+  saveProgress() {
+    actions.openChat();
+    chatViewModel.send(strings.map.welcome.saveProgressPhrase);
+  },
+  trustFolder: () => trustModel.ask(),
+  // The Supabase panel's "Ver tablas en el mapa": the 3D schema next to the node
+  openSchema: () => { if (!supabaseViewModel.store.state.schemaOpen) mapViewModel.toggleSchema(); },
+  untrustFolder: () => trustModel.revoke(),
+  // Someone who already programs: the app talks in Dev mode
+  devMode: () => modeModel.set('tech'),
+  // The integrations the welcome robot is setting up: "Por conectar" on the map once their files arrive
+  prepareSetup(integrations) {
+    setupModel.prepare(projectModel.store.state.root, integrations);
+    projectModel.reload();
+  },
   // The Arduino lab: the project's lab, or else the example
   async openLab() {
     if (labViewModel.store.state.source !== 'project') await labViewModel.openExample();
@@ -168,7 +243,51 @@ bus.on(EVENTS.fileSelected, ({ path }) => {
   if (!/\.ino$/i.test(String(path)) || labViewModel.store.state.source !== 'project') return;
   shellViewModel.setStage('lab');
 });
-const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection });
+// "Conectar mi cuenta": Supabase connects from its modal (Platanus signs in and writes the keys, not the agent)
+const integrationService = createIntegrationService();
+const connectViewModel = new ConnectViewModel({
+  service: integrationService,
+  onConnected: (key, result) => {
+    const S = strings.accounts.supabase;
+    setupModel.markConnected(projectModel.store.state.root, key);
+    setupModel.link(projectModel.store.state.root, key, { projectId: result.projectId, name: result.name }); // the panel reads its numbers
+    if (shellViewModel.store.state.side === 'supabase') databaseViewModel.load();
+    securityModel.setScore(result.envFile, 'green', S.envReason); // Platanus wrote it and .gitignore keeps it out
+    projectModel.reload();
+    actions.openChat();
+    chatViewModel.sayFromMap({ text: S.chat(result.name) });
+  },
+});
+// The Supabase side panel: the connection and the database's numbers
+const databaseViewModel = new DatabaseViewModel({
+  service: integrationService, projectModel, setupModel, supabaseModel, onConnect: () => connectViewModel.open('supabase'),
+});
+// A click on an integration of the map: a connected Supabase opens its panel; one still waiting for the
+// person's account opens "Conectar mi cuenta" (Supabase) or explains what is missing (the others, for now)
+bus.on(EVENTS.integrationPicked, ({ key, status }) => {
+  if (key === 'supabase' && status !== 'pending') {
+    shellViewModel.showSide('supabase');
+    return databaseViewModel.load();
+  }
+  if (status !== 'pending') return;
+  if (key === 'supabase') return connectViewModel.open('supabase');
+  actions.openChat();
+  chatViewModel.sayFromMap({ text: strings.integrations.pendingInfo(strings.integrations.names[key] ?? key) });
+});
+let pendingAgentPrompt = null;
+connection.store.subscribe(() => {
+  if (!connection.live || !pendingAgentPrompt) return;
+  const prompt = pendingAgentPrompt;
+  pendingAgentPrompt = null;
+  chatViewModel.send(prompt);
+});
+const chatViewModel = new ChatViewModel({ agentModel, bus, actions, connection, isTech: () => modeModel.tech });
+// The welcome robot interviews the person on a new project (Desire's dialog, welcomeRobotView.js)
+const robotDialogViewModel = new RobotDialogViewModel({ mapViewModel, projectModel, securityModel, actions });
+// Building live: the robot carries each file an agent saves to its folder (it reads the chat's run cards)
+const buildViewModel = new BuildViewModel({ chatViewModel, mapViewModel, projectModel, tourViewModel, camera: cameraViewModel, bus });
+// The robot companion: drag or throw it onto a folder and it asks what to do there
+const robotViewModel = new RobotViewModel({ projectModel, mapViewModel, tourViewModel, buildViewModel, bus });
 // The agent waits for the person to approve a change (main process dialog): the chat says so
 agentService.onAwaiting((detail) => bus.emit(EVENTS.agentAwaiting, detail));
 agentService.onChanged((change) => bus.emit(EVENTS.agentChanged, change)); // its diff, live in the chat
@@ -192,7 +311,25 @@ const mapView = createMapView({ sceneView, labels, mapViewModel });
 const supabaseView = createSupabaseView({ sceneView, labels, supabaseViewModel, supabaseModel });
 const gitView = createGitView({ sceneView, labels, gitViewModel });
 createRemiView({ sceneView, labels, repairViewModel });
-createRobotView({ sceneView, labels, mapViewModel });
+createTourView({ sceneView, labels, tourViewModel });
+const robotView = createRobotView({
+  sceneView, labels, mapViewModel, tourViewModel, buildViewModel, robotViewModel, robotDialogViewModel, chatViewModel, cameraViewModel,
+  openChat: () => {
+    if (!shellViewModel.store.state.chatOpen) shellViewModel.toggleChat();
+    if (chatViewModel.store.state.minimized) chatViewModel.toggleMinimized();
+  },
+});
+createBuildSiteView({ sceneView, labels, buildViewModel, hands: () => robotView.hands });
+createWelcomeRobotView({ sceneView, labels, mapViewModel, robotDialogViewModel, tourViewModel, buildViewModel });
+createConnectModalView({ connectViewModel });
+if (isDemo) {
+  createDemoCursor(); // recording the product video (scripts/demo/)
+  // the recorder (and checks) can drive the robot and find 3D things on screen
+  window.__platanus = {
+    robotViewModel, robotDialogViewModel, tourViewModel, mapViewModel, buildViewModel, chatViewModel, cameraViewModel, projectModel, connectViewModel,
+    screenOf: (point) => { const r = stage.getBoundingClientRect(); const s = sceneView.toScreen(point); return { x: r.left + s.x, y: r.top + s.y }; },
+  };
+}
 const labView = createLabView({ sceneView, labViewModel });
 createLabCardView({ container: stage, labViewModel, appViewModel });
 sceneView.onFrame(labels.update); // last: after every view moved its anchors
@@ -223,6 +360,7 @@ const input = createInputController({
   onEscape: () => (ESCAPES[appViewModel.view] ?? (() => mapViewModel.escape()))(),
   onToggleView: () => shellViewModel.setStage(appViewModel.view === 'git' ? 'map' : 'git'),
   onHover: (pick, x, y) => hoverCard.show(appViewModel.view === 'map' ? pick : null, x, y),
+  grabber: () => (appViewModel.view === 'map' ? robotView.grabber : null), // the robot is dragged, not the map
 });
 createControlsView({ cameraViewModel, onReset: () => (appViewModel.view === 'map' ? mapViewModel.home() : cameraViewModel.reset()) });
 createHandControlView({ handControlViewModel, video: handTracking.video, dev: workspace.isDev });
@@ -249,21 +387,15 @@ approvalModel.init();
 const composerViewModel = new ComposerViewModel({ connection, projectModel, modeModel });
 createChatView({ chatViewModel, composerViewModel, connection, modeModel });
 createHudView({ appViewModel, mapViewModel, gitViewModel, onShowRisks: () => actions.showRisks() });
-createShellView({ shellViewModel, modeModel, approval: approvalModel, repairViewModel, repairHistory, serversViewModel, actions });
+createShellView({ shellViewModel, modeModel, approval: approvalModel, repairViewModel, repairHistory, serversViewModel, databaseViewModel, actions });
 createRepairPanelView({ container: document.getElementById('remi-layer'), repairViewModel, modeModel, actions });
 createAgentPickerView({ container: document.getElementById('agent-picker'), connection, approval: approvalModel, onMore: actions.showConnect });
 createIconBarView({ bar: document.getElementById('stage-tabs') });
 createIconBarView({ bar: document.getElementById('side-dock'), vertical: true });
-// The chat can be dragged by its header (double click: back in place); the side panel stays in its place
+// The chat and the side panel stay in their place (bottom right, left edge); the chat can be pinned as a column
 const workspaceEl = document.getElementById('workspace');
-makeDraggable({ el: document.getElementById('chat'), handle: document.querySelector('#chat .chat-head'), key: 'chat', area: workspaceEl, disabled: () => document.body.classList.contains('chat-docked') });
 createChatDockView({ workspace: workspaceEl, chat: document.getElementById('chat'), pinButton: document.getElementById('chat-pin') });
-// Cards on the map can be dragged anywhere and minimized
-for (const [id, title] of [['hud', strings.floater.hud]]) {
-  // With the chat pinned, the security card docks above it (or floats on the map if dragged out)
-  makeFloating({ el: document.getElementById(id), key: id, stage, title, labels: strings.floater, dockArea: () => document.querySelector('body.chat-docked #chat-dock-info') });
-}
-// Pin for the chat: a column on the right with the security HUD above it
+// The security card stays fixed at the top right of the map (hud.css)
 
 // Chat options: the "+" in the composer, and the floating button when the chat is minimized or closed
 const $id = (id) => document.getElementById(id);
@@ -285,6 +417,9 @@ const menuInfo = () => {
     worst: worst && { path: worst.path, level: worst.level },
     counts: shell.counts,
     pending: repairHistory.store.state.entries.filter((e) => e.status === 'fixed' || e.status === 'planned').length,
+    projectOpen: projectModel.store.state.open,
+    empty: !projectModel.store.state.tree.length,
+    trust: trustModel.store.state.available ? trustModel.store.state.trusted : undefined,
   };
 };
 attachMenu($id('chat-more'), $id('chat-more-menu'), () => chatMenuItems({ actions, modeModel, chatViewModel, info: menuInfo }));

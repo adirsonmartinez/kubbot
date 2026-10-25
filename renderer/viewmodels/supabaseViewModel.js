@@ -3,7 +3,7 @@ import { Observable } from '../core/observable.js';
 import { EVENTS } from '../core/eventBus.js';
 import { integrationToWorld, SCHEMA_CENTER } from './layout.js';
 
-const VULNERABILITY_DELAY_MS = 5000; // demo: the vulnerability shows up a few seconds after opening
+const VULNERABILITY_DELAY_MS = 5000; // demo project only: the vulnerability shows up a few seconds after opening
 const LATENCY_INTERVAL_MS = 1200;
 const SCHEMA_ZOOM = 1.1;
 
@@ -70,7 +70,7 @@ export class SupabaseViewModel {
     if (visible !== this.store.state.visible) this.store.set({ visible });
   }
 
-  #onProject({ open, usesSupabase, session }) {
+  #onProject({ open, usesSupabase, session, demo = false }) {
     if (session !== this.#session) {
       // New project: start clean and arm the demo vulnerability again
       this.#session = session;
@@ -80,7 +80,8 @@ export class SupabaseViewModel {
     }
     this.#inProject = open && usesSupabase;
     this.#updateVisibility();
-    if (this.#inProject && !this.#vulnerabilityTimer) {
+    // A real project (connected with "Conectar mi cuenta") never gets the demo's made-up alarm
+    if (this.#inProject && demo && !this.#vulnerabilityTimer) {
       this.#vulnerabilityTimer = setTimeout(() => this.#model.setVulnerable(true), VULNERABILITY_DELAY_MS);
     }
   }

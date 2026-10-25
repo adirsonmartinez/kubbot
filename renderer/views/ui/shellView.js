@@ -2,7 +2,7 @@
 // (explorer as a guide or as the full tree, risks with "Reparar"), stage tabs, project map and status bar.
 // Only draws ShellViewModel and forwards clicks to view model actions.
 import { strings } from '../../i18n/es.js';
-import { daysAgo } from '../../core/format.js';
+import { daysAgo, formatBytes, formatCount } from '../../core/format.js';
 import { createDevTree } from './devTreeView.js';
 import { icon } from '../icons.js';
 import { createFloatingMenu } from './floatingMenu.js';
@@ -29,7 +29,7 @@ function addTip(button, title, info) {
   button.appendChild(tip);
 }
 
-export function createShellView({ shellViewModel: vm, modeModel, approval = null, repairViewModel, repairHistory, serversViewModel, actions }) {
+export function createShellView({ shellViewModel: vm, modeModel, approval = null, repairViewModel, repairHistory, serversViewModel, databaseViewModel = null, actions }) {
   const $ = (id) => document.getElementById(id);
   const body = document.body;
   const devTree = createDevTree({
@@ -472,6 +472,72 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     });
   }, { passive: true });
 
+  // --- Supabase: the connection and the database's numbers (databaseViewModel) ---
+  const DB = strings.database;
+  function dbButton(label, className, onClick) {
+    const b = el('button', className, label);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function renderSupabase() {
+    const db = databaseViewModel?.store.state;
+    if (!db) return [];
+    if (db.status === 'idle' || db.status === 'loading') return [el('p', 'side-empty', DB.loading)];
+    if (db.status === 'unlinked' || db.status === 'signedOut') {
+      return [el('p', 'side-intro', db.status === 'unlinked' ? DB.unlinked : DB.signedOut), dbButton(DB.connect, 'db-primary', () => databaseViewModel.connect())];
+    }
+    if (db.status === 'error') return [el('p', 'side-intro', `${DB.failed} ${db.error}`), dbButton(DB.retry, 'db-primary', () => databaseViewModel.refresh())];
+
+    const p = db.project ?? {};
+    const live = p.status === 'ACTIVE_HEALTHY';
+    const head = el('div', 'db-head');
+    const logo = el('span', 'db-logo');
+    logo.innerHTML = icon('supabase');
+    // The name with its state on one line, then where it runs and its plan
+    const title = el('div', 'db-title');
+    const line = el('div', 'db-title-line');
+    const state = el('span', `db-state${live ? ' live' : ''}`, db.demo ? DB.demo : live ? DB.connected : p.status === 'COMING_UP' ? DB.starting : DB.paused);
+    line.append(el('strong', '', p.name), state);
+    const meta = [DB.region[p.region] ?? p.region, p.postgres && DB.postgres(p.postgres), DB.plan[db.plan]].filter(Boolean).join(' · ');
+    title.append(line, el('small', '', meta));
+    head.append(logo, title);
+
+    const stat = (label, value) => {
+      const box = el('div', 'db-stat');
+      box.append(el('b', '', value), el('span', '', label));
+      return box;
+    };
+    const stats = el('div', 'db-stats');
+    stats.append(stat(DB.tables, formatCount(db.tables)), stat(DB.rows, formatCount(db.rows)), stat(DB.size, formatBytes(db.bytes)));
+
+    const parts = [head, stats];
+    const share = databaseViewModel.usage();
+    if (share !== null) {
+      const bar = el('div', `db-bar${share > 0.9 ? ' full' : ''}`);
+      const fill = el('i');
+      fill.style.width = `${Math.min(100, Math.max(2, share * 100))}%`;
+      bar.append(fill);
+      parts.push(bar, el('p', 'db-note', DB.usage(formatBytes(db.bytes), formatBytes(db.limitBytes))));
+    }
+    parts.push(el('p', 'side-label', DB.biggest));
+    if (!db.top.length) parts.push(el('p', 'side-empty', DB.noTables));
+    else {
+      const list = el('div', 'db-tables');
+      for (const t of db.top) {
+        const row = el('div', 'db-table');
+        row.append(el('code', '', t.name), el('span', '', DB.rowsOf(formatCount(t.rows))), el('span', 'db-size', formatBytes(t.bytes)));
+        list.append(row);
+      }
+      parts.push(list, el('p', 'db-note', DB.rowsNote));
+    }
+    const actionsBox = el('div', 'db-actions');
+    actionsBox.append(dbButton(DB.schema, 'db-secondary', () => actions.openSchema?.()));
+    if (!db.demo) actionsBox.append(dbButton(DB.dashboard, 'db-secondary', () => databaseViewModel.openDashboard()), dbButton(DB.refresh, 'db-secondary', () => databaseViewModel.refresh()));
+    parts.push(actionsBox);
+    return parts;
+  }
+
   // --- Repair history: a task list of what Remi and the agent did ---
   const H = strings.repair.history;
   const expanded = new Set(); // entries opened by the person (the newest unfinished one opens by itself)
@@ -624,7 +690,7 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
     $('agent-connect').hidden = !agentView;
     if (!agentView) {
       const scroll = sidebarBody.scrollTop;
-      const views = { risks: renderRisks, repairs: renderRepairs, servers: renderServers, explorer: renderExplorer };
+      const views = { risks: renderRisks, repairs: renderRepairs, servers: renderServers, supabase: renderSupabase, explorer: renderExplorer };
       const nodes = (views[state.side] ?? renderExplorer)(state);
       // The Dev tree keeps its own root: re-inserting it would drop the focus of its search box
       const same = nodes.length === sidebarBody.childNodes.length && nodes.every((n, i) => n === sidebarBody.childNodes[i]);
@@ -674,4 +740,5 @@ export function createShellView({ shellViewModel: vm, modeModel, approval = null
   repairViewModel.store.subscribe(() => render(vm.store.state));
   repairHistory.store.subscribe(() => render(vm.store.state));
   serversViewModel.store.subscribe(() => (vm.store.state.side === 'servers' ? render(vm.store.state) : syncServerMenu()));
+  databaseViewModel?.store.subscribe(() => { if (vm.store.state.side === 'supabase') render(vm.store.state); });
 }

@@ -145,6 +145,14 @@ async function gitCommit(cwd, message, files) {
   return gitWrite(cwd, ['commit', '--message', text, '--', ...files.map((f) => `:(literal)${f}`)]);
 }
 
+// A new project starts with its own repository on main, so the chat can save progress ("haz un commit…")
+// and the git view never shows a parent folder's repository. symbolic-ref instead of `init -b`: older gits.
+async function gitInit(cwd) {
+  const init = await gitWrite(cwd, ['init', '--quiet']);
+  if (!init.ok) return init;
+  return gitWrite(cwd, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
+}
+
 // A new commit that undoes the given one (history is kept)
 async function gitRevert(cwd, rev) {
   if (!isSafeRev(rev)) return { ok: false, code: 'invalidRev' };
@@ -179,6 +187,6 @@ async function gitShowShort(cwd, rev) {
 }
 
 module.exports = {
-  readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort,
+  readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort, gitInit,
   isSafeRev, isSafeBranch,
 };

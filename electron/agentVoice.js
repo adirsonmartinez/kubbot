@@ -11,7 +11,7 @@ const MODES = ['vibe', 'dev'];
 const MAX_RECENT = 12;
 const MAX_TEXT = 2000;
 
-const stripFrontmatter = (text) => text.replace(/^---\n[\s\S]*?\n---\n*/, '').trim();
+const stripFrontmatter = (text) => text.replace(/^---\r?\n[\s\S]*?\r?\n---(\r?\n)*/, '').trim(); // CRLF: Windows checkouts
 
 function loadVoice(dir) {
   const config = JSON.parse(fs.readFileSync(path.join(dir, 'voice.json'), 'utf8'));
@@ -80,4 +80,10 @@ function composeRefinePrompt({ config }, { mode } = {}) {
   return [config.refine.base.join('\n'), config.refine.modes[m]].filter(Boolean).join('\n\n');
 }
 
-module.exports = { loadVoice, composePrompt, composeRefinePrompt, styleHints, MODES };
+// "Recorrido": the tour rules and the mode's line (the answer is JSON that narrates the analyzer's facts)
+function composeTourPrompt({ config }, { mode } = {}) {
+  const m = MODES.includes(mode) ? mode : (config.defaultMode ?? 'vibe');
+  return [config.tour.base.join('\n'), config.tour.modes[m]].filter(Boolean).join('\n\n');
+}
+
+module.exports = { loadVoice, composePrompt, composeRefinePrompt, composeTourPrompt, styleHints, MODES };

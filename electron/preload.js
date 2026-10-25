@@ -20,6 +20,17 @@ contextBridge.exposeInMainWorld('platanus', {
   createWorkspace: () => ipcRenderer.invoke('workspace:create'),
   currentWorkspace: () => ipcRenderer.invoke('workspace:current'),
   closeWorkspace: () => ipcRenderer.invoke('workspace:close'),
+  // Trusted folder: trust(false) tells whether the open one is; trust(true) asks the person (native dialog)
+  trustWorkspace: (ask) => ipcRenderer.invoke('workspace:trust', Boolean(ask)),
+  untrustWorkspace: () => ipcRenderer.invoke('workspace:untrust'),
+  // "Conectar mi cuenta" with Supabase: main signs in, asks and writes the keys; the page only picks
+  supabaseStart: () => ipcRenderer.invoke('supabase:start'),
+  supabaseConnect: (choice) => ipcRenderer.invoke('supabase:connect', choice),
+  supabaseSignOut: () => ipcRenderer.invoke('supabase:signOut'),
+  supabaseStats: (projectId) => ipcRenderer.invoke('supabase:stats', projectId),
+  supabaseLinked: () => ipcRenderer.invoke('supabase:linked'), // { projectId } from the env files, or null
+  supabaseDashboard: (projectId) => ipcRenderer.invoke('supabase:dashboard', projectId),
+  onSupabaseProgress: on('supabase:progress'), // { stage: 'creating' | 'starting' | 'keys' }
   recentWorkspaces: () => ipcRenderer.invoke('workspace:recent'),
   openRecentWorkspace: (root) => ipcRenderer.invoke('workspace:openRecent', root),
 

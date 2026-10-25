@@ -39,3 +39,24 @@ test('the "+" menu has no header; connecting and the Vibe / Dev switch are at th
   foot[1].run();
   assert.deepEqual(calls.at(-1), ['toggle']);
 });
+
+test('"Recorrido" is offered when a project with files is open', () => {
+  const has = (info) => chatMenuItems(ctx({ ...base, ...info })).some((i) => i.id === 'tour');
+  assert.equal(has({ projectOpen: true, empty: false }), true);
+  assert.equal(has({ projectOpen: true, empty: true }), false);
+  assert.equal(has({ projectOpen: false }), false);
+  chatMenuItems(ctx({ ...base, projectOpen: true })).find((i) => i.id === 'tour').run();
+  assert.deepEqual(calls.at(-1), ['startTour']);
+});
+
+test('with a project open on the desktop, the foot offers to trust the folder, or to stop trusting it', () => {
+  const untrusted = chatMenuItems(ctx({ ...base, projectOpen: true, trust: false })).find((i) => i.id === 'trust');
+  assert.equal(untrusted.label, 'Confiar en esta carpeta');
+  untrusted.run();
+  assert.deepEqual(calls.at(-1), ['trustFolder']);
+  const trusted = chatMenuItems(ctx({ ...base, projectOpen: true, trust: true })).find((i) => i.id === 'trust');
+  assert.equal(trusted.label, 'Dejar de confiar en esta carpeta');
+  trusted.run();
+  assert.deepEqual(calls.at(-1), ['untrustFolder']);
+  assert.ok(!chatMenuItems(ctx({ ...base, projectOpen: true })).some((i) => i.id === 'trust'), 'the web demo has nothing to trust');
+});

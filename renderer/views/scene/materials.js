@@ -7,6 +7,7 @@ export const PALETTE = {
   ground: 0x23262b,
   grid: 0x33373d,
   accent: 0x8b83ff, // team purple
+  marker: 0xe6e9ec, // rings that point at a place (tour stop, robot target, build site): neutral, like the UI's white
   warn: 0xffc24a,
   danger: 0xff5a6a,
   ok: 0x3ddc97, // healthy integrations (the same green as the UI's --ok)
@@ -60,6 +61,12 @@ export const materials = {
   get dangerSolid(){ return material('dangerSolid', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 0.4, roughness: 0.45, metalness: 0 }); },
   // Small purple pieces (the welcome robot's eyes and lights): like warnSolid, it does not blob
   get accentSolid(){ return material('accentSolid', PALETTE.accent, { emissive: PALETTE.accent, emissiveIntensity: 0.5, roughness: 0.4, metalness: 0 }); },
+  // The welcome robot: a glossy pearl shell and a dark glass face where its eyes and smile light up
+  get robotShell() { return material('robotShell', 0xf1f3f6, { roughness: 0.28, metalness: 0.12 }); },
+  get robotTrim()  { return material('robotTrim', 0xb9bfc7, { roughness: 0.35, metalness: 0.55 }); },
+  get robotFace()  { return material('robotFace', 0x14161b, { roughness: 0.12, metalness: 0.6 }); },
+  // Its eyes and smile: a pale purple that just crosses the bloom threshold (a soft glow, not a blob)
+  get robotGlow()  { return material('robotGlow', 0xd4d0ff, { emissive: PALETTE.accent, emissiveIntensity: 1.1, roughness: 0.3, metalness: 0 }); },
   get dangerLit()  { return material('dangerLit', PALETTE.danger, { emissive: PALETTE.danger, emissiveIntensity: 1.0, roughness: 0.3, metalness: 0 }); },
   // Remi (same palette as his pixel-art sprite)
   get remiHelmet()       { return material('remiHelmet', 0xf5c542, { roughness: 0.45, metalness: 0 }); },
@@ -89,6 +96,8 @@ function glowLine(name, color) {
 export const glowLines = {
   get ok()   { return glowLine('ok', PALETTE.ok); },
   get warn() { return glowLine('warn', PALETTE.warn); },
+  // The welcome robot's hover ring and thruster (soft purple light, the same from every angle)
+  get accent() { return glowLine('accent', PALETTE.accent); },
 };
 
 const geometries = {

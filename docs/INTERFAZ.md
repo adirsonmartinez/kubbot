@@ -9,12 +9,12 @@ El **mapa ocupa toda la ventana**. Todo lo demás flota encima y se puede plegar
 
 | Pieza | Dónde está | Qué hace |
 |---|---|---|
-| Barra de íconos | Arriba, centrada en el mapa visible | Paneles (Explorador, Riesgos, Reparaciones, Conecta tu agente) y vistas (Mapa, Git). Solo íconos: el nombre y la descripción salen al pasar el mouse. **Se ordena arrastrando** (o Alt+← / Alt+→) y el orden se recuerda. |
+| Barra de íconos | Arriba, centrada en el mapa (no se mueve al abrir el panel o el chat) | Paneles (Explorador, Riesgos, Reparaciones, Conecta tu agente) y vistas (Mapa, Git). Solo íconos: el nombre y la descripción salen al pasar el mouse. **Se ordena arrastrando** (o Alt+← / Alt+→) y el orden se recuerda. |
 | Botón del panel | Arriba a la izquierda del mapa | Abre o cierra el panel lateral del ícono marcado. |
 | Ruta | Al lado del botón del panel | El proyecto y la carpeta abierta (`team-12 / src`; tocar el proyecto o Esc la cierra) y sus archivos por semáforo: en riesgo, por revisar, seguros. |
 | Panel lateral | Flota a la izquierda | Explorador (Vibe: guía con nombres sencillos; Dev: árbol completo con búsqueda), Riesgos (la única lista de riesgos), Reparaciones (historial de Remi y del agente), Conecta tu agente. Queda fijo junto al dock; el "–" de su encabezado lo cierra, como el del chat. |
-| Chat | Flota a la derecha | **Pin** 📌: lo fija como columna y el mapa le deja su espacio; arriba aparece la tarjeta de seguridad. **Borde izquierdo**: cambia el ancho (300–720 px, doble clic lo resetea). Se arrastra por su encabezado cuando no está fijado. Minimizado o cerrado, queda el botón flotante del agente (abajo a la derecha) con su menú. |
-| Tarjeta de seguridad | Abajo a la derecha del mapa, o anclada sobre el chat fijado | Puntaje, archivos, en riesgo, por revisar, commits. Sus números de riesgo abren la lista de Riesgos. Se **arrastra** por su barrita (⠿), se **minimiza** con "–" y se **ancla** soltándola sobre la columna del chat (se ilumina al pasar). Doble clic en la barrita: vuelve a su lugar. |
+| Chat | Fijo abajo a la derecha (no se arrastra) | **Pin** 📌: lo fija como columna y el mapa le deja su espacio. **Borde izquierdo**: cambia el ancho (300–720 px, doble clic lo resetea). Minimizado o cerrado, queda el botón flotante del agente (abajo a la derecha) con su menú. |
+| Tarjeta de seguridad | Fija arriba a la izquierda del mapa, en una fila compacta (reemplaza al antiguo semáforo) | Puntaje, archivos, en riesgo, por revisar, commits. Sus números de riesgo abren la lista de Riesgos. No se mueve ni se minimiza. |
 | Menú de arriba (macOS) | Barra del sistema | Solo Platanus, Edición y Ventana: los menús de la app (Archivo, Ver, Agente…) están dentro de la ventana. |
 
 Cada cosa aparece **una sola vez**: la lista de riesgos está en el panel, los totales en la tarjeta de
@@ -177,6 +177,21 @@ seguridad y la ruta solo cuenta la carpeta actual.
   Cursor, Codex y Gemini. La dirección del servidor lleva una llave privada: en pantalla sale tapada y
   "Copiar" la incluye.
 
+## El robot del mapa
+
+Arrástralo o lánzalo a una carpeta: vuela hasta ella y pregunta si te explica qué hay o si quieres cambiar algo. Mientras el agente trabaja, su globo muestra el mismo orbe que el chat. Detalle: `docs/features/robot/README.md`.
+
+Los agentes se muestran con sus logos reales (`renderer/icons/brands.js`, de `@lobehub/icons-static-svg`, MIT; `npm run icons`).
+
+## Recorrido del proyecto
+
+Para quien llega a un proyecto que no conoce: «Recorrido del proyecto» (chip al abrir un proyecto, o «+» → Recorrido).
+- El robot guía camina por el mapa, parada por parada: cómo está armado, la documentación, las partes, dónde arranca, las pruebas, un caso de uso y por dónde empezar.
+- El chat lleva una sola tarjeta con Anterior / Siguiente / Salir.
+- Los hechos los decide un analizador fijo; el agente solo los narra, en modo de solo lectura.
+
+Detalle: `docs/features/recorrido/README.md`. Grabación para el video del producto: `scripts/demo/README.md` y `video/README.md`.
+
 ## La voz del agente (`agent/`)
 
 | Archivo | Para qué |
@@ -203,8 +218,7 @@ falló. Desde ahí se marca como verificado, se deshace un cambio o se reintenta
 |---|---|
 | `views/ui/shellView.js` | Menús, barra de íconos (contenido y descripciones), panel lateral (explorador, riesgos, reparaciones), barra de estado. |
 | `views/ui/iconBarView.js` | Ordenar los íconos arrastrando o con Alt+flechas; recuerda el orden. |
-| `views/ui/draggable.js` | Arrastrar el chat por su encabezado. |
-| `views/ui/floater.js` | Tarjetas flotantes del mapa: barrita para mover, minimizar y anclar (la tarjeta de seguridad). |
+| `views/ui/draggable.js` | Arrastrar el editor de archivos por su encabezado. |
 | `views/ui/chatDockView.js` | Pin del chat (columna a la derecha + zona de información arriba) y su ancho. |
 | `views/ui/chatView.js`, `runCardView.js`, `markdown.js` | Mensajes, tarjetas de respuesta en vivo, Markdown seguro (escapa todo antes) con tarjetas y enlaces a archivos, interruptor Vibe/Dev. |
 | `views/ui/chatCardsView.js` | Tarjetas de carpeta y archivo en el chat, botones de acción. |
@@ -238,9 +252,8 @@ sistema) asegura que se escriba.
 | `platanus.mode.v1` | Vibe o Dev. |
 | `platanus.repairs.v1:<proyecto>` | Historial de reparaciones de cada proyecto. |
 | `platanus.iconbar.order.v1` | Orden de la barra de íconos. |
-| `platanus.drag.v1:chat` | Posición del chat movido a mano. |
+| `platanus.drag.v1:editor` | Posición del editor de archivos movido a mano. |
 | `platanus.chat.dock.v1` | Chat fijado y su ancho. |
-| `platanus.float.v1:hud` | Posición, minimizado y anclaje de la tarjeta de seguridad. |
 
 En la carpeta de datos de Electron: `recent.json` (proyectos recientes) y `mcp-token` (llave del servidor
 MCP, solo legible por tu usuario). Las copias de los cambios del agente van a `~/.platanus/backups/`.
@@ -263,3 +276,15 @@ MCP, solo legible por tu usuario). Las copias de los cambios del agente van a `~
   escriben, tampoco a través de enlaces simbólicos.
 - El servidor MCP escucha solo en 127.0.0.1, rechaza navegadores y exige su llave privada.
 - `npm test` revisa cada archivo del repo y falla si alguien intenta subir una credencial.
+
+## Integraciones «por conectar»
+
+Cuando la bienvenida arma un proyecto con Vercel o Supabase, esas integraciones aparecen en la banda de arriba como «por conectar»: punteadas, translúcidas, sin luz ni línea encendida. Un clic abre el chat y explica que solo falta conectar la cuenta (la conexión llega con «Conectar mi cuenta»). Detalles en `docs/features/welcome-robot/README.md`.
+
+## Carpetas de confianza
+
+Al crear o abrir un proyecto, Platanus pregunta en un diálogo del sistema: «¿Confías en la carpeta…?». Si la persona confía, el agente guarda sus cambios en esa carpeta sin pedir permiso cada vez (igual se guarda una copia para deshacer y nunca puede tocar claves). «No» pregunta antes de cada cambio, según el modo de permisos, y vuelve a preguntar la próxima vez. En el menú ⋯ del chat: «Confiar en esta carpeta» o «Dejar de confiar en esta carpeta». La lista vive en el proceso principal (`electron/trust.js`).
+
+## Conectar mi cuenta
+
+Un clic en «Supabase · por conectar» abre un modal de vidrio: iniciar sesión (se abre el navegador), elegir organización y si crear un proyecto nuevo o usar uno existente, confirmar en un diálogo del sistema y esperar. Las claves quedan en `.env.local` sin mostrarse y Supabase se pone verde. Detalles en `docs/features/connect-accounts/README.md`.

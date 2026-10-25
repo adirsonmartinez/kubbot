@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { loadVoice, composePrompt, composeRefinePrompt, styleHints } = require('./agentVoice');
+const { loadVoice, composePrompt, composeRefinePrompt, composeTourPrompt, styleHints } = require('./agentVoice');
 
 const voice = loadVoice(path.join(__dirname, '..', 'agent'));
 
@@ -74,4 +74,12 @@ test('the Arduino skill joins the prompt only when the conversation is about Ard
   const other = composePrompt(voice, { mode: 'vibe', recent: ['¿qué archivos tienen riesgo?'] });
   assert.ok(!other.includes(voice.skills.arduino.slice(0, 80)));
   assert.ok(voice.config.base.join('\n').includes('platanus_github_repo'));
+});
+
+test('tour: narrates the analyzer facts as JSON only, in the voice of the mode, without the chat voice', () => {
+  const vibe = composeTourPrompt(voice, { mode: 'vibe' });
+  assert.ok(vibe.includes('"steps"') && vibe.includes('"usecases"') && vibe.includes('"start"'));
+  assert.ok(vibe.includes(voice.config.tour.modes.vibe));
+  assert.ok(composeTourPrompt(voice, { mode: 'dev' }).includes(voice.config.tour.modes.dev));
+  assert.ok(!vibe.includes(voice.config.base[0]), 'not the chat rules');
 });

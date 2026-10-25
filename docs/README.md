@@ -8,4 +8,6 @@ Cada función de Platanus tiene su página en `docs/features/<nombre>/README.md`
 | Gestos con la mano (mover, girar, acercar con dos manos, elegir quieto) | [features/hand-gestures](features/hand-gestures/README.md) | [003-hand-gestures](../spec/003-hand-gestures.md) | `feature/hand-gestures` |
 | Control sin manos (ojos con lupa o cabeza, para personas con discapacidad física) | [features/hands-free](features/hands-free/README.md) | [004-hands-free-control](../spec/004-hands-free-control.md) | `feature/hand-gestures` |
 | Editor de archivos | [features/file-editor](features/file-editor/README.md) | — | `feature/file-viewer` |
+| Robot guía de proyectos nuevos | [features/welcome-robot](features/welcome-robot/README.md) | [diseño](superpowers/specs/2026-10-24-welcome-stack-picker-design.md) | `develop` |
+| Conectar mi cuenta (Supabase) | [features/connect-accounts](features/connect-accounts/README.md) | — | `develop` |
 | Laboratorio Arduino 3D (el agente arma el proyecto, emulador con avr8js) | [features/arduino-lab](features/arduino-lab/README.md) | [005-arduino-lab](../spec/005-arduino-lab.md) | `feature/arduino-lab` |

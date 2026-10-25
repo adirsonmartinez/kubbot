@@ -1,6 +1,5 @@
-// Pin for the chat: pinned, it becomes a column on the right (the map gives it its space) with an area
-// above it for other information (the project's security HUD). Its left edge can be dragged to change
-// the width. Unpinned, minimized or closed, the chat floats over the map again.
+// Pin for the chat: pinned, it becomes a column on the right (the map gives it its space). Its left edge
+// can be dragged to change the width. Unpinned, minimized or closed, the chat floats over the map again.
 import { strings } from '../../i18n/es.js';
 
 const KEY = 'platanus.chat.dock.v1';
@@ -12,12 +11,9 @@ export function createChatDockView({ workspace, chat, pinButton }) {
   try { state = { ...state, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') }; } catch { /* nothing saved */ }
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch { /* private mode */ } };
 
-  // Column on the right: [information] above [chat]
+  // Column on the right that holds the pinned chat
   const dock = document.createElement('div');
   dock.id = 'chat-dock';
-  const infoArea = document.createElement('div');
-  infoArea.id = 'chat-dock-info';
-  dock.appendChild(infoArea);
 
   const handle = document.createElement('div');
   handle.className = 'chat-resize';
@@ -30,7 +26,6 @@ export function createChatDockView({ workspace, chat, pinButton }) {
   function apply() {
     const docked = state.pinned && visible();
     body.style.setProperty('--chat-w', `${state.width}px`);
-    // The information area above the chat is filled by the cards that dock there (see floater.js)
     if (docked && !body.classList.contains('chat-docked')) {
       workspace.appendChild(dock);
       dock.appendChild(chat);

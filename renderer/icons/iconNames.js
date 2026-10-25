@@ -48,16 +48,11 @@ export const ICON_NAMES = {
   unfoldMore: 'UnfoldMoreIcon', // explorer: expand every folder
   unfoldLess: 'UnfoldLessIcon', // explorer: collapse every folder
   // The connected agent's mark in the chat header
-  claude: 'ClaudeIcon',
-  codex: 'ChatGptIcon',
-  grok: 'GrokIcon',
-  opencode: 'CommandLineIcon',
-  cursorApp: 'CodeSquareIcon',
-  kimi: 'KimiAiIcon',
-  gemini: 'GoogleGeminiIcon',
-  qwen: 'QwenIcon',
+  route: 'Route01Icon',
+  cursor: 'Cursor02Icon',
   dev: 'SourceCodeIcon',
   arrowRight: 'ArrowRight01Icon',
+  arrowLeft: 'ArrowLeft01Icon',
   ask: 'MessageQuestionIcon',
   danger: 'AlertDiamondIcon',
   ok: 'CheckmarkCircle02Icon',
@@ -72,4 +67,25 @@ export const ICON_NAMES = {
   layers: 'Layers01Icon',
   subagent: 'UserGroupIcon',
   chip: 'ChipIcon', // the Arduino lab's tab (spec/005-arduino-lab.md)
+};
+
+// The agents' own logos (not Hugeicons): our name -> file in @lobehub/icons-static-svg (MIT). The color
+// versions keep their brand colors; the others take the text color. `npm run icons` copies them too.
+export const BRAND_NAMES = {
+  claude: 'claude-color',
+  codex: 'codex-color',
+  grok: 'grok',
+  opencode: 'opencode',
+  cursorApp: 'cursor',
+  kimi: 'kimi-color',
+  gemini: 'gemini-color',
+  qwen: 'qwen-color',
+};
+
+// Logos of the technologies a new project can start with (models/stackCatalog.js): our name -> file in
+// simple-icons (CC0). One color, the text color, so they stay neutral on the glass. `npm run icons` copies them.
+export const STACK_LOGOS = {
+  nextjs: 'nextdotjs',
+  vercel: 'vercel',
+  supabase: 'supabase',
 };

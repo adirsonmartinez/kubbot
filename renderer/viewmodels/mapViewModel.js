@@ -72,8 +72,10 @@ export class MapViewModel {
     switch (pick.type) {
       case 'folder': return this.toggleFolder(pick.path);
       case 'file': return this.selectFile(pick.path);
-      case 'supabase': return this.toggleSchema();
+      // The live Supabase node opens its panel (the schema opens from there), like any integration
+      case 'supabase': return this.#pickIntegration('supabase');
       case 'table': return this.#supabase.selectTable(pick.name);
+      case 'integration': return this.#pickIntegration(pick.key);
       default: return undefined;
     }
   }
@@ -122,6 +124,10 @@ export class MapViewModel {
     if (!node || node.type === 'dir') return;
     const { level, reason, reasonKey, by } = this.#describeFile(node);
     this.#bus.emit(EVENTS.fileSelected, { path, level, reason, reasonKey, by });
+  }
+
+  #pickIntegration(key) {
+    this.#bus.emit(EVENTS.integrationPicked, { key, status: this.#project.store.state.integrationStatus?.[key] ?? 'connected' });
   }
 
   toggleSchema() {
@@ -227,8 +233,9 @@ export class MapViewModel {
     const total = countFiles(tree);
     if (this.#welcomeSession !== session || total > 0) this.#welcomeSession = null;
 
-    // The project's root has no platform: one trunk runs from the integrations' road down to the first row
-    // of folders (`grid` only keeps the spacing where the project's name floats)
+    // The project's root has no platform: one trunk runs from the integrations' road (or, with no
+    // integrations, from the project's root) down to the first row of folders (`grid` only keeps the
+    // spacing where the project's name floats)
     const grid = plazaGrid(0);
 
     // Links of the tree, in world coordinates [x1, z1, x2, z2, kind]
@@ -241,7 +248,7 @@ export class MapViewModel {
     // Every top-level folder, problems first, in rows below the plaza
     const dirs = this.#sortFolders(tree.filter((c) => c.type === 'dir').map((dir) => ({ ...this.#describeFolder(dir), node: dir })));
     const top = path ? topFolderOf(path) : '';
-    const topOptions = { parentU: 0, parentV: INTEGRATION_ROW.busV, startV: grid.size * Math.SQRT1_2 + TREE.gap + TREE.itemHalf.top, ...TREE.top };
+    const topOptions = { parentU: 0, parentV: integrations.length ? INTEGRATION_ROW.busV : 0, startV: grid.size * Math.SQRT1_2 + TREE.gap + TREE.itemHalf.top, ...TREE.top };
     const topIndex = dirs.findIndex((d) => d.path === top);
 
     // The open path: each folder on it unfolds its direct contents (subfolders first, then files) right
@@ -302,30 +309,31 @@ export class MapViewModel {
       more: rootList.length - rootShown.length,
     };
 
-    // Integrations other than Supabase (it draws itself at u = 0): a row along the band, on a road
-    const others = integrations.filter((key) => key !== 'supabase');
-    const firstU = integrations.includes('supabase') ? INTEGRATION_ROW.firstU : 0;
+    // Integrations other than a live Supabase (it draws itself at u = 0): a row along the band, on a road.
+    // A pending Supabase (no database yet) is drawn in the row like the others
+    const statusOf = (key) => integrationStatus[key] ?? 'connected';
+    const withSupabase = integrations.includes('supabase') && statusOf('supabase') !== 'pending';
+    const others = integrations.filter((key) => !(key === 'supabase' && withSupabase));
+    const firstU = withSupabase ? INTEGRATION_ROW.firstU : 0;
     const nodes = others.map((key, i) => ({ key, u: firstU + i * INTEGRATION_ROW.pitch }));
-    const withSupabase = integrations.includes('supabase');
     // Supabase's node sits on the trunk's line: its road drops straight to the integrations' road
     if (withSupabase) addLinks({ links: [[0, integrationV, 0, INTEGRATION_ROW.busV]] }, 'top');
     if (nodes.length) {
       const last = nodes.at(-1).u;
       addLinks({ links: [[0, INTEGRATION_ROW.busV, last, INTEGRATION_ROW.busV], ...nodes.map((n) => [n.u, INTEGRATION_ROW.busV, n.u, integrationV])] }, 'top');
     }
-    const statusOf = (key) => integrationStatus[key] ?? 'connected';
     const integrationNodes = nodes.map((n) => ({ key: n.key, status: statusOf(n.key), ...toWorld(n.u, integrationV) }));
 
     // Lit lines: each live integration lights its way to the folders (down to the road, along it, down
     // the trunk). A stretch shared by several is purple if any of them is connected, amber if they only
-    // have incidents; nothing lights a disconnected one's way.
+    // have incidents; nothing lights the way of a disconnected or pending one.
     const trunkEnd = dirs.length ? topBlock.slots[0].v - TREE.top.rowGap / 2 : 0;
     const strongest = (list) => (list.includes('connected') ? 'connected' : list.includes('incident') ? 'incident' : null);
     const line = (u1, v1, u2, v2, status) => ({ from: toWorld(u1, v1), to: toWorld(u2, v2), status });
     const integrationLines = [];
     nodes.forEach((n, i) => {
       const status = statusOf(n.key);
-      if (status !== 'disconnected') integrationLines.push(line(n.u, integrationV, n.u, INTEGRATION_ROW.busV, status));
+      if (status !== 'disconnected' && status !== 'pending') integrationLines.push(line(n.u, integrationV, n.u, INTEGRATION_ROW.busV, status));
       // The road from the previous node (or the trunk) to this one carries this one and every one after it
       const along = strongest(nodes.slice(i).map((m) => statusOf(m.key)));
       if (along) integrationLines.push(line(i ? nodes[i - 1].u : 0, INTEGRATION_ROW.busV, n.u, INTEGRATION_ROW.busV, along));
@@ -336,11 +344,11 @@ export class MapViewModel {
     const trunk = strongest(integrations.map(statusOf));
     if (trunk) integrationLines.push(line(0, INTEGRATION_ROW.busV, 0, trunkEnd, trunk));
 
-    // The integrations band, across the top, as wide as the tree
+    // The integrations band, across the top, as wide as the tree; none when there is nothing to hold
     const treeU = [0, ...links.flatMap(([x1, z1, x2, z2]) => [screenOf(x1, z1).u, screenOf(x2, z2).u])];
     const halfWidth = Math.max(INTEGRATIONS.minWidth / 2, ...treeU.map(Math.abs)) + INTEGRATIONS.margin;
     const bandCenter = toWorld(0, (INTEGRATIONS.bandTop + INTEGRATIONS.bandBottom) / 2);
-    const band = { ...bandCenter, width: halfWidth * 2, depth: INTEGRATIONS.bandBottom - INTEGRATIONS.bandTop };
+    const band = integrations.length ? { ...bandCenter, width: halfWidth * 2, depth: INTEGRATIONS.bandBottom - INTEGRATIONS.bandTop } : null;
 
     // Project, then each folder down to the open one
     const crumbs = [{ name: projectName, path: '' }];
@@ -364,6 +372,7 @@ export class MapViewModel {
       // The project's plaza; counts are the open folder's (at any depth), or the whole project's
       plaza: {
         name: projectName,
+        empty: tree.length === 0, // a new project: no name card on the map (the welcome robot talks instead)
         files: [],
         cols: grid.cols,
         size: grid.size,

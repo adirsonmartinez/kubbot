@@ -1,24 +1,28 @@
 // Electron main process: creates the window and is the only part that touches the disk.
 // The window (renderer) asks for things over IPC and they are validated here before running.
 
-const { app, BrowserWindow, ipcMain, dialog, Menu, shell, safeStorage, systemPreferences } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, shell, safeStorage, systemPreferences, session: electronSession } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const fs = require('node:fs/promises');
 const { existsSync } = require('node:fs');
 const { Workspace } = require('./workspace');
-const { readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort } = require('./git');
+const { readGitHistory, planCommit, gitCommit, gitRevert, gitReset, gitCreateBranch, gitCheckout, gitShowShort, gitInit } = require('./git');
 const t = require('./strings');
 const agents = require('./agents');
-const { loadVoice, composePrompt, composeRefinePrompt } = require('./agentVoice');
+const { loadVoice, composePrompt, composeRefinePrompt, composeTourPrompt } = require('./agentVoice');
 const { approvalMode, needsApproval } = require('./approval');
+const { createTrustStore } = require('./trust');
+const { createSecretStore } = require('./secretStore');
+const { createSupabaseConnector } = require('./supabaseConnect');
+const { mergeEnv, protectEnv, projectNameFor, isReady, isProjectRef, refFromEnv, planLimitBytes, ENV_URL, ENV_KEY } = require('./supabaseLink');
 const { canOpen } = require('./fileOpen');
 const { lineDiff } = require('./lineDiff');
 const { createKeyStore } = require('./keyStore');
 
 const AGENT_DIR = path.join(__dirname, '..', 'agent'); // voice.json + skills (packaged with the app)
 // Agent conversations: the chat, Remi's repairs, and "Mejorar mi mensaje" (never continued)
-const SESSIONS = ['chat', 'repair', 'refine'];
+const SESSIONS = ['chat', 'repair', 'refine', 'tour'];
 const { startMcpServer, MAX_READ_BYTES, isBlockedPath, isBlockedRealPath } = require('./mcpServer');
 const servers = require('./servers');
 const arduino = require('./arduino');
@@ -51,7 +55,9 @@ function createWindow() {
     },
   });
 
-  win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
+  // PLATANUS_DEMO=1 (development only): recording mode for the product video (scripts/demo/)
+  const demo = process.env.PLATANUS_DEMO === '1' && !app.isPackaged;
+  win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'), demo ? { query: { demo: '1' } } : {});
   if (process.argv.includes('--dev')) win.webContents.openDevTools({ mode: 'detach' });
 
   // External links never open new windows inside the app
@@ -128,11 +134,20 @@ ipcMain.handle('workspace:create', async () => {
     await fs.mkdir(dir, { recursive: true });
   }
   log('workspace:create', dir, true);
+  // Its own git repository from the start (no git installed: the project still opens, just without history)
+  const init = await gitInit(dir);
+  log('git:init', dir, init.ok);
   return openWorkspace(dir);
 });
 
+// Trusted folders: in the open folder, if the person trusts it, the agent's changes are saved without asking
+// (secrets are still refused and every change is backed up). Read again each time a folder opens.
+const trustStore = createTrustStore(path.join(app.getPath('userData'), 'trusted-folders.json'));
+let trustedNow = false;
+
 async function openWorkspace(dir) {
   const root = await workspace.open(dir);
+  trustedNow = await trustStore.has(root);
   workspace.watch((paths) => send('fs:changed', paths));
   log('workspace:open', root, true);
   await rememberRecent(root);
@@ -177,7 +192,38 @@ ipcMain.handle('workspace:openRecent', async (_e, root) => {
   }
 });
 
+// The window asks right after a project opens; the answer comes from a native dialog, never from the page.
+// "Sí" is remembered for that folder; "No" asks again next time.
+ipcMain.handle('workspace:trust', async (_e, ask = false) => {
+  if (!workspace.root) return { ok: false, error: t.mcp.noProject };
+  if (trustedNow || !ask) return { ok: true, data: trustedNow };
+  const root = workspace.root;
+  const { response } = await dialog.showMessageBox(win, {
+    type: 'question',
+    buttons: [t.trust.no, t.trust.yes],
+    defaultId: 1,
+    cancelId: 0,
+    message: t.trust.question(path.basename(root)),
+    detail: t.trust.detail,
+  });
+  if (response !== 1 || workspace.root !== root) return { ok: true, data: trustedNow };
+  await trustStore.set(root, true);
+  trustedNow = true;
+  log('workspace:trust', root, true);
+  return { ok: true, data: true };
+});
+
+// Stop trusting the open folder: every change asks again (per the permission mode)
+ipcMain.handle('workspace:untrust', async () => {
+  if (!workspace.root) return { ok: false, error: t.mcp.noProject };
+  await trustStore.set(workspace.root, false);
+  trustedNow = false;
+  log('workspace:untrust', workspace.root, true);
+  return { ok: true, data: false };
+});
+
 ipcMain.handle('workspace:close', () => {
+  trustedNow = false;
   if (workspace.root) log('workspace:close', workspace.root, true);
   workspace.close();
   refreshMenu();
@@ -540,8 +586,8 @@ const mcpHandlers = {
     if (size > MAX_READ_BYTES) throw new Error(t.mcp.tooLarge(Math.round(MAX_READ_BYTES / 1024)));
     return workspace.readFile(rel);
   },
-  // Writes are approved per the agent permission mode (approval.js); the previous version is always
-  // backed up and can be undone
+  // Writes are approved per the agent permission mode (approval.js), or saved on their own in a folder
+  // the person trusts (trust.js); the previous version is always backed up and can be undone
   platanus_write_file: async ({ path: rel, content, reason }) => {
     const requestedAt = new Date().toISOString(); // before the dialog: tells which agent run asked
     if (!workspace.root) throw new Error(t.mcp.noProject);
@@ -554,7 +600,7 @@ const mcpHandlers = {
     // What changes, line by line (lineDiff.js): the chat shows it while asking and once saved
     const before = exists && oldBytes <= MAX_READ_BYTES ? await fs.readFile(abs, 'utf8').catch(() => null) : null;
     const diff = exists && before == null ? null : lineDiff(exists ? before : null, content);
-    const ask = needsApproval(approvalModeNow, { path: rel, exists, oldBytes, newBytes: Buffer.byteLength(content) });
+    const ask = !trustedNow && needsApproval(approvalModeNow, { path: rel, exists, oldBytes, newBytes: Buffer.byteLength(content) });
     if (ask) {
       send('agent:awaiting', { path: rel, waiting: true, diff, reason: why }); // "Esperando tu aprobación…" + the proposed change
       const ok = await confirm(t.mcp.confirmWrite(rel), t.mcp.confirmWriteDetail(why, exists)).finally(() => send('agent:awaiting', { path: rel, waiting: false }));
@@ -562,8 +608,8 @@ const mcpHandlers = {
     }
     const backup = await backupFile(rel, abs, exists);
     await workspace.writeFile(rel, content);
-    // approvedBy: 'you' (the dialog) or the mode that saved it on its own
-    const change = { path: rel, reason: why, created: !exists, backup, requestedAt, at: new Date().toISOString(), approvedBy: ask ? 'you' : approvalModeNow, diff };
+    // approvedBy: 'you' (the dialog), 'trusted' (a trusted folder) or the mode that saved it on its own
+    const change = { path: rel, reason: why, created: !exists, backup, requestedAt, at: new Date().toISOString(), approvedBy: ask ? 'you' : trustedNow ? 'trusted' : approvalModeNow, diff };
     send('agent:changed', change);
     return t.mcp.written(rel);
   },
@@ -756,7 +802,8 @@ async function startMcp() {
     handlers: mcpHandlers,
     onCall: ({ tool, args, ok, error }) => log(`mcp:${tool}`, args?.path ?? '', ok, error),
   });
-  mcp = { url: `http://127.0.0.1:${server.address().port}/mcp/${token}`, running: true };
+  const url = `http://127.0.0.1:${server.address().port}/mcp/${token}`;
+  mcp = { url, readOnlyUrl: `${url}/ro`, running: true };
   send('mcp:status', mcp);
 }
 
@@ -780,6 +827,117 @@ ipcMain.handle('agent:approval', async (_e, requested) => {
 let keyStore = null;
 const keys = () => (keyStore ??= createKeyStore({ file: path.join(app.getPath('home'), '.platanus', 'keys.json'), safeStorage }));
 ipcMain.handle('keys:list', () => ({ ok: true, data: keys().list() }));
+
+// --- "Conectar mi cuenta": Supabase (supabaseConnect.js). Platanus does it, not the agent: the window only
+// says which organization or project the person picked (checked against what Supabase listed), main asks
+// in a native dialog, and the keys go straight to .env.local without ever reaching the window or an agent.
+const SUPABASE_POLL_MS = 4000;
+const SUPABASE_READY_MS = 5 * 60 * 1000;
+let supabaseConnector = null;
+const supabaseLink = () => (supabaseConnector ??= createSupabaseConnector({
+  store: createSecretStore({ file: path.join(app.getPath('userData'), 'connections.json'), safeStorage }),
+  openExternal: (url) => shell.openExternal(url),
+  page: t.supabase.page,
+  version: app.getVersion(),
+}));
+let supabaseChoices = { organizations: [], projects: [] }; // what Supabase listed last: the only valid picks
+
+ipcMain.handle('supabase:start', async () => {
+  if (!workspace.root) return { ok: false, error: t.mcp.noProject };
+  try {
+    await supabaseLink().signIn();
+    supabaseChoices = { organizations: await supabaseLink().organizations(), projects: await supabaseLink().projects() };
+    log('supabase:signin', workspace.root, true);
+    return { ok: true, data: { ...supabaseChoices, suggested: projectNameFor(path.basename(workspace.root)) } };
+  } catch (err) {
+    log('supabase:signin', workspace.root, false, err.message);
+    return { ok: false, error: err.message === 'timeout' ? t.supabase.signInFailed : err.message };
+  }
+});
+
+// { mode: 'new', organizationId } or { mode: 'existing', projectId }
+ipcMain.handle('supabase:connect', async (_e, choice = {}) => {
+  const root = workspace.root;
+  if (!root) return { ok: false, error: t.mcp.noProject };
+  const link = supabaseLink();
+  try {
+    let project;
+    if (choice.mode === 'new') {
+      const org = supabaseChoices.organizations.find((o) => o.id === choice.organizationId);
+      if (!org) return { ok: false, error: t.supabase.notChosen };
+      const name = projectNameFor(path.basename(root));
+      // Supabase says what it costs; the person sees it in the dialog and only then is it confirmed
+      const cost = await link.cost(org.id);
+      if (!(await confirm(t.supabase.confirmCreate(name, org.name), t.supabase.confirmCreateDetail(org.name, cost), t.supabase.create))) return { ok: false, cancelled: true };
+      send('supabase:progress', { stage: 'creating' });
+      project = await link.create({ name, organizationId: org.id, confirmCostId: await link.confirmCost(cost) });
+      log('supabase:create', project.id, true);
+    } else {
+      project = supabaseChoices.projects.find((p) => p.id === choice.projectId);
+      if (!project) return { ok: false, error: t.supabase.notChosen };
+      if (!(await confirm(t.supabase.confirmUse(project.name), t.supabase.confirmUseDetail, t.supabase.use))) return { ok: false, cancelled: true };
+    }
+    // A new project takes a minute or two to be ready
+    send('supabase:progress', { stage: 'starting' });
+    const until = Date.now() + SUPABASE_READY_MS;
+    while (!isReady(await link.project(project.id))) {
+      if (Date.now() > until) return { ok: false, error: t.supabase.notReady };
+      await new Promise((r) => setTimeout(r, SUPABASE_POLL_MS));
+    }
+    send('supabase:progress', { stage: 'keys' });
+    const [url, key] = [await link.url(project.id), await link.publicKey(project.id)];
+    if (!url || !key) return { ok: false, error: t.supabase.noKey };
+    if (workspace.root !== root) return { ok: false, error: t.mcp.noProject }; // the person opened another project meanwhile
+    const envPath = path.join(root, '.env.local');
+    const before = await fs.readFile(envPath, 'utf8').catch(() => '');
+    await fs.writeFile(envPath, mergeEnv(before, { [ENV_URL]: url, [ENV_KEY]: key }), { mode: 0o600 });
+    const ignorePath = path.join(root, '.gitignore');
+    const ignored = protectEnv(await fs.readFile(ignorePath, 'utf8').catch(() => ''));
+    if (ignored) await fs.writeFile(ignorePath, ignored);
+    log('supabase:connect', `${root} -> ${project.id}`, true);
+    return { ok: true, data: { name: project.name, projectId: project.id, envFile: '.env.local' } };
+  } catch (err) {
+    log('supabase:connect', root, false, err.message);
+    return { ok: false, error: err.message };
+  }
+});
+
+// The database panel's numbers (fixed read-only queries; the window only names the project it connected)
+ipcMain.handle('supabase:stats', async (_e, projectId) => {
+  if (!isProjectRef(projectId)) return { ok: false, error: t.supabase.notChosen };
+  if (!supabaseLink().signedIn()) return { ok: false, error: 'signed-out' };
+  try {
+    const stats = await supabaseLink().stats(projectId);
+    return { ok: true, data: { ...stats, limitBytes: planLimitBytes(stats.plan) } };
+  } catch (err) {
+    log('supabase:stats', projectId, false, err.message);
+    return { ok: false, error: err.message };
+  }
+});
+
+// Which Supabase project the open folder already uses (connected before, or set up by hand): main reads the
+// URL line of its env files and returns only the project ref, never a key
+ipcMain.handle('supabase:linked', async () => {
+  if (!workspace.root) return { ok: false, error: t.mcp.noProject };
+  for (const name of ['.env.local', '.env']) {
+    const ref = refFromEnv(await fs.readFile(path.join(workspace.root, name), 'utf8').catch(() => ''));
+    if (ref) return { ok: true, data: { projectId: ref } };
+  }
+  return { ok: true, data: null };
+});
+
+// "Abrir en Supabase": main builds the dashboard address from a checked project ref
+ipcMain.handle('supabase:dashboard', async (_e, projectId) => {
+  if (!isProjectRef(projectId)) return { ok: false };
+  await shell.openExternal(`https://supabase.com/dashboard/project/${projectId}`);
+  return { ok: true };
+});
+
+ipcMain.handle('supabase:signOut', async () => {
+  await supabaseLink().signOut();
+  log('supabase:signout', '', true);
+  return { ok: true };
+});
 ipcMain.handle('keys:set', (_e, provider, value) => {
   const result = keys().set(String(provider), value);
   log('keys:set', String(provider), result.ok, result.error); // the provider, never the key
@@ -805,11 +963,14 @@ ipcMain.handle('agents:detect', async () => {
   return { ok: true, data: list };
 });
 ipcMain.handle('agents:login', (_e, id) => ({ ok: agents.login(String(id)) }));
-ipcMain.handle('agents:run', (_e, req) => {
+ipcMain.handle('agents:run', async (_e, req) => {
   if (!mcp.running) return { ok: false, error: t.mcp.windowClosed };
+  // The system proxy, asked on every run: VPN apps like Psiphon change their port each time they start
+  const proxyEnv = agents.proxyEnvFor(await electronSession.defaultSession.resolveProxy('https://api.anthropic.com').catch(() => ''));
   const runId = `${Date.now()}-${++requestSeq}`;
   const model = /^(?!-)[a-zA-Z0-9.\-_]{0,40}$/.test(String(req?.model ?? '')) ? String(req.model ?? '') : '';
   const effort = ['low', 'medium', 'high', 'xhigh', 'max'].includes(req?.effort) ? req.effort : 'low';
+  const session = SESSIONS.includes(req?.session) ? req.session : 'chat';
   // The chat sends its voice (Vibe/Dev + recent messages): the prompt comes from agent/voice.json and the
   // mode's skill, read on every run so the team can tune them without restarting
   let systemPrompt = String(req?.systemPrompt ?? '');
@@ -818,14 +979,17 @@ ipcMain.handle('agents:run', (_e, req) => {
       const voice = loadVoice(AGENT_DIR);
       systemPrompt = req.voice.purpose === 'refine'
         ? composeRefinePrompt(voice, { mode: req.voice.mode }) // "Mejorar mi mensaje"
-        : composePrompt(voice, { mode: req.voice.mode, recent: req.voice.recent, task: systemPrompt });
+        : req.voice.purpose === 'tour'
+          ? composeTourPrompt(voice, { mode: req.voice.mode }) // "Recorrido"
+          : composePrompt(voice, { mode: req.voice.mode, recent: req.voice.recent, task: systemPrompt });
     } catch (error) {
       console.error('agent/voice.json:', error.message); // keep the plain prompt
     }
   }
   const child = agents.run(
     String(req?.agent),
-    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: mcp.url, continued: Boolean(req?.continued), model, effort, session: SESSIONS.includes(req?.session) ? req.session : 'chat', env: agentKeyEnv(String(req?.agent)) },
+    // a tour or a question to understand only explains: its agent gets the read-only address of the MCP server
+    { prompt: String(req?.prompt ?? ''), systemPrompt, mcpUrl: session === 'tour' || req?.readOnly === true ? mcp.readOnlyUrl : mcp.url, continued: Boolean(req?.continued) && session !== 'tour', model, effort, session, env: agentKeyEnv(String(req?.agent)), proxyEnv },
     (event) => {
       if (event.type === 'done') agentRuns.delete(runId);
       send('agents:event', { runId, ...event });
