@@ -34,15 +34,16 @@ export function Composer({ vm }: { vm: ChatViewModel }) {
 
   function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
     if (e.nativeEvent.isComposing) return;
+    // Enter sends the text as typed, unless the person picked a suggestion with the arrows
+    const enterAccepts = e.key === "Enter" && vm.completionPicked;
     if (listOpen && !e.shiftKey) {
       const handled: Record<string, () => void> = {
         ArrowDown: () => vm.moveCompletion(1),
         ArrowUp: () => vm.moveCompletion(-1),
         Tab: () => vm.acceptCompletion(),
-        Enter: () => vm.acceptCompletion(),
         Escape: () => vm.dismissCompletions(),
       };
-      const act = handled[e.key];
+      const act = enterAccepts ? () => vm.acceptCompletion() : handled[e.key];
       if (act) {
         e.preventDefault();
         act();

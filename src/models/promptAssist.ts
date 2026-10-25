@@ -32,6 +32,7 @@ export function analyzePrompt(text: string): PromptHint[] {
   return hints;
 }
 
+// Suggestions only: nothing here edits the text; the person has to pick one (see applyCompletion)
 // The word being typed (after a "@" it can be shorter) -> parts whose name starts with it, or has a word that does
 export function completions(text: string, parts: PartName[]): Completion[] {
   const draft = String(text ?? "");
@@ -40,6 +41,8 @@ export function completions(text: string, parts: PartName[]): Completion[] {
   const at = token.startsWith("@");
   const query = fold(at ? token.slice(1) : token);
   if (!query || (!at && query.length < MIN_QUERY)) return [];
+  // The word is already a whole part name: nothing to complete, and never rewrite its case
+  if (parts.some((p) => fold(p.name) === query || wordsOf(p.name).includes(query))) return [];
   const starts = (name: string) => fold(name).startsWith(query);
   const inside = (name: string) => wordsOf(name).some((w) => w.startsWith(query));
   const first = parts.filter((p) => starts(p.name));
